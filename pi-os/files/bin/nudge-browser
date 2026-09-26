@@ -1,6 +1,23 @@
 #!/bin/sh
 # Chromium tuned for a Pi 3 / 4 wall screen: one window, no UI, small memory footprint.
+# Works out which Pi it's on each start, so the same SD card is right in any model.
 CHROME=$(command -v chromium || command -v chromium-browser)
+MODEL=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null)
+MEM=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+
+EXTRA=""
+# 1 GB boards (Pi 3): Chromium's low-memory mode and a single renderer.
+if [ "${MEM:-0}" -le 1100 ]; then
+  EXTRA="--enable-low-end-device-mode --renderer-process-limit=1 --js-flags=--max-old-space-size=128"
+else
+  EXTRA="--renderer-process-limit=2 --js-flags=--max-old-space-size=192"
+fi
+# Pi 4 / 5: let the GPU draw the animations.
+case "$MODEL" in
+  *"Pi 4"*|*"Pi 5"*|*"Pi 400"*|*"Compute Module 4"*|*"Compute Module 5"*) EXTRA="$EXTRA --ignore-gpu-blocklist --enable-gpu-rasterization" ;;
+esac
+
+# shellcheck disable=SC2086
 exec "$CHROME" \
   --kiosk --app=http://127.0.0.1:8788/screen/ \
   --ozone-platform=wayland \
@@ -9,8 +26,8 @@ exec "$CHROME" \
   --disable-background-networking --disable-sync --disable-component-update \
   --check-for-update-interval=31536000 \
   --password-store=basic --use-mock-keychain \
-  --renderer-process-limit=2 --js-flags=--max-old-space-size=192 \
   --disk-cache-dir=/tmp/nudge-chromium-cache --disk-cache-size=33554432 \
-  --overscroll-history-navigation=0 --disable-pinch \
+  --overscroll-history-navigation=0 --disable-pinch --disable-smooth-scrolling \
   --autoplay-policy=no-user-gesture-required \
-  --user-data-dir=/home/kiosk/.config/nudge-chromium
+  --user-data-dir=/home/kiosk/.config/nudge-chromium \
+  $EXTRA $KIOSK_FLAGS

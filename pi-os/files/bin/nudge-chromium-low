@@ -1,0 +1,5 @@
+#!/bin/sh
+# Chromium for the hub's school reader, at low CPU and disk priority, so reading school pages
+# never makes the wall screen or the buttons feel slow (matters most on a Pi 3).
+CHROME=$(command -v chromium || command -v chromium-browser)
+exec nice -n 12 ionice -c 2 -n 7 "$CHROME" "$@"

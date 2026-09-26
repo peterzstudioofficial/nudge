@@ -8,7 +8,8 @@ Type=simple
 User=nudge
 Group=nudge
 EnvironmentFile=/etc/nudge/hub.env
-ExecStart=/opt/nudge/node/bin/node --no-warnings=ExperimentalWarning /opt/nudge/hub/hub.mjs
+# A small heap is plenty for the hub and keeps garbage collection quick on a Pi.
+ExecStart=/opt/nudge/node/bin/node --no-warnings=ExperimentalWarning --max-old-space-size=160 /opt/nudge/hub/hub.mjs
 WorkingDirectory=/opt/nudge/hub
 Environment=HOME=/var/lib/nudge
 Restart=always

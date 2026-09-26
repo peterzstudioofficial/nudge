@@ -16,6 +16,8 @@ UtmpIdentifier=tty1
 UtmpMode=user
 Environment=XDG_RUNTIME_DIR=/run/user/%U
 Environment=WLR_LIBINPUT_NO_DEVICES=1
+# Optional: KIOSK_FLAGS="…" in /etc/nudge/kiosk.env adds Chromium flags.
+EnvironmentFile=-/etc/nudge/kiosk.env
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do curl -sf http://127.0.0.1:8788/api/health >/dev/null && exit 0; sleep 1; done; exit 0'
 ExecStart=/usr/bin/cage -d -s -- /opt/nudge/bin/nudge-browser
 Restart=always

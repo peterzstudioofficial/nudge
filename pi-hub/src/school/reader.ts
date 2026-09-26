@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import crypto from "node:crypto";
 import { classifySchoolText, type SchoolItem, type SchoolStatus, parseTermDatesText, subjectFromSender } from "@nudge/shared";
 import type { Browser, BrowserContext, Page } from "playwright-core";
@@ -251,10 +252,32 @@ export function schoolReader(o: ReaderOptions): SchoolService {
     };
   }
 
+  /**
+   * Why a scheduled run should wait, if it should: not while a focus session is running (unless
+   * school data is over 3 hours old), and not when the Pi is short of memory (a Pi 3 has 1 GB,
+   * and headless Chromium needs ~250 MB on top of the wall's own browser).
+   */
+  const holdOff = (): string | null => {
+    const sess = hub.session();
+    const lastOk = hub.db.kvGet<{ lastOk?: number | null }>("schoolStatus", {}).lastOk ?? 0;
+    if (sess?.state === "running" && Date.now() - lastOk < 3 * 3600_000) return "focus session running";
+    const free = memAvailableMb();
+    if (free !== null && free < 280) return `only ${free} MB free`;
+    return null;
+  };
+
   const svc: SchoolService = {
     status,
     async refresh(reason: string) {
       if (running) return;
+      // Scheduled runs make way for the Pi's real job (manual "read now" always runs).
+      if (reason === "scheduled") {
+        const why = holdOff();
+        if (why) {
+          o.log(`school run skipped: ${why}`);
+          return;
+        }
+      }
       running = true;
       hub.bus.changed("school");
       const started = Date.now();
@@ -313,5 +336,15 @@ export async function refreshTermDates(hub: Hub, log: (m: string) => void): Prom
     log(`term dates refreshed from the school site (${parsed.length} terms)`);
   } catch {
     /* offline or blocked — keep what we have */
+  }
+}
+
+/** MemAvailable from /proc/meminfo (Linux only; null elsewhere). */
+function memAvailableMb(): number | null {
+  try {
+    const m = fs.readFileSync("/proc/meminfo", "utf8").match(/MemAvailable:\s+(\d+) kB/);
+    return m ? Math.round(Number(m[1]) / 1024) : null;
+  } catch {
+    return null;
   }
 }

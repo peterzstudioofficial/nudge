@@ -30,6 +30,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: icon font has every icon the code uses
+        run: pip install -q fonttools brotli && python3 scripts/subset-icons.py --check
 
   pi:
     name: Pi bundle
@@ -45,6 +47,27 @@ jobs:
         with:
           name: nudge-pi
           path: pi-os/deploy/nudge-pi.tar.gz
+
+  pi-install:
+    name: Pi installer (real run in Debian)
+    needs: pi
+    runs-on: ubuntu-latest
+    container: debian:bookworm
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: nudge-pi }
+      - run: apt-get update -qq && apt-get install -y -qq curl ca-certificates xz-utils systemd procps
+      - run: tar xzf nudge-pi.tar.gz && bash nudge-pi/install.sh --image --no-tailscale
+      - name: installed hub starts and serves the wall
+        run: |
+          test -x /opt/nudge/node/bin/node && test -f /opt/nudge/hub/hub.mjs && test -f /etc/systemd/system/nudge-hub.service
+          set -a; . /etc/nudge/hub.env; set +a
+          cd /opt/nudge/hub
+          (timeout 40 runuser -u nudge -- /opt/nudge/node/bin/node --max-old-space-size=160 hub.mjs > /tmp/hub.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8788/api/health && break; sleep 1; done
+          curl -sf http://127.0.0.1:8788/screen/ > /dev/null
+          curl -sf -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:8788/api/homework/plan > /dev/null
+          cat /tmp/hub.log
 
   windows:
     name: Windows installer

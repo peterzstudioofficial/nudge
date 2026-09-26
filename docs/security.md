@@ -44,6 +44,17 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
   tasks, reminders, email drafts) becomes an **ask** that Peter approves on the wall or phone.
 - It won't interrupt a focus session. Questions asked mid-session are answered after it.
 
+## Phone lock (Android)
+
+- It only asks the hub one thing: is a session running? It sends this phone's own device key
+  to `/api/session/lock` and nothing else.
+- Which app is open is checked on the phone, through Android's usage access. It's never sent
+  anywhere.
+- If the hub can't be reached, the lock opens. It never locks anyone out because of the
+  network.
+- It can't be switched off from the phone mid-session, and it restarts after a reboot. Phone,
+  messages, maps and school apps are always allowed.
+
 ## On the Pi
 
 - Services run as `nudge` and `kiosk`, users that can't log in. The hub runs under systemd

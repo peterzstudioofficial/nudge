@@ -9,8 +9,16 @@ There's no desktop. The Pi boots straight into the screen, full-screen, in about
 | School reader (headless Chromium every 30–60 min) | ✓ slower (about 40 s per run, uses swap) | ✓ (about 10 s) |
 | Assistant, voice | ✓ | ✓ |
 
-Pi 3 works because the reader only runs on a schedule, and compressed RAM swap (zram) absorbs
-the spikes. If the screen ever stutters while the reader is running, a Pi 4 fixes it.
+A Pi 3 manages this for a few reasons:
+
+- The school reader only runs on a schedule. It runs at low CPU and disk priority, skips a run
+  when there's less than 280 MB free, and waits until a focus session ends unless its data is
+  over 3 hours old.
+- The wall's browser switches itself to low-memory mode on 1 GB boards. On a Pi 4 or 5 it uses
+  the GPU instead.
+- Compressed RAM swap (zram) absorbs memory spikes, and /tmp lives in RAM to spare the SD card.
+
+If the screen ever stutters, a Pi 4 fixes it.
 
 ## Install: pick one
 

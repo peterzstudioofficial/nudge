@@ -59,9 +59,13 @@ install_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends \
-    ca-certificates curl xz-utils gnupg cage seatd fonts-noto-color-emoji \
-    python3 python3-venv python3-pip python3-dev python3-gpiozero python3-lgpio python3-websockets python3-evdev \
-    gcc libc6-dev ufw unattended-upgrades zram-tools alsa-utils rfkill
+    ca-certificates curl xz-utils gnupg cage \
+    python3 python3-venv python3-pip python3-dev python3-websockets python3-evdev \
+    gcc libc6-dev ufw unattended-upgrades alsa-utils util-linux
+  # Nice-to-haves (some only exist in the Raspberry Pi repo): skip any that aren't there.
+  for pkg in seatd fonts-noto-color-emoji python3-gpiozero python3-lgpio zram-tools rfkill; do
+    apt-get install -y -qq --no-install-recommends "$pkg" >/dev/null 2>&1 || warn "optional package $pkg not available"
+  done
   apt-get install -y -qq --no-install-recommends chromium 2>/dev/null \
     || apt-get install -y -qq --no-install-recommends chromium-browser \
     || die "couldn't install Chromium"
@@ -138,7 +142,8 @@ install_app() {
     install -m 600 -o root -g root "$HERE/files/etc/hub.env" /etc/nudge/hub.env
   fi
   local chrome; chrome=$(command -v chromium || command -v chromium-browser || true)
-  [ -n "$chrome" ] && sed -i "s#^NUDGE_CHROMIUM=.*#NUDGE_CHROMIUM=$chrome#" /etc/nudge/hub.env
+  # The school reader's Chromium runs at low CPU/disk priority so the wall never stutters.
+  [ -n "$chrome" ] && sed -i "s#^NUDGE_CHROMIUM=.*#NUDGE_CHROMIUM=/opt/nudge/bin/nudge-chromium-low#" /etc/nudge/hub.env
   [ -f /etc/nudge/gpio.env ] || install -m 644 "$HERE/files/etc/gpio.env" /etc/nudge/gpio.env
 
   # Python side: system gpiozero/evdev/websockets + LED driver in a venv.
@@ -166,8 +171,8 @@ install_services() {
   say "Setting up services"
   install -m 644 "$HERE"/files/systemd/* /etc/systemd/system/
   if [ "$MODE" != image ]; then systemctl daemon-reload; fi
-  systemctl enable nudge-hub nudge-kiosk nudge-gpio nudge-firstboot nudge-cert.timer >/dev/null 2>&1
-  systemctl set-default graphical.target >/dev/null
+  systemctl enable nudge-hub nudge-kiosk nudge-gpio nudge-firstboot nudge-cert.timer >/dev/null 2>&1 || warn "couldn't enable the services"
+  systemctl set-default graphical.target >/dev/null 2>&1 || true
   # Stop the Lite console auto-login fighting the kiosk for the screen.
   systemctl disable getty@tty1 >/dev/null 2>&1 || true
   [ -f "$BOOT/nudge.txt" ] || install -m 600 "$HERE/files/nudge.txt" "$BOOT/nudge.txt" 2>/dev/null || true
@@ -230,12 +235,15 @@ tune() {
   printf 'ALGO=zstd\nPERCENT=50\nPRIORITY=100\n' > /etc/default/zramswap
   systemctl enable zramswap >/dev/null 2>&1 || true
   systemctl disable dphys-swapfile >/dev/null 2>&1 || true
+  # /tmp in RAM: browser caches and temp files stop wearing the SD card.
+  [ -f /usr/share/systemd/tmp.mount ] && [ ! -e /etc/systemd/system/tmp.mount ] && cp /usr/share/systemd/tmp.mount /etc/systemd/system/tmp.mount
+  systemctl enable tmp.mount >/dev/null 2>&1 || true
   mkdir -p /etc/systemd/journald.conf.d
   printf '[Journal]\nSystemMaxUse=48M\nMaxRetentionSec=2week\nCompress=yes\n' > /etc/systemd/journald.conf.d/nudge.conf
 
   hostnamectl set-hostname "$HOST" 2>/dev/null || echo "$HOST" > /etc/hostname
-  sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$HOST/" /etc/hosts
-  grep -q "127.0.1.1" /etc/hosts || echo -e "127.0.1.1\t$HOST" >> /etc/hosts
+  sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$HOST/" /etc/hosts 2>/dev/null || true
+  grep -q "127.0.1.1" /etc/hosts || echo -e "127.0.1.1\t$HOST" >> /etc/hosts 2>/dev/null || true
   timedatectl set-timezone Europe/London 2>/dev/null || ln -sf /usr/share/zoneinfo/Europe/London /etc/localtime
 
   local cfg="$BOOT/config.txt" cmd="$BOOT/cmdline.txt"

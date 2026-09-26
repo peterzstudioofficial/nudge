@@ -68,6 +68,18 @@ Tag a version (`git tag v0.1.0 && git push --tags`) to get all of them on a GitH
 The apps also work straight from the Pi in any browser: `http://nudge.local:8787/app/`. Use
 *Add to home screen* to install them.
 
+### Android extras
+
+- **Phone lock**: in the my app go to settings → **phone lock**. Android asks for two
+  permissions: *usage access* (so Nudge can see which app is open) and *display over other
+  apps*. During a focus session any other app is covered by Nudge's lock screen. Calls,
+  messages, maps and school apps (Teams, Outlook, SharePoint, OneDrive) stay open. It comes back
+  after a restart, and it can't be switched off while a session is running. If the phone can't
+  reach the wall, it unlocks, so it never traps you when the Wi-Fi drops.
+- **Google Keep**: in settings, turn on **google keep** and every note gets a send-to-Keep button.
+  Google has no Keep API for personal accounts, so this is a one-tap share rather than an
+  automatic sync.
+
 ### Windows extras
 
 - **School sign-in**: tray → *Sign in to school…*. It opens the real Microsoft login (MFA works). Only the resulting
@@ -75,7 +87,7 @@ The apps also work straight from the Pi in any browser: `http://nudge.local:8787
 - **Browser blocker**: tray → *Browser blocker → Open the extension folder*. In Chrome or Edge go to
   `chrome://extensions`, turn on Developer mode, then *Load unpacked* and pick that folder. It
   blocks the sites in your block list during focus sessions. YouTube stays open only for videos
-  that match what you're working on.
+  that match what you're working on. Click its toolbar icon to see what's blocked right now.
 
 ## Your school setup
 
