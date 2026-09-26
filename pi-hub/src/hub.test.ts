@@ -162,3 +162,53 @@ describe("school guard", () => {
     expect(new Date(mailTime("Mon 12:30", now)).getDay()).toBe(1);
   });
 });
+
+describe("school week + homework", () => {
+  const TT = {
+    A4: [{ subject: "art", span: 2 }, { subject: "maths", span: 2 }, { subject: "games", span: 2 }],
+    B2: [{ subject: "maths", span: 2 }],
+    A3: [{ subject: "maths", span: 2 }],
+    B4: [{ subject: "maths", span: 2 }, { subject: "art", span: 2 }],
+    A1: [{ subject: "art", span: 2 }],
+    B1: [{ subject: "art", span: 2 }],
+  };
+  // Thursday 10 Sep 2026, week A, after school.
+  const thursdayA = () => {
+    const { hub, tick } = setup(new Date(2026, 8, 10, 16, 10).getTime());
+    hub.setTimetable(TT);
+    hub.setHomeworkPlan({ on: true, weeklyMinsPerSubject: 60, days: { A4: ["maths", "art"], A1: ["art"] } });
+    return { hub, tick };
+  };
+
+  it("knows the week letter and bell times", () => {
+    const { hub } = thursdayA();
+    expect(hub.dayState("2026-09-10").week).toBe("A");
+    expect(hub.lessonsOn("2026-09-10").map((l) => `${l.subject} ${l.start}`)).toEqual(["art 09:00", "maths 10:40", "games 13:10"]);
+    expect(hub.kitLine("2026-09-10")).toBe("games kit");
+  });
+
+  it("adds expected homework due at the next lesson, once", () => {
+    const { hub } = thursdayA();
+    const made = hub.planHomework();
+    const maths = made.find((t) => t.subject === "maths")!;
+    expect(maths).toMatchObject({ expected: true, due: "2026-09-15", mins: 60, source: "school" }); // Tue, week B
+    expect(made.find((t) => t.subject === "art")?.mins).toBe(30); // art set twice in week A
+    expect(hub.planHomework()).toEqual([]);
+  });
+
+  it("'not set' removes expected homework without using a skip", () => {
+    const { hub } = thursdayA();
+    const [t] = hub.planHomework();
+    hub.skipTask(t.id);
+    expect(hub.dayState(hub.todayKey()).skipsUsed).toBe(0);
+    hub.homeworkNotSet(t.id);
+    expect(hub.tasks.get(t.id)).toBeNull();
+  });
+
+  it("does nothing on days off", () => {
+    const { hub } = setup(new Date(2026, 9, 27, 16, 10).getTime()); // half term
+    hub.setTimetable(TT);
+    hub.setHomeworkPlan({ on: true, weeklyMinsPerSubject: 60, days: { "2": ["maths"] } });
+    expect(hub.planHomework()).toEqual([]);
+  });
+});

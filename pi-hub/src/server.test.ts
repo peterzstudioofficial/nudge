@@ -100,3 +100,29 @@ describe("idempotency", () => {
     expect(hub.listNotes().length).toBe(before + 1);
   });
 });
+
+describe("school setup", () => {
+  it("imports a setup file and keeps staff away from parents", async () => {
+    const owner = auth.pair(auth.createCode("owner", "test").code, "phone", "100.1.1.1").token;
+    const parent = auth.pair(auth.createCode("parent", "test").code, "dad", "100.1.1.2").token;
+    const pack = {
+      timetable: { A1: [{ subject: "drama", span: 2, teacher: "NEC", room: "O45" }] },
+      teachers: [{ name: "Nicola Clements", role: "Teacher of Drama" }],
+      birthdays: [{ name: "Genna", date: "09-17" }],
+      settings: { yearGroup: "5th Year" },
+    };
+    expect((await inject("POST", "/api/config/import", { token: parent, body: pack })).statusCode).toBe(403);
+    const r = await inject("POST", "/api/config/import", { token: owner, body: pack });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().imported).toEqual(expect.arrayContaining(["timetable", "1 staff", "1 birthdays"]));
+    expect((await inject("GET", "/api/config/teachers", { token: parent })).statusCode).toBe(403);
+    const t = await inject("GET", "/api/config/teachers", { token: owner });
+    expect(t.json().matches).toEqual([{ code: "NEC", subject: "drama", name: "Nicola Clements" }]);
+  });
+
+  it("refuses a calendar upload that isn't a PDF", async () => {
+    const owner = auth.pair(auth.createCode("owner", "test").code, "phone2", "100.1.1.3").token;
+    const r = await app.inject({ method: "POST", url: "/api/config/calendar", remoteAddress: "100.101.102.103", headers: { authorization: "Bearer " + owner, "content-type": "application/pdf" }, payload: Buffer.from("hello") });
+    expect(r.statusCode).toBe(400);
+  });
+});

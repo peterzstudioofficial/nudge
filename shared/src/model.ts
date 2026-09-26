@@ -39,6 +39,10 @@ export const Task = z.object({
   /** seconds of real work kept against this task (survives switching / pausing) */
   spentSec: z.number().int().min(0),
   note: z.string().max(200).default(""),
+  /** homework the timetable says was probably set today; "not set" removes it for free */
+  expected: z.boolean().optional(),
+  /** when it's handed in (homework) */
+  due: DateKey.nullable().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -275,10 +279,63 @@ export const Handoff = z.object({
 });
 export type Handoff = z.infer<typeof Handoff>;
 
-export const Period = z.object({ subject: z.string().max(24), span: z.number().int().min(1).max(3) });
-/** keyed by ISO weekday "1".."5" */
-export const Timetable = z.record(z.string(), z.array(Period));
+export const Period = z.object({
+  subject: z.string().max(24),
+  span: z.number().int().min(1).max(3),
+  room: z.string().max(12).optional(),
+  /** teacher code as printed on the timetable, e.g. "NEC" */
+  teacher: z.string().max(8).optional(),
+});
+export type Period = z.infer<typeof Period>;
+/**
+ * Keyed by ISO weekday: "A1".."A5" and "B1".."B5" for a two-week timetable, or plain "1".."5"
+ * when every week is the same. Week-specific keys win.
+ */
+export const Timetable = z.record(z.string().regex(/^[AB]?[1-7]$/), z.array(Period).max(10));
 export type Timetable = z.infer<typeof Timetable>;
+
+const hm = z.string().regex(/^\d{2}:\d{2}$/);
+/** The school's bell times. Lessons in the timetable fill these slots in order (a double takes two). */
+export const SchoolDay = z.object({
+  reg: z.object({ start: hm, end: hm }),
+  slots: z.array(z.object({ start: hm, end: hm })).min(1).max(10),
+  breaks: z.array(z.object({ label: z.string().max(20), start: hm, end: hm })).max(6),
+});
+export type SchoolDay = z.infer<typeof SchoolDay>;
+
+/** What happens in registration / form time, keyed by ISO weekday "1".."5". */
+export const FormTime = z.record(z.string().regex(/^[1-5]$/), z.string().max(40));
+export type FormTime = z.infer<typeof FormTime>;
+
+/** Which subjects set homework on which day. Same keys as the timetable ("A1", "B4" or "3"). */
+export const HomeworkPlan = z.object({
+  days: z.record(z.string().regex(/^[AB]?[1-7]$/), z.array(z.string().max(24)).max(8)),
+  /** most minutes of homework per subject per week; split between the times it's set */
+  weeklyMinsPerSubject: z.number().int().min(10).max(240),
+  on: z.boolean(),
+});
+export type HomeworkPlan = z.infer<typeof HomeworkPlan>;
+
+/** Staff directory (stays on the Pi; owner devices only). */
+export const Teacher = z.object({
+  name: z.string().max(60),
+  role: z.string().max(160),
+  /** timetable code if known, e.g. "NEC" */
+  code: z.string().max(8).optional(),
+});
+export type Teacher = z.infer<typeof Teacher>;
+
+/** A date from the school calendar (or added by hand). */
+export const CalEvent = z.object({
+  id: z.string(),
+  date: DateKey,
+  time: hm.nullable(),
+  title: z.string().max(160),
+  /** "term", "5th year", "exam", "parents", "creative", "house", "school" … */
+  tags: z.array(z.string().max(20)).max(6),
+  source: z.enum(["calendar", "self"]),
+});
+export type CalEvent = z.infer<typeof CalEvent>;
 
 export const Birthday = z.object({ name: z.string().max(40), date: z.string().regex(/^\d{2}-\d{2}$/) });
 export type Birthday = z.infer<typeof Birthday>;
@@ -292,6 +349,8 @@ export const TermDate = z.object({
   breaks: z.array(z.object({ label: z.string(), start: DateKey, end: DateKey })),
   confirmed: z.boolean(),
   note: z.string().default(""),
+  /** two-week timetables: the letter of the term's first teaching week (default A) */
+  abStart: z.enum(["A", "B"]).optional(),
 });
 export type TermDate = z.infer<typeof TermDate>;
 
@@ -326,6 +385,12 @@ export const Settings = z.object({
   schoolMail: z.boolean(),
   schoolMailSenders: z.array(z.string().max(120)).max(50),
   aiModel: z.string().max(60),
+  /** e.g. "5th Year" — picks out the calendar events that matter */
+  yearGroup: z.string().max(20),
+  /** house name, e.g. "Grenville" (optional) */
+  house: z.string().max(20),
+  /** a few lines about the student, given to the assistant */
+  profile: z.string().max(800),
 });
 export type Settings = z.infer<typeof Settings>;
 
@@ -337,7 +402,7 @@ export const PARENT_SETTINGS: (keyof Settings)[] = [
 export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
-  "schoolMail", "schoolMailSenders", "aiModel",
+  "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile",
 ];
 
 export const Device = z.object({
@@ -359,6 +424,8 @@ export const DayState = z.object({
   sick: z.enum(["ill", "hurt", "flat"]).nullable(),
   skipsUsed: z.number().int(),
   lieIn: z.boolean(),
+  /** week A / B of a two-week timetable (null outside term) */
+  week: z.enum(["A", "B"]).nullable(),
 });
 export type DayState = z.infer<typeof DayState>;
 
@@ -398,7 +465,11 @@ export interface Snapshot {
   reward: Reward;
   nextReward: { name: string; goal: number; icon: string } | null;
   settings: Settings;
-  timetable: { subject: string; span: number }[];
+  timetable: { subject: string; span: number; start: string; end: string; room?: string; teacher?: string }[];
+  /** registration / form time activity today, e.g. "PSHE" */
+  formTime: string;
+  /** school calendar dates in the next week */
+  events: CalEvent[];
   weather: Weather | null;
   news: string;
   birthday: { name: string; inDays: number } | null;

@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import {
   addDays, dateKey, DAY_SHORT, hhmm, MONTH_LONG, MONTH_SHORT, parseDateKey, tint, type Snapshot, type DayState, type Task,
-  type Settings,
+  type Settings, type CalEvent, type Birthday, SUBJECT_NAMES, dueLabel, relativeDay,
 } from "@nudge/shared";
 import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
-import { D, DOTO, Ms, toast, toastError } from "../lib/ui";
+import { D, DOTO, Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
 
@@ -64,6 +64,17 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
 
 function Today({ snap }: { snap: Snapshot }) {
   const now = new Date();
+  const client = getClient("owner")!;
+  const notSet = async (id: string, name: string) => {
+    if (!confirm(`No ${name.toLowerCase()} was set? It'll be removed (doesn't use a skip).`)) return;
+    try {
+      await client.send("POST", `/api/tasks/${id}/notset`);
+      toast("check_circle", "removed");
+      void client.snapshot();
+    } catch (e) {
+      toastError(e);
+    }
+  };
   const tasks = snap.tasks;
   const done = tasks.filter((t) => t.done).length;
   const rows = useMemo(() => timeline(snap), [snap]);
@@ -93,6 +104,8 @@ function Today({ snap }: { snap: Snapshot }) {
         </div>
       )}
 
+      <SchoolStrip snap={snap} />
+
       <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 16 }}>
         {rows.length === 0 && <span style={{ fontSize: 11, color: "#8e8e97", padding: "14px 2px" }}>nothing set for today{snap.today.kind === "sick" ? " — rest up" : ""}.</span>}
         {rows.map((t, i) => (
@@ -100,6 +113,10 @@ function Today({ snap }: { snap: Snapshot }) {
             <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: tint(t.subject) }} />
             <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, flex: "none", width: 36, paddingLeft: 5, color: t.now ? "#ff4d17" : "#8e8e97" }}>{t.time}</span>
             <span style={{ fontSize: 12, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: t.done ? "#7a7a84" : t.now ? "#ffffff" : "#dedad4", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
+            {t.due && !t.done && !t.now && <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#8e8e97", flex: "none" }}>DUE {t.due.toUpperCase()}</span>}
+            {t.expected && !t.done && !t.now && (
+              <span className="tap" onClick={() => void notSet(t.id, t.name)} style={{ fontSize: 8, letterSpacing: ".1em", padding: "5px 7px", borderRadius: 7, background: "#26262e", color: "#c9c8c2", flex: "none" }}>NOT SET?</span>
+            )}
             {t.now && t.left && <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 12, color: "#ff4d17" }}>{t.left}</span>}
             {(t.done || t.now) && <Ms style={{ fontSize: 15, flex: "none", color: t.done ? "#6d6d77" : "#ff4d17" }}>{t.done ? "check" : "play_arrow"}</Ms>}
           </div>
@@ -118,6 +135,59 @@ function Today({ snap }: { snap: Snapshot }) {
   );
 }
 
+/** Today's lessons (times + rooms), form time, and the next school-calendar dates. */
+function SchoolStrip({ snap }: { snap: Snapshot }) {
+  const [open, setOpen] = useState(false);
+  const mins = new Date().getHours() * 60 + new Date().getMinutes();
+  const toMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3));
+  const lessons = snap.timetable;
+  const soon = snap.events.filter((e) => e.date > snap.today.date || !e.time || toMin(e.time) >= mins).slice(0, 3);
+  if (!lessons.length && !soon.length) return null;
+  const cur = lessons.find((l) => mins >= toMin(l.start) && mins < toMin(l.end));
+  const next = lessons.find((l) => toMin(l.start) > mins);
+  return (
+    <div style={{ marginBottom: 12 }}>
+      {lessons.length > 0 && (
+        <div className="tap" onClick={() => setOpen(!open)} style={{ padding: "10px 12px", borderRadius: 12, background: "#13131a", marginBottom: 5 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Ms style={{ fontSize: 15, color: "#8e8e97" }}>school</Ms>
+            <span style={{ fontSize: 11, flex: 1, color: "#dedad4" }}>
+              {cur ? `now: ${SUBJECT_NAMES[cur.subject] ?? cur.subject}${cur.room ? " · " + cur.room : ""}` : next ? `next: ${SUBJECT_NAMES[next.subject] ?? next.subject} ${next.start}${next.room ? " · " + next.room : ""}` : "school's done"}
+            </span>
+            <span style={{ fontSize: 8, letterSpacing: ".12em", color: "#8e8e97" }}>{snap.formTime ? snap.formTime.toUpperCase() : ""}</span>
+            <Ms style={{ fontSize: 15, color: "#5f5f67" }}>{open ? "expand_less" : "expand_more"}</Ms>
+          </div>
+          {open && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 9 }}>
+              <div style={{ display: "flex", gap: 10, fontSize: 10, color: "#8e8e97" }}><span style={{ fontFamily: DOTO, fontWeight: 700, width: 36 }}>08:30</span><span>{snap.formTime || "registration"}</span></div>
+              {lessons.map((l, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: l === cur ? "#ff4d17" : "#c9c8c2" }}>
+                  <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, width: 36 }}>{l.start}</span>
+                  <span style={{ width: 3, height: l.span > 1 ? 22 : 12, borderRadius: 2, background: tint(l.subject) }} />
+                  <span style={{ flex: 1 }}>{SUBJECT_NAMES[l.subject] ?? l.subject}{l.span > 1 ? " ×2" : ""}</span>
+                  <span style={{ fontSize: 9, color: "#8e8e97" }}>{[l.room, l.teacher].filter(Boolean).join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {soon.map((e) => <EventRow key={e.id} e={e} today={snap.today.date} />)}
+    </div>
+  );
+}
+
+function EventRow({ e, today }: { e: CalEvent; today: string }) {
+  const hot = e.tags.includes("exam") || e.tags.includes("term");
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "#b6b5af" }}>
+      <Ms style={{ fontSize: 14, color: hot ? "#ff4d17" : "#6d6d77" }}>{e.tags.includes("exam") ? "edit_note" : e.tags.includes("term") ? "event" : e.tags.includes("creative") ? "palette" : e.tags.includes("parents") ? "family_restroom" : "campaign"}</Ms>
+      <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
+      <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#6d6d77", flex: "none" }}>{relativeDay(e.date, today).toUpperCase()}{e.time ? " " + e.time : ""}</span>
+    </div>
+  );
+}
+
 function Stat({ v, k }: { v: string; k: string }) {
   return (
     <div style={{ flex: 1, padding: "13px 12px", borderRadius: 14, background: "#13131a", display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
@@ -128,6 +198,7 @@ function Stat({ v, k }: { v: string; k: string }) {
 }
 
 function kindLabel(d: DayState): string {
+  if (d.kind === "school" && d.week) return `SCHOOL · WEEK ${d.week}`;
   return { school: "SCHOOL", weekend: d.lieIn ? "LIE IN" : "WEEKEND", halfterm: "HALF TERM", holiday: "HOLIDAY", away: "AWAY", sick: "RESTING" }[d.kind];
 }
 
@@ -154,7 +225,8 @@ function timeline(snap: Snapshot) {
       time = hhmm(cursor);
       cursor += Math.max(1, t.mins - Math.floor(t.spentSec / 60)) + 5;
     }
-    return { id: t.id, name: t.name, subject: t.subject, done: t.done, now: isNow, time, left };
+    const due = t.due ? dueLabel(t.due, snap.today.date) : "";
+    return { id: t.id, name: t.name, subject: t.subject, done: t.done, now: isNow, time, left, expected: !!t.expected, due };
   });
 }
 
@@ -171,7 +243,7 @@ function Plan() {
   const days = new Date(y, m, 0).getDate();
   const from = `${month}-01`;
   const to = `${month}-${String(days).padStart(2, "0")}`;
-  const { data, reload } = useHubGet<{ day: DayState; tasks: Task[] }[]>(client, `/api/calendar?from=${from}&to=${to}`, [month]);
+  const { data, reload } = useHubGet<{ day: DayState; tasks: Task[]; events?: CalEvent[] }[]>(client, `/api/calendar?from=${from}&to=${to}`, [month]);
   const byDate = new Map((data ?? []).map((x) => [x.day.date, x]));
   const selInfo = byDate.get(sel);
   const shift = (n: number) => {
@@ -216,6 +288,7 @@ function Plan() {
             <div key={key} onClick={() => setSel(key)} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: isSel ? "#ff4d17" : off ? "#2a1420" : "#13131a", boxShadow: isToday && !isSel ? "inset 0 0 0 1.5px #ff4d17" : "none", transition: "background-color .3s" }}>
               <span style={{ fontSize: 11, color: isSel ? "#0b0b0d" : off ? "#c98aa8" : info?.day.kind === "weekend" ? "#8e8e97" : "#c9c8c2" }}>{i + 1}</span>
               {info && info.tasks.length > 0 && !isSel && <span style={{ position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%", background: "#ff4d17" }} />}
+              {info?.events?.some((e) => e.tags.includes("exam") || e.tags.includes("year")) && !isSel && <span style={{ position: "absolute", top: 3, right: 4, width: 4, height: 4, borderRadius: 1, background: "#f4f3ef" }} />}
             </div>
           );
         })}
@@ -223,8 +296,9 @@ function Plan() {
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9 }}>
         <span style={{ fontSize: 11 }}>{MONTH_LONG[Number(sel.slice(5, 7)) - 1]} {Number(sel.slice(8))}</span>
         <span style={{ flex: 1, height: 1, background: "#1c1c23" }} />
-        <span style={{ fontSize: 8, letterSpacing: ".14em", color: selDay?.kind === "away" ? "#8a2f5c" : "#8e8e97" }}>{kindText}</span>
+        <span style={{ fontSize: 8, letterSpacing: ".14em", color: selDay?.kind === "away" ? "#8a2f5c" : "#8e8e97" }}>{kindText}{selDay?.week && selDay.kind === "school" ? ` · WEEK ${selDay.week}` : ""}</span>
       </div>
+      {(selInfo?.events ?? []).map((e) => <EventRow key={e.id} e={e} today={today} />)}
       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
         {(selInfo?.tasks ?? []).map((t) => (
           <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: 42, padding: "0 14px", borderRadius: 12, overflow: "hidden", background: "#13131a", animation: "aSlide .26s ease-out" }}>
@@ -249,7 +323,7 @@ function Plan() {
           })}
         </div>
       )}
-      <div style={{ fontSize: 9, color: "#5f5f67", marginTop: 12, lineHeight: 1.5 }}>Term dates: Churcher's College. Days marked “est.” are estimates until the school site is read.</div>
+      <div style={{ fontSize: 9, color: "#5f5f67", marginTop: 12, lineHeight: 1.5 }}>Term dates and weeks A/B: Churcher's College calendar. A white corner mark means a school date for your year.</div>
       <span style={{ display: "none" }}>{addDays(today, 0)}</span>
     </div>
   );
@@ -314,6 +388,9 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
     }
   };
   const [notify, setNotify] = useState(() => typeof Notification !== "undefined" && Notification.permission === "granted");
+  const { data: cfg, reload } = useHubGet<{ birthdays: Birthday[] }>(client, "/api/config");
+  const bdays = cfg?.birthdays;
+  const [bdOpen, setBdOpen] = useState(false);
   const askNotify = async () => {
     if (typeof Notification === "undefined") return toast("notifications_off", "not supported here");
     const r = await Notification.requestPermission();
@@ -331,6 +408,9 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
     ] },
     { head: "SCHOOL", rows: [
       { name: "read school mail", meta: s.schoolMail ? "ON" : "OFF", on: s.schoolMail, go: () => set({ schoolMail: !s.schoolMail }) },
+    ] },
+    { head: "PEOPLE", rows: [
+      { name: "birthdays", meta: `${bdays?.length ?? 0} SAVED`, on: true, go: () => setBdOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
       { name: "reminders", meta: notify ? "ON" : "OFF", on: notify, go: askNotify },
@@ -364,7 +444,70 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
         <Ms style={{ fontSize: 15 }}>link_off</Ms> unpair this phone
       </div>
       <div style={{ fontSize: 9, color: "#43434c", marginTop: 14 }}>{snap.termLabel.toLowerCase()} · nudge 0.1.0</div>
+      <Birthdays open={bdOpen} onClose={() => setBdOpen(false)} list={bdays ?? []} saved={reload} />
     </div>
+  );
+}
+
+/** Birthdays: search, add, change, remove. Dates are typed day/month, like "23/09". */
+function Birthdays({ open, onClose, list, saved }: { open: boolean; onClose: () => void; list: Birthday[]; saved: () => void }) {
+  const client = getClient("owner")!;
+  const [q, setQ] = useState("");
+  const [name, setName] = useState("");
+  const [dm, setDm] = useState("");
+  const toMmdd = (s: string) => {
+    const m = s.trim().match(/^(\d{1,2})[/.-](\d{1,2})$/);
+    if (!m) return null;
+    const d = Number(m[1]), mo = Number(m[2]);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  };
+  const show = (b: Birthday) => `${b.date.slice(3)}/${b.date.slice(0, 2)}`;
+  const put = async (next: Birthday[]) => {
+    try {
+      await client.send("PUT", "/api/config/birthdays", next);
+      saved();
+      void client.snapshot();
+    } catch (e) {
+      toastError(e);
+    }
+  };
+  const add = () => {
+    const date = toMmdd(dm);
+    if (!name.trim() || !date) return toast("error", "a name and a date like 23/09");
+    void put([...list, { name: name.trim().slice(0, 40), date }]).then(() => {
+      setName("");
+      setDm("");
+      toast("cake", "saved");
+    });
+  };
+  // Soonest first, from today.
+  const today = dateKey().slice(5);
+  const sorted = [...list].map((b, i) => ({ b, i })).sort((x, y) => ((x.b.date < today ? "1" : "0") + x.b.date).localeCompare((y.b.date < today ? "1" : "0") + y.b.date));
+  const shown = sorted.filter(({ b }) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <Sheet open={open} onClose={onClose} title="birthdays" dark>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <input style={{ ...inputStyle(true), flex: 1, minWidth: 0 }} placeholder="name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input style={{ ...inputStyle(true), width: 84 }} placeholder="dd/mm" inputMode="numeric" value={dm} onChange={(e) => setDm(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
+        <span className="tap" onClick={add} style={{ width: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "#ff4d17", color: "#0b0b0d" }}><Ms style={{ fontSize: 18 }}>add</Ms></span>
+      </div>
+      <input style={{ ...inputStyle(true), width: "100%", marginBottom: 8, height: 38, fontSize: 12 }} placeholder="search" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div style={{ maxHeight: "48vh", overflowY: "auto" }}>
+        {shown.map(({ b, i }) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, height: 40, boxShadow: "inset 0 -1px 0 #1c1c23" }}>
+            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 11, width: 44, color: "#ff4d17" }}>{show(b)}</span>
+            <span style={{ flex: 1, fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
+            <span className="tap" onClick={() => {
+              const nd = prompt(`New date for ${b.name} (dd/mm)`, show(b));
+              const date = nd ? toMmdd(nd) : null;
+              if (date) void put(list.map((x, j) => (j === i ? { ...x, date } : x)));
+            }}><Ms style={{ fontSize: 15, color: "#6d6d77" }}>edit</Ms></span>
+            <span className="tap" onClick={() => confirm(`Remove ${b.name}?`) && void put(list.filter((_, j) => j !== i))}><Ms style={{ fontSize: 15, color: "#6d6d77" }}>close</Ms></span>
+          </div>
+        ))}
+      </div>
+    </Sheet>
   );
 }
 

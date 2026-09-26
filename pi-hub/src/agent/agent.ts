@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { addDays, dueLabel, searchNotes, type AgentThread, type AgentMode, isoWeekday, parseDateKey, SUBJECT_NAMES } from "@nudge/shared";
+import { addDays, dueLabel, searchNotes, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
 import type { AgentService } from "../context";
 import { type Hub, newId } from "../hub";
 
@@ -53,23 +53,38 @@ export function agentService(o: Opts): AgentService {
       if (thread.origin === "wall") o.say("progress_activity", text, undefined, 30_000);
     };
     const today = () => hub.todayKey();
+    const staff = hub.teachers();
+    const lessonInfo = (l: Lesson) => ({
+      subject: SUBJECT_NAMES[l.subject] ?? l.subject,
+      time: `${l.start}-${l.end}`,
+      double: l.span > 1,
+      room: l.room ?? null,
+      teacher: l.teacher ? (matchTeacher(l.teacher, l.subject, staff)?.name ?? l.teacher) : null,
+    });
+    const openTask = (t: { name: string; subject: string; mins: number; done: boolean; spentSec: number; due?: string | null; expected?: boolean }) => ({
+      name: t.name, subject: t.subject, mins: t.mins, done: t.done, minutes_done: Math.floor(t.spentSec / 60),
+      due: t.due ? `${t.due} (${dueLabel(t.due, today())})` : null,
+      ...(t.expected ? { expected: "timetable says it was set; not confirmed yet" } : {}),
+    });
 
     const getToday = betaZodTool({
       name: "get_today",
-      description: "Today's date, what kind of day it is, the timetable, the task list with progress, and the focus session if one is running.",
+      description: "Today's date, school week (A/B), what kind of day it is, form time, the lessons with times, rooms and teachers, school calendar dates today, the task list with progress, and the focus session if one is running.",
       inputSchema: z.object({}),
       run: async () => {
         step("check today");
         const d = today();
         const day = hub.dayState(d);
-        const tt = hub.timetable()[String(isoWeekday(parseDateKey(d)))] ?? [];
         const s = hub.session();
         return JSON.stringify({
           date: d,
           weekday: parseDateKey(d).toLocaleDateString("en-GB", { weekday: "long" }),
           kind: day.kind,
-          timetable: day.baseKind === "school" ? tt.map((p) => SUBJECT_NAMES[p.subject] ?? p.subject) : [],
-          tasks: hub.listTasks(d).map((t) => ({ name: t.name, subject: t.subject, mins: t.mins, done: t.done, minutes_done: Math.floor(t.spentSec / 60) })),
+          week: day.week ? `Week ${day.week}` : null,
+          form_time: day.baseKind === "school" ? `08:30 ${formTimeOn(d, hub.formTime())}` : null,
+          lessons: hub.lessonsOn(d).map(lessonInfo),
+          calendar: hub.upcomingEvents(d, 1).map((e) => `${e.time ?? "all day"} ${e.title}`),
+          tasks: hub.listTasks(d).map(openTask),
           session: s ? { task: hub.tasks.get(s.taskId)?.name, state: s.state } : null,
         });
       },
@@ -77,7 +92,7 @@ export function agentService(o: Opts): AgentService {
 
     const getWeek = betaZodTool({
       name: "get_week",
-      description: "The next 7 days: day kinds (school / weekend / half term / holiday / away), timetable subjects, tasks already planned, and free evenings.",
+      description: "The next 7 days: day kinds (school / weekend / half term / holiday / away), week A/B, lessons, school calendar dates, tasks already planned (with homework due dates), and free evenings.",
       inputSchema: z.object({}),
       run: async () => {
         step("check the week");
@@ -91,9 +106,11 @@ export function agentService(o: Opts): AgentService {
             date: d,
             weekday: parseDateKey(d).toLocaleDateString("en-GB", { weekday: "long" }),
             kind: day.kind,
-            timetable: day.baseKind === "school" ? (hub.timetable()[String(isoWeekday(parseDateKey(d)))] ?? []).map((p) => SUBJECT_NAMES[p.subject] ?? p.subject) : [],
+            week: day.week,
+            lessons: hub.lessonsOn(d).map((l) => `${l.start} ${SUBJECT_NAMES[l.subject] ?? l.subject}${l.span > 1 ? " (double)" : ""}`),
+            calendar: hub.upcomingEvents(d, 1).map((e) => `${e.time ?? ""} ${e.title}`.trim()),
             planned_minutes: tasks.reduce((a, t) => a + t.mins, 0),
-            tasks: tasks.map((t) => t.name),
+            tasks: tasks.map(openTask),
           });
         }
         return JSON.stringify(out);
@@ -128,7 +145,38 @@ export function agentService(o: Opts): AgentService {
       },
     });
 
-    const list = [getToday, getWeek, getSchool, findNotes];
+    const getCalendar = betaZodTool({
+      name: "get_school_calendar",
+      description: "School calendar dates that matter to the student (term dates, their year group, exams and mocks, parents' evenings, creative events) for the coming weeks. Optionally filter by words.",
+      inputSchema: z.object({ days: z.number().int().min(1).max(200).default(60), query: z.string().max(80).optional() }),
+      run: async ({ days, query }) => {
+        step("check the school calendar");
+        const words = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+        const list = hub.upcomingEvents(today(), days).filter((e) => !words.length || words.some((w) => e.title.toLowerCase().includes(w)));
+        return JSON.stringify(list.slice(0, 40).map((e) => ({ date: e.date, weekday: parseDateKey(e.date).toLocaleDateString("en-GB", { weekday: "short" }), time: e.time, title: e.title, tags: e.tags })));
+      },
+    });
+
+    const getTeachers = betaZodTool({
+      name: "get_teachers",
+      description: "The student's own teachers (subject, timetable code, name) and, if asked, a search of the school staff list by name, subject or job. Use before drafting an email to a teacher. Email addresses are not in the list — never guess one.",
+      inputSchema: z.object({ query: z.string().max(60).optional() }),
+      run: async ({ query }) => {
+        step("check teachers");
+        const mine = new Map<string, { subject: string; code: string; name: string | null }>();
+        for (const periods of Object.values(hub.timetable())) {
+          for (const p of periods) {
+            if (!p.teacher || mine.has(p.teacher)) continue;
+            mine.set(p.teacher, { subject: SUBJECT_NAMES[p.subject] ?? p.subject, code: p.teacher, name: matchTeacher(p.teacher, p.subject, staff)?.name ?? null });
+          }
+        }
+        const q = (query ?? "").toLowerCase();
+        const found = q ? staff.filter((t) => `${t.name} ${t.role}`.toLowerCase().includes(q)).slice(0, 15) : [];
+        return JSON.stringify({ my_teachers: [...mine.values()], staff_matches: found });
+      },
+    });
+
+    const list = [getToday, getWeek, getSchool, findNotes, getCalendar, getTeachers];
     if (mode === "watch") return list;
 
     const saveNote = betaZodTool({
@@ -242,7 +290,9 @@ export function agentService(o: Opts): AgentService {
     const now = new Date();
     const context =
       `Now: ${now.toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}. ` +
-      `Student: ${s.ownerName}. Parent: ${s.parentName}. ${MODE_NOTE[thread.mode]}` +
+      `Student: ${s.ownerName}${s.yearGroup ? `, ${s.yearGroup}` : ""}. Parent: ${s.parentName}. ` +
+      (s.profile ? `About them: ${s.profile.replace(/\s+/g, " ").trim()} ` : "") +
+      `${MODE_NOTE[thread.mode]}` +
       (duringSession
         ? " The student is in a focus session right now. If the request is not about the current task, reply with exactly DEFER and nothing else."
         : "") +

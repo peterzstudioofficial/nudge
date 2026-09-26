@@ -32,3 +32,5 @@ coverage/
 dist-renderer/
 dist-extension/
 __pycache__/
+# personal setup (timetable, birthdays, staff) — never commit
+/private/

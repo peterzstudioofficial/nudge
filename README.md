@@ -77,6 +77,29 @@ The apps also work straight from the Pi in any browser: `http://nudge.local:8787
   blocks the sites in your block list during focus sessions. YouTube stays open only for videos
   that match what you're working on.
 
+## Your school setup
+
+The personal side isn't in this repo: your timetable, homework plan, birthdays and the staff
+list. It lives in one private setup file, `private/nudge-setup.json`, which git ignores.
+
+- **Load it:** on the setup page go to **week → import setup file**, or on the Pi run
+  `sudo nudge import nudge-setup.json`.
+- **Dev mode:** `npm run dev` loads it by itself if the file is there.
+
+With it loaded, the wall knows:
+
+- **Week A / B.** Weeks alternate through each term, skipping half term. Autumn 2026 starts on
+  week A, as the school calendar says.
+- **Bell times.** Registration at 08:30, 8 × 40-minute lessons, out at 16:00.
+- **Rooms and teachers**, taken from the timetable codes.
+- **Homework.** After school it adds the homework your plan says was set that day. Each piece is
+  due at that subject's next lesson and sized from 60 min per subject per week. If one wasn't
+  actually set, tap **NOT SET?** on your phone.
+- **Calendar.** Each term, upload the school calendar PDF on the setup page (**week → school
+  calendar**) or run `sudo nudge calendar calendar.pdf`. It keeps the dates that matter to you:
+  term dates, your year's events, mocks, parents' evenings and creative things. It leaves out
+  fixtures and other years.
+
 ## Commands
 
 ```sh

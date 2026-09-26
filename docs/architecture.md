@@ -27,6 +27,25 @@
 - **Term dates** decide school days vs holidays (`shared/src/termDates.ts`). They're refreshed
   weekly from the school site and can be edited on the setup page.
 
+## School week (shared/src/school.ts)
+
+- The timetable is keyed `A1`…`B5` (or `1`…`5` if every week is the same). `weekLetter()`
+  counts teaching weeks through each term, skipping weeks with no school, starting from the
+  term's `abStart` letter. `lessonTimes()` lays lessons onto the bell times.
+- **Homework:** at 16:05 on school days, `planHomework()` reads the homework plan for that day.
+  For each subject it:
+  - finds the next lesson with `nextLesson()`, which becomes the due date;
+  - sizes the task as the weekly allowance divided by how many times that subject sets
+    homework that week;
+  - plans it on the first evening that still has room.
+
+  These tasks are marked `expected` until confirmed. Turning a matching school email into a task
+  fills in the expected task instead of adding a second one.
+- **Calendar PDFs** are read with pdf.js on the hub. `parseSchoolCalendar()` turns them into
+  dated lines, and `calendarTags()` keeps what matters for the year group and house.
+- **Staff:** timetable codes (e.g. NEC) are matched to the staff list by initials, with the
+  subject breaking ties. The staff list is only readable by owner devices.
+
 ## School reader (pi-hub/src/school)
 
 The steps are `vault` → `reader` → `extract` → `classify` → `actions`:

@@ -7,7 +7,11 @@ import { z } from "zod";
 import {
   can, type Cap, type HubMessage, type HwInput, type LedFrame, NewBagItem, NewNote, NewTask, NewTemplate, NotePatch,
   Role, SchoolAction, Settings, TaskPatch, TermDate, Timetable, Birthday, ToWall, DateKey, AgentMode, addDays,
+  CalEvent, FormTime, HomeworkPlan, SchoolDay, Teacher, matchTeacher, parseStaffList,
 } from "@nudge/shared";
+import { importCalendarText, pdfToRows } from "./school/calendar";
+import { newId } from "./hub";
+import { applySetup, SetupPack } from "./setup";
 import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
 import { HttpError } from "./errors";
@@ -211,6 +215,18 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     need(req, "tasks.skip");
     return hub.skipTask((req.params as { id: string }).id);
   });
+  app.post("/api/tasks/:id/notset", async (req) => {
+    need(req, "tasks.skip");
+    hub.homeworkNotSet((req.params as { id: string }).id);
+    return { ok: true };
+  });
+  app.post("/api/homework/plan", async (req) => {
+    need(req, "settings.owner");
+    const { date } = parse(z.object({ date: DateKey.optional() }), req.body ?? {});
+    const d = date ?? hub.todayKey();
+    hub.db.kvDel(`hwPlanned:${d}`);
+    return hub.planHomework(d);
+  });
   app.get("/api/templates", async (req) => {
     need(req, "read");
     return hub.templates.all();
@@ -274,7 +290,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const out = [];
     for (let d = q.from, i = 0; d <= q.to && i < 62; d = addDays(d, 1), i++) {
       hub.ensureDay(d);
-      out.push({ day: hub.dayState(d), tasks: hub.listTasks(d) });
+      out.push({ day: hub.dayState(d), tasks: hub.listTasks(d), events: hub.events.byDay(d) });
     }
     return out;
   });
@@ -399,11 +415,78 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   });
   app.get("/api/config", async (req) => {
     need(req, "read");
-    return { terms: hub.terms(), timetable: hub.timetable(), birthdays: hub.birthdays(), kept: hub.keptItems(), lastNfc: hub.db.kvGet("lastNfc", null) };
+    return {
+      terms: hub.terms(), timetable: hub.timetable(), birthdays: hub.birthdays(), kept: hub.keptItems(), lastNfc: hub.db.kvGet("lastNfc", null),
+      schoolDay: hub.schoolDay(), formTime: hub.formTime(), homework: hub.homeworkPlan(),
+    };
+  });
+  app.put("/api/config/schoolday", async (req) => (need(req, "settings.owner"), hub.setSchoolDay(parse(SchoolDay, req.body)), { ok: true }));
+  app.put("/api/config/formtime", async (req) => (need(req, "settings.owner"), hub.setFormTime(parse(FormTime, req.body)), { ok: true }));
+  app.put("/api/config/homework", async (req) => (need(req, "settings.owner"), hub.setHomeworkPlan(parse(HomeworkPlan, req.body)), { ok: true }));
+
+  // Staff directory: private to the owner's devices (never the parent app).
+  const teacherView = () => {
+    const staff = hub.teachers();
+    const codes = new Map<string, string>();
+    for (const periods of Object.values(hub.timetable())) for (const p of periods) if (p.teacher) codes.set(p.teacher, p.subject);
+    return {
+      teachers: staff,
+      matches: [...codes].map(([code, subject]) => ({ code, subject, name: matchTeacher(code, subject, staff)?.name ?? null })),
+    };
+  };
+  app.get("/api/config/teachers", async (req) => (need(req, "settings.owner"), teacherView()));
+  app.put("/api/config/teachers", async (req) => {
+    need(req, "settings.owner");
+    hub.setTeachers(parse(z.array(Teacher).max(500), req.body));
+    return teacherView();
+  });
+  app.post("/api/config/teachers/paste", async (req) => {
+    need(req, "settings.owner");
+    const { text } = parse(z.object({ text: z.string().max(100_000) }), req.body);
+    const byName = new Map(hub.teachers().map((t) => [t.name, t]));
+    for (const t of parseStaffList(text)) byName.set(t.name, { ...byName.get(t.name), ...t });
+    hub.setTeachers([...byName.values()].slice(0, 500));
+    return teacherView();
+  });
+
+  // School calendar: upload the term's PDF; its dates and A/B weeks are read on the hub.
+  app.addContentTypeParser("application/pdf", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
+  app.post("/api/config/calendar", async (req) => {
+    need(req, "settings.owner");
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.subarray(0, 5).toString() !== "%PDF-") throw new HttpError(400, "that isn't a PDF");
+    const text = await pdfToRows(new Uint8Array(body));
+    const r = importCalendarText(hub, text);
+    hub.feed("school", `School calendar read: ${r.events} dates`);
+    return r;
+  });
+  app.get("/api/events", async (req) => {
+    need(req, "read");
+    const { from, days } = parse(z.object({ from: DateKey.optional(), days: z.coerce.number().int().min(1).max(400).default(60) }), req.query);
+    return hub.upcomingEvents(from ?? hub.todayKey(), days);
+  });
+  app.post("/api/events", async (req) => {
+    need(req, "settings.owner");
+    const e = parse(CalEvent.omit({ id: true, source: true }), req.body);
+    const ev = hub.events.put({ ...e, id: newId(), source: "self" });
+    hub.bus.changed("events");
+    return ev;
+  });
+  app.delete("/api/events/:id", async (req) => {
+    need(req, "settings.owner");
+    hub.events.del((req.params as { id: string }).id);
+    hub.bus.changed("events");
+    return { ok: true };
+  });
+
+  // One-shot setup file: timetable, bells, form time, homework plan, birthdays, staff, events, profile.
+  app.post("/api/config/import", async (req) => {
+    need(req, "settings.owner");
+    return { imported: applySetup(hub, parse(SetupPack, req.body)) };
   });
   app.put("/api/config/terms", async (req) => (need(req, "settings.owner"), hub.setTerms(parse(z.array(TermDate).max(12), req.body)), { ok: true }));
   app.put("/api/config/timetable", async (req) => (need(req, "settings.owner"), hub.setTimetable(parse(Timetable, req.body)), { ok: true }));
-  app.put("/api/config/birthdays", async (req) => (need(req, "read"), hub.setBirthdays(parse(z.array(Birthday).max(60), req.body)), { ok: true }));
+  app.put("/api/config/birthdays", async (req) => (need(req, "read"), hub.setBirthdays(parse(z.array(Birthday).max(500), req.body)), { ok: true }));
   app.put("/api/config/kept", async (req) => {
     need(req, "bag");
     hub.db.kvSet("bagKept", parse(z.array(z.string().min(1).max(40)).max(10), req.body));

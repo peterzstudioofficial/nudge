@@ -11,7 +11,9 @@ describe("term dates", () => {
     expect(termInfo("2026-10-26", CHURCHERS_2026_27).kind).toBe("halfterm");
     expect(termInfo("2026-12-21", CHURCHERS_2026_27).kind).toBe("holiday");
     expect(termInfo("2026-09-08", CHURCHERS_2026_27).confirmed).toBe(true);
-    expect(termInfo("2027-01-12", CHURCHERS_2026_27).confirmed).toBe(false);
+    expect(termInfo("2027-01-12", CHURCHERS_2026_27).confirmed).toBe(true);
+    expect(termInfo("2027-03-22", CHURCHERS_2026_27).kind).toBe("holiday");
+    expect(termInfo("2027-04-12", CHURCHERS_2026_27).kind).toBe("school");
   });
 });
 

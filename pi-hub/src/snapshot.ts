@@ -1,4 +1,4 @@
-import { addDays, parseDateKey, isoWeekday, type Role, type Snapshot } from "@nudge/shared";
+import { addDays, formTimeOn, type Role, type Snapshot } from "@nudge/shared";
 import type { Ctx } from "./context";
 
 export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
@@ -10,7 +10,7 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
   const today = hub.dayState(todayKey);
   const target = hub.bagTarget();
   const { reward, bank, next } = hub.rewardState();
-  const periods = today.baseKind === "school" ? hub.timetable()[String(isoWeekday(parseDateKey(todayKey)))] ?? [] : [];
+  const lessons = hub.lessonsOn(todayKey);
 
   return {
     now: hub.now(),
@@ -28,7 +28,9 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
     reward,
     nextReward: next,
     settings: hub.settings(),
-    timetable: periods,
+    timetable: lessons.map((l) => ({ subject: l.subject, span: l.span, start: l.start, end: l.end, room: l.room, teacher: l.teacher })),
+    formTime: today.baseKind === "school" ? formTimeOn(todayKey, hub.formTime()) : "",
+    events: hub.upcomingEvents(todayKey, 8),
     weather: ctx.weather.current(),
     news: ctx.news.headline(),
     birthday: nextBirthday(hub.birthdays(), todayKey),
@@ -42,12 +44,12 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
   };
 }
 
+/** Soonest birthday in the next 3 days; friends sharing a day are shown together. */
 function nextBirthday(list: { name: string; date: string }[], today: string): { name: string; inDays: number } | null {
-  let best: { name: string; inDays: number } | null = null;
   for (let i = 0; i <= 3; i++) {
     const key = addDays(today, i).slice(5);
-    const hit = list.find((b) => b.date === key);
-    if (hit && (!best || i < best.inDays)) best = { name: hit.name, inDays: i };
+    const hits = list.filter((b) => b.date === key).map((b) => b.name.trim()).filter(Boolean);
+    if (hits.length) return { name: hits.length > 2 ? `${hits.slice(0, 2).join(", ")} +${hits.length - 2}` : hits.join(" & "), inDays: i };
   }
-  return best;
+  return null;
 }

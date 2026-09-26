@@ -111,14 +111,13 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
 
   // Morning brief timetable. School days: the real timetable with the current period lit.
   const periods = snap?.timetable ?? [];
-  const spanTotal = periods.reduce((a, p) => a + p.span, 0) || 1;
-  const dayStart = 8 * 60 + 40, dayEnd = 15 * 60 + 40;
-  let acc = 0;
+  const toMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+  const dayStart = periods.length ? toMin(periods[0].start) : 9 * 60;
   const schedSrc = school && periods.length
-    ? periods.map((p) => {
-        const from = dayStart + (acc / spanTotal) * (dayEnd - dayStart);
-        acc += p.span;
-        const to = dayStart + (acc / spanTotal) * (dayEnd - dayStart);
+    ? periods.map((p, i) => {
+        // A lesson stays lit through the break/lunch after it, until the next one starts.
+        const from = toMin(p.start);
+        const to = i + 1 < periods.length ? toMin(periods[i + 1].start) : toMin(p.end);
         return { name: SUBJECT_NAMES[p.subject] ?? p.subject, tint: tint(p.subject), span: p.span, now: mins >= from && mins < to, free: false };
       })
     : weekendSched(openT.map((x) => ({ name: x.name, subject: x.subject })), mins);
@@ -142,7 +141,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
   const bank = mode === "award" ? s.awardBank : snap?.bank ?? 0;
   const bday = snap?.birthday;
   const wx = snap?.weather;
-  const briefKind = school ? "SCHOOL" : kind === "halfterm" ? "HALF TERM" : kind === "holiday" ? "HOLIDAY" : kind === "sick" ? "RESTING" : kind === "away" ? "AWAY" : snap?.today.lieIn ? "LIE IN" : "WEEKEND";
+  const briefKind = school ? (snap?.today.week ? `SCHOOL · WK ${snap.today.week}` : "SCHOOL") : kind === "halfterm" ? "HALF TERM" : kind === "holiday" ? "HOLIDAY" : kind === "sick" ? "RESTING" : kind === "away" ? "AWAY" : snap?.today.lieIn ? "LIE IN" : "WEEKEND";
   const openMins = openT.reduce((a, x) => a + x.mins, 0);
   const listTop = Math.max(0, Math.min(Math.max(0, openT.findIndex((x) => x.id === t?.id)) - 1, Math.max(0, openT.length - 4)));
   const bagTop = Math.max(0, Math.min(s.bagIdx - 3, Math.max(0, bag.length - 4)));

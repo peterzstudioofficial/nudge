@@ -21,9 +21,15 @@ fs.mkdirSync(path.join(stage, "hub/node_modules"), { recursive: true });
 for (const f of ["hub.mjs", "hub.mjs.map"]) cp(`pi-hub/dist/${f}`, `hub/${f}`);
 fs.writeFileSync(path.join(stage, "hub/package.json"), JSON.stringify({ type: "module", private: true }) + "\n");
 
-// playwright-core is the hub's only runtime dependency that isn't bundled (it loads its own files).
-const pw = path.dirname(execSync("node -p \"require.resolve('playwright-core/package.json')\"", { cwd: path.join(root, "pi-hub") }).toString().trim());
-fs.cpSync(pw, path.join(stage, "hub/node_modules/playwright-core"), { recursive: true, dereference: true });
+// Runtime dependencies that load their own files, so aren't bundled.
+const pkgDir = (name) => path.dirname(execSync(`node -p "require.resolve('${name}/package.json')"`, { cwd: path.join(root, "pi-hub") }).toString().trim());
+fs.cpSync(pkgDir("playwright-core"), path.join(stage, "hub/node_modules/playwright-core"), { recursive: true, dereference: true });
+// pdf.js: only the Node build (reads the school calendar PDF).
+const pdfjs = pkgDir("pdfjs-dist");
+fs.mkdirSync(path.join(stage, "hub/node_modules/pdfjs-dist/legacy"), { recursive: true });
+fs.cpSync(path.join(pdfjs, "package.json"), path.join(stage, "hub/node_modules/pdfjs-dist/package.json"));
+fs.cpSync(path.join(pdfjs, "LICENSE"), path.join(stage, "hub/node_modules/pdfjs-dist/LICENSE"));
+fs.cpSync(path.join(pdfjs, "legacy/build"), path.join(stage, "hub/node_modules/pdfjs-dist/legacy/build"), { recursive: true, filter: (f) => !f.endsWith(".map") });
 
 cp("pi-screen/dist", "screen");
 cp("apps/dist", "apps");

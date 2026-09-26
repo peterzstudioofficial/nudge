@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { classifySchoolText, type SchoolItem, type SchoolStatus, parseTermDatesText } from "@nudge/shared";
+import { classifySchoolText, type SchoolItem, type SchoolStatus, parseTermDatesText, subjectFromSender } from "@nudge/shared";
 import type { Browser, BrowserContext, Page } from "playwright-core";
 import type { SchoolService } from "../context";
 import type { Hub } from "../hub";
@@ -105,7 +105,8 @@ export function schoolReader(o: ReaderOptions): SchoolService {
       receivedAt,
       kind: c.kind,
       due: c.due,
-      subject: c.subject,
+      // A teacher's email is about their subject, even if the subject line doesn't say.
+      subject: c.subject ?? (source === "mail" ? subjectFromSender(from, hub.timetable(), hub.teachers()) : null),
       handled: prev?.handled ?? false,
       action: prev?.action ?? null,
       createdAt: prev?.createdAt ?? Date.now(),

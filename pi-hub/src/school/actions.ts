@@ -1,4 +1,4 @@
-import { addDays, type SchoolAction, type SchoolItem } from "@nudge/shared";
+import { addDays, type SchoolAction, type SchoolItem, type Task } from "@nudge/shared";
 import type { z } from "zod";
 import { HttpError } from "../errors";
 import type { Hub } from "../hub";
@@ -16,6 +16,12 @@ export function schoolAction(hub: Hub, id: string, a: z.infer<typeof SchoolActio
     const undo = hub.db.kvGet<{ kind: string; id: string } | null>("schoolUndo:" + id, null);
     if (undo) {
       if (undo.kind === "task") hub.deleteTask(undo.id);
+      if (undo.kind === "taskUpdate") {
+        const prev = hub.db.kvGet<Task | null>("schoolRestore:" + id, null);
+        if (prev) hub.tasks.put(prev);
+        hub.db.kvDel("schoolRestore:" + id);
+        hub.bus.changed("tasks");
+      }
       if (undo.kind === "bag") hub.bagRemove(undo.id);
       if (undo.kind === "note") hub.deleteNote(undo.id);
       if (undo.kind === "reminder") hub.reminders.del(undo.id);
@@ -32,6 +38,17 @@ export function schoolAction(hub: Hub, id: string, a: z.infer<typeof SchoolActio
   const name = (a.name || item.title).slice(0, 80);
   switch (a.type) {
     case "task": {
+      // Homework the timetable already expected: fill in the real details instead of adding a second task.
+      const expected = item.subject
+        ? hub.tasks.all().find((t) => t.expected && !t.done && t.subject === item.subject && t.date >= addDays(today, -3) && (!item.due || !t.due || Math.abs(Date.parse(t.due) - Date.parse(item.due)) <= 3 * 86_400_000))
+        : undefined;
+      if (expected) {
+        hub.db.kvSet("schoolRestore:" + id, expected);
+        const t = hub.tasks.put({ ...expected, expected: false, name, due: item.due ?? expected.due ?? null, note: (item.from ? `from ${item.from}` : expected.note).slice(0, 200), mins: a.mins ?? expected.mins, updatedAt: Date.now() });
+        hub.bus.changed("tasks");
+        created = { kind: "taskUpdate", id: t.id };
+        break;
+      }
       const date = a.date ?? (item.due && item.due > today ? addDays(item.due, -1) : today);
       const t = hub.addTask(
         { date: date < today ? today : date, name, subject: item.subject ?? "study", phase: "home", mins: a.mins ?? hub.settings().defaultMins, note: item.from ? `from ${item.from}` : "", when: "date" },

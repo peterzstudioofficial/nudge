@@ -5,6 +5,9 @@ import {
   NewNote, NewTask, NewTemplate, Note, NotePatch, OWNER_SETTINGS, PARENT_SETTINGS, parseDateKey, PointEntry,
   Reminder, Reward, Role, Session, Settings, SUBJECT_NAMES, sortTasks, Task, TaskPatch, Template, TermDate,
   termInfo, Timetable, CHURCHERS_2026_27, workedNow, Ask, AgentThread, SchoolItem, relativeDay, dueLabel,
+  CalEvent, CHURCHERS_DAY, DEFAULT_FORM_TIME, DEFAULT_HOMEWORK, FormTime, HomeworkPlan, SchoolDay, Teacher,
+  homeworkMins, homeworkSetOn, lessonTimes, nextLesson, periodsFor, weekLetter, type Lesson, type Period,
+  type SchoolCtx, type WeekLetter, DAY_LONG,
 } from "@nudge/shared";
 import type { z } from "zod";
 import { Bus } from "./bus";
@@ -52,6 +55,7 @@ export class Hub {
   threads;
   handoffs;
   school;
+  events;
   private clock: () => number;
 
   constructor(public db: Db, opts: { clock?: () => number } = {}) {
@@ -68,6 +72,7 @@ export class Hub {
     this.threads = db.collection<AgentThread>("thread", () => null, (t) => t.createdAt);
     this.handoffs = db.collection<Handoff>("handoff", () => null, (h) => h.createdAt);
     this.school = db.collection<SchoolItem>("school", (s) => s.due, (s) => s.receivedAt);
+    this.events = db.collection<CalEvent>("event", (e) => e.date, (e) => hhmmToMinutes(e.time ?? "00:00"));
     this.recoverSession();
   }
 
@@ -115,6 +120,61 @@ export class Hub {
     this.db.kvSet("birthdays", b);
     this.bus.changed("day");
   }
+  schoolDay(): SchoolDay {
+    return this.db.kvGet<SchoolDay>("schoolDay", CHURCHERS_DAY);
+  }
+  setSchoolDay(d: SchoolDay): void {
+    this.db.kvSet("schoolDay", d);
+    this.bus.changed("day");
+  }
+  formTime(): FormTime {
+    return this.db.kvGet<FormTime>("formTime", DEFAULT_FORM_TIME);
+  }
+  setFormTime(f: FormTime): void {
+    this.db.kvSet("formTime", f);
+    this.bus.changed("day");
+  }
+  homeworkPlan(): HomeworkPlan {
+    return this.db.kvGet<HomeworkPlan>("homework", DEFAULT_HOMEWORK);
+  }
+  setHomeworkPlan(h: HomeworkPlan): void {
+    this.db.kvSet("homework", h);
+  }
+  /** Staff directory. Private: owner devices only, never in the parent app. */
+  teachers(): Teacher[] {
+    return this.db.kvGet<Teacher[]>("teachers", []);
+  }
+  setTeachers(t: Teacher[]): void {
+    this.db.kvSet("teachers", t);
+  }
+
+  /** Week A / B for a date (null outside term). */
+  weekOf(date: string): WeekLetter | null {
+    return weekLetter(date, this.terms());
+  }
+  /** That day's lessons from the (two-week) timetable, whether or not school is on. */
+  periodsOn(date: string): Period[] {
+    return periodsFor(this.timetable(), this.weekOf(date), isoWeekday(parseDateKey(date)));
+  }
+  /** That day's lessons with bell times. Empty when there's no school. */
+  lessonsOn(date: string): Lesson[] {
+    if (this.dayState(date).baseKind !== "school") return [];
+    return lessonTimes(this.periodsOn(date), this.schoolDay());
+  }
+  schoolCtx(): SchoolCtx {
+    return {
+      terms: this.terms(),
+      timetable: this.timetable(),
+      isSchoolDay: (d) => {
+        const st = this.dayState(d);
+        return st.baseKind === "school" && st.kind !== "holiday";
+      },
+    };
+  }
+  upcomingEvents(from: string, days: number): CalEvent[] {
+    return this.events.betweenDays(from, addDays(from, days - 1)).sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""));
+  }
+
   keptItems(): string[] {
     return this.db.kvGet<string[]>("bagKept", ["planner", "calculator"]);
   }
@@ -154,6 +214,7 @@ export class Hub {
       sick: doc.sick,
       skipsUsed: doc.skipsUsed,
       lieIn: s.lieInWeekends && kind !== "school",
+      week: this.weekOf(date),
     };
   }
 
@@ -196,15 +257,14 @@ export class Hub {
     if (doc.bagMade) return;
     doc.bagMade = true;
     this.saveDay(doc);
-    const wd = String(isoWeekday(parseDateKey(target)));
-    const periods = this.timetable()[wd] ?? [];
+    const periods = this.periodsOn(target);
     let order = 0;
     for (const k of this.keptItems()) {
       this.bag.put({ id: newId(), date: target, name: k, subject: "mine", note: "", kept: true, got: true, skipped: false, source: "self", order: order++ });
     }
     const seen = new Set<string>();
     for (const p of periods) {
-      if (["pe", "free", "study", "music"].includes(p.subject) || seen.has(p.subject)) continue;
+      if (["pe", "games", "free", "study", "music"].includes(p.subject) || seen.has(p.subject)) continue;
       seen.add(p.subject);
       this.bag.put({
         id: newId(), date: target, name: SUBJECT_NAMES[p.subject] ?? p.subject, subject: p.subject, note: "",
@@ -220,8 +280,10 @@ export class Hub {
   }
 
   kitLine(target: string): string {
-    const periods = this.timetable()[String(isoWeekday(parseDateKey(target)))] ?? [];
-    return periods.some((p) => p.subject === "pe") ? "PE kit" : "";
+    const periods = this.periodsOn(target);
+    const pe = periods.some((p) => p.subject === "pe");
+    const games = periods.some((p) => p.subject === "games");
+    return pe && games ? "PE + games kit" : pe ? "PE kit" : games ? "games kit" : "";
   }
 
   arrive(): { already: boolean } {
@@ -327,10 +389,71 @@ export class Hub {
     if (!t) throw notFound("no such task");
     const max = Math.max(0, ...this.tasks.byDay(t.date).map((x) => x.order));
     this.tasks.put({ ...t, order: max + 1, updatedAt: this.now() });
-    d.skipsUsed++;
+    if (!t.expected) d.skipsUsed++;
     this.saveDay(d);
     this.bus.changed("tasks", "day");
     return { left: this.settings().skipsPerDay - d.skipsUsed };
+  }
+
+  /** "Wasn't set": expected homework that didn't happen goes away without using a skip. */
+  homeworkNotSet(id: string): void {
+    const t = this.tasks.get(id);
+    if (!t) throw notFound("no such task");
+    if (!t.expected || t.started) throw new HttpError(409, "only for expected homework that hasn't been started");
+    this.deleteTask(id);
+    this.feed("school", `No ${SUBJECT_NAMES[t.subject] ?? t.subject} homework set`);
+  }
+
+  /**
+   * After school, add the homework the timetable says was probably set today: one task per
+   * subject, due at its next lesson, sized from the weekly allowance, planned on the first
+   * evening with room. Marked "expected" until confirmed; "not set" removes it for free.
+   * Runs once per day.
+   */
+  planHomework(date = this.todayKey()): Task[] {
+    const plan = this.homeworkPlan();
+    if (!plan.on || !Object.keys(plan.days).length) return [];
+    const flag = `hwPlanned:${date}`;
+    if (this.db.kvGet<boolean>(flag, false)) return [];
+    const st = this.dayState(date);
+    if (st.baseKind !== "school" || st.kind !== "school") return [];
+    this.db.kvSet(flag, true);
+    const ctx = this.schoolCtx();
+    const letter = this.weekOf(date);
+    const made: Task[] = [];
+    for (const subject of [...new Set(homeworkSetOn(date, plan, ctx.terms))]) {
+      const due = nextLesson(subject, date, ctx);
+      const dup = this.tasks.all().some((t) => t.subject === subject && !t.done && t.date >= date && (t.due === due || t.id.startsWith(`hw:${date}:`)));
+      if (dup) continue;
+      const mins = homeworkMins(subject, letter, plan);
+      const day = this.pickHomeworkDay(date, due, mins);
+      const label = SUBJECT_NAMES[subject] ?? subject;
+      const t: Task = {
+        ...this.makeTask({ date: day, name: `${label} homework`, subject, phase: "study", mins, note: due ? `set ${DAY_LONG[parseDateKey(date).getDay()]} · due ${DAY_LONG[parseDateKey(due).getDay()]} (next lesson)` : "" }, "school", `hw:${date}:${subject}`),
+        expected: true,
+        due,
+      };
+      this.tasks.put(t);
+      made.push(t);
+    }
+    if (made.length) {
+      this.feed("school", `Homework set today (probably): ${made.map((t) => SUBJECT_NAMES[t.subject] ?? t.subject).join(", ")}`);
+      this.bus.changed("tasks");
+    }
+    return made;
+  }
+
+  /** The first evening from `from` (before the due day) that still has room. */
+  private pickHomeworkDay(from: string, due: string | null, mins: number): string {
+    const max = this.settings().maxTasksPerDay;
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(from, i);
+      if (due && d >= due) break;
+      const open = this.tasks.byDay(d).filter((t) => !t.done);
+      const load = open.reduce((a, t) => a + t.mins, 0);
+      if (open.length < max && load + mins <= 120) return d;
+    }
+    return from;
   }
 
   addTemplate(input: z.infer<typeof NewTemplate>): Template {

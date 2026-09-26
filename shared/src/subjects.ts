@@ -14,6 +14,9 @@ export const TINT: Record<string, string> = {
   art: "#a8552f",
   cs: "#2f4f7a",
   re: "#6f6a3a",
+  drama: "#b3364a",
+  biz: "#2f7a5f",
+  games: "#4a4a54",
   study: "#a8761f",
   mine: "#8d8d97",
   bag: "#c9c6cf",
@@ -23,7 +26,7 @@ export const TINT: Record<string, string> = {
 export const SUBJECT_NAMES: Record<string, string> = {
   maths: "maths", chem: "chemistry", physics: "physics", bio: "biology", eng: "english",
   history: "history", geog: "geography", french: "french", spanish: "spanish", pe: "PE",
-  music: "music", art: "art", cs: "computing", re: "RS", study: "revision", mine: "mine", bag: "bag",
+  music: "music", art: "art", cs: "computing", re: "R&P", drama: "drama", biz: "business", games: "games", study: "revision", mine: "mine", bag: "bag",
   free: "free",
 };
 
@@ -37,11 +40,14 @@ const ALIASES: [RegExp, string][] = [
   [/\bgeog(raphy)?\b|river|tectonic/i, "geog"],
   [/\bfrench\b/i, "french"],
   [/\bspanish\b/i, "spanish"],
-  [/\bpe\b|games|rugby|hockey|netball|football|kit\b/i, "pe"],
+  [/\bdrama\b|theatre|monologue|script|rehears/i, "drama"],
+  [/\bbusiness\b|\bbiz\b|marketing|enterprise/i, "biz"],
+  [/\bgames\b/i, "games"],
+  [/\bpe\b|rugby|hockey|netball|football|kit\b/i, "pe"],
   [/\bmusic\b|guitar|piano|drum|song/i, "music"],
   [/\bart\b|drawing|sketch/i, "art"],
   [/\bcomput(ing|er science)\b|\bcs\b|python|coding/i, "cs"],
-  [/\b(re|rs|religio(us|n))\b|philosophy|ethics/i, "re"],
+  [/\b(re|rs|r&p|religio(us|n))\b|philosophy|ethics/i, "re"],
   [/revis(e|ion)|mock|exam|test/i, "study"],
 ];
 

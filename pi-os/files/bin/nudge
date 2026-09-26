@@ -8,6 +8,8 @@
 #   nudge restart             restart hub, screen and hardware daemon
 #   nudge update FILE.tar.gz  install a newer nudge-pi bundle (keeps all data)
 #   nudge backup [DIR]        copy the database + secrets to DIR (default: ~)
+#   nudge import FILE.json    load a setup file (timetable, homework plan, birthdays, staff…)
+#   nudge calendar FILE.pdf   read a term's school calendar PDF
 set -e
 [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
 
@@ -57,7 +59,15 @@ case "$1" in
     systemctl start nudge-hub
     chmod 600 "$OUT"; echo "saved $OUT (keep it private — it holds your school sign-in)"
     ;;
+  import)
+    [ -f "$2" ] || { echo "usage: nudge import nudge-setup.json"; exit 1; }
+    curl -sf -X POST -H 'content-type: application/json' --data-binary "@$2" http://127.0.0.1:8788/api/config/import && echo
+    ;;
+  calendar)
+    [ -f "$2" ] || { echo "usage: nudge calendar calendar.pdf"; exit 1; }
+    curl -sf -X POST -H 'content-type: application/pdf' --data-binary "@$2" http://127.0.0.1:8788/api/config/calendar && echo
+    ;;
   *)
-    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 esac

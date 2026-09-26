@@ -2,40 +2,48 @@ import type { DayKind, TermDate } from "./model";
 import { isoWeekday, parseDateKey } from "./time";
 
 /**
- * Churcher's College, Petersfield — senior school term dates, academic year 2026/27.
+ * Churcher's College, Petersfield — senior school term dates, academic year 2026/27 (+ Autumn 2027).
  *
- * Source: churcherscollege.com/school-life/term-dates (researched 26 Sep 2026).
- *  - Autumn 2026 is published by the school (marked provisional by them).
- *  - Spring and Summer 2027 were NOT readable from the sandbox this was built in, so they are
- *    ESTIMATES from the school's usual pattern and flagged `confirmed: false`. The hub tries to
- *    refresh these from the school website every week, and they can be corrected in
- *    the admin page (Settings › Term dates). Unconfirmed terms show a small "est." badge.
+ * Source: the school's Autumn Term 2026 calendar (page 2, "Term Dates") and its published term-date
+ * list, both checked 26 Sep 2026. Autumn starts Wed 9 Sep for everyone except L6 and 1st Year
+ * (Tue 8 Sep). Half terms are the school's own ranges; Fri 23 Oct is a day off.
+ * Timetable weeks: Autumn 2026 starts on Week A (calendar: "WEEK 1 (A) 07 SEP – 13 SEP") and
+ * half-term weeks are skipped. Later terms are assumed to start on Week A too until their
+ * calendar says otherwise (importing the calendar PDF fixes it automatically).
  */
 export const CHURCHERS_2026_27: TermDate[] = [
   {
     term: "Autumn 2026",
-    // L6 and 1st years start Tue 8 Sep; everyone Wed 9 Sep.
-    start: "2026-09-08",
+    start: "2026-09-09",
     end: "2026-12-11",
     breaks: [{ label: "half term", start: "2026-10-23", end: "2026-11-01" }],
     confirmed: true,
-    note: "Published as provisional by the school. L6 & 1st Year start Tue 8 Sep, all pupils Wed 9 Sep.",
+    note: "L6 & 1st Year start Tue 8 Sep (induction); everyone else Wed 9 Sep.",
+    abStart: "A",
   },
   {
     term: "Spring 2027",
     start: "2027-01-05",
-    end: "2027-03-26",
+    end: "2027-03-19",
     breaks: [{ label: "half term", start: "2027-02-13", end: "2027-02-21" }],
-    confirmed: false,
-    note: "Estimate — check against the school site.",
+    confirmed: true,
+    note: "",
   },
   {
     term: "Summer 2027",
-    start: "2027-04-13",
-    end: "2027-07-02",
+    start: "2027-04-12",
+    end: "2027-07-09",
     breaks: [{ label: "half term", start: "2027-05-29", end: "2027-06-06" }],
-    confirmed: false,
-    note: "Estimate — check against the school site.",
+    confirmed: true,
+    note: "",
+  },
+  {
+    term: "Autumn 2027",
+    start: "2027-09-08",
+    end: "2027-12-17",
+    breaks: [{ label: "half term", start: "2027-10-22", end: "2027-10-31" }],
+    confirmed: true,
+    note: "L6 & 1st Year start Tue 7 Sep; everyone else Wed 8 Sep.",
   },
 ];
 

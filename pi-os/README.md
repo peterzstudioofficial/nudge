@@ -60,6 +60,8 @@ nudge status                # what's running + addresses
 nudge logs hub              # live logs (hub | kiosk | gpio)
 sudo nudge update nudge-pi.tar.gz   # new version, keeps all data
 sudo nudge backup           # database + secrets → one private file
+sudo nudge import nudge-setup.json  # timetable, homework plan, birthdays, staff
+sudo nudge calendar term.pdf        # read a term's school calendar
 ```
 
 **Tailscale** is how your phone and PC reach the Pi away from home. The installer asks you to log

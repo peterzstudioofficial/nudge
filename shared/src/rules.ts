@@ -44,6 +44,9 @@ export const DEFAULT_SETTINGS: Settings = {
   schoolMail: true,
   schoolMailSenders: [],
   aiModel: "claude-opus-5",
+  yearGroup: "",
+  house: "",
+  profile: "",
 };
 
 /** Work seconds on the clock right now for a session. */

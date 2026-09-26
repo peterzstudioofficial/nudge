@@ -1,4 +1,5 @@
-import { type HwInput, type LedFrame, minutesOfDay, isoWeekday } from "@nudge/shared";
+import { fileURLToPath } from "node:url";
+import { type HwInput, type LedFrame, minutesOfDay, isoWeekday, hhmmToMinutes } from "@nudge/shared";
 import { Auth } from "./auth";
 import { loadConfig } from "./config";
 import type { Ctx } from "./context";
@@ -11,6 +12,7 @@ import { newsService } from "./services/news";
 import { weatherService } from "./services/weather";
 import { buildServer, sayOnWall } from "./server";
 import { seedDemo } from "./seed";
+import { loadPrivateSetup } from "./setup";
 
 process.removeAllListeners("warning");
 process.on("warning", (w) => {
@@ -34,7 +36,10 @@ async function main() {
     return;
   }
 
-  if (cfg.dev) seedDemo(hub);
+  if (cfg.dev) {
+    seedDemo(hub);
+    loadPrivateSetup(hub, fileURLToPath(new URL("../../private/nudge-setup.json", import.meta.url)), log);
+  }
 
   const ctx = {} as Ctx;
   Object.assign(ctx, {
@@ -102,6 +107,10 @@ async function main() {
     }
     const s = hub.session();
     if (s?.state === "break" && s.breakUntil && s.breakUntil <= Date.now()) hub.bus.changed("session");
+    // After the last bell: add the homework the timetable says was set today.
+    const slots = hub.schoolDay().slots;
+    const out = slots.length ? hhmmToMinutes(slots[slots.length - 1].end) : 16 * 60;
+    if (minutesOfDay(new Date()) >= out + 5) hub.planHomework();
   });
 
   const stop = async () => {
