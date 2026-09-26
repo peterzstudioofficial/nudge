@@ -178,8 +178,10 @@ export class Hub {
     const state = this.dayState(date);
     const wd = isoWeekday(parseDateKey(date));
     let changed = false;
+    if (date < this.todayKey()) return; // the past stays as it happened
     for (const t of this.templates.all()) {
       if (doc.materialized.includes(t.id)) continue;
+      if (date < dateKey(t.createdAt)) continue;
       if (!t.days.includes(wd)) continue;
       if (t.schoolDaysOnly && state.baseKind !== "school") continue;
       doc.materialized.push(t.id);

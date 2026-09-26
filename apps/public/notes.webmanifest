@@ -1,0 +1,16 @@
+{
+  "name": "nudge notes",
+  "short_name": "notes",
+  "id": "./notes.html",
+  "start_url": "./notes.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f3ef",
+  "theme_color": "#f4f3ef",
+  "icons": [
+    { "src": "icons/notes-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/notes-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/notes-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

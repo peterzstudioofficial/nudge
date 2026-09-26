@@ -60,6 +60,10 @@ describe("network + auth", () => {
     expect(r.statusCode).toBe(200);
     expect(r.json().role).toBe("screen");
   });
+  it("does not trust a web page on the Pi as the wall", async () => {
+    const r = await app.inject({ method: "GET", url: "/api/state", remoteAddress: "127.0.0.1", headers: { origin: "https://evil.example", host: "127.0.0.1:8787" } });
+    expect(r.statusCode).toBe(401);
+  });
   it("pairs with a one-time code and rejects reuse and guessing", async () => {
     const { code } = auth.createCode("owner", "test");
     const r = await inject("POST", "/api/pair", { body: { code, name: "peter's phone" } });

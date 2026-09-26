@@ -1,0 +1,16 @@
+{
+  "name": "nudge parent",
+  "short_name": "parent",
+  "id": "./parent.html",
+  "start_url": "./parent.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f3ef",
+  "theme_color": "#f4f3ef",
+  "icons": [
+    { "src": "icons/parent-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/parent-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/parent-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

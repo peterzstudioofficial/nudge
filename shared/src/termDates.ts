@@ -62,7 +62,8 @@ export function termInfo(dateKey: string, terms: TermDate[]): TermInfo {
   const last = sorted[sorted.length - 1];
   // Between terms, or the summer straight after the last known term: holidays.
   const summerEnd = addDaysKey(last.end, 70);
-  if ((dateKey > first.start && dateKey < last.end) || (dateKey > last.end && dateKey <= summerEnd)) {
+  const summerBefore = addDaysKey(first.start, -60);
+  if ((dateKey > first.start && dateKey < last.end) || (dateKey > last.end && dateKey <= summerEnd) || (dateKey < first.start && dateKey >= summerBefore)) {
     return { kind: "holiday", term: null, label: "holiday", confirmed: true };
   }
   // Beyond what we know: assume a normal week so the alarm never silently goes missing.

@@ -13,7 +13,7 @@ const ICON: Record<string, string> = {
   start: "play_arrow", resume: "play_arrow", pause: "pause", break: "coffee", switch: "swap_horiz", tasks: "list",
   skip: "keyboard_double_arrow_down", back: "arrow_back", stop: "close", claim: "check", "got it": "check", done: "check",
   ok: "check", up: "wb_sunny", next: "arrow_forward", reward: "redeem", later: "schedule", no: "close", yes: "check",
-  list: "backpack", pair: "qr_code_2", retry: "refresh", dimmer: "brightness_low", brighter: "brightness_high",
+  list: "backpack", pair: "qr_code_2", parent: "family_restroom", phone: "smartphone", retry: "refresh", dimmer: "brightness_low", brighter: "brightness_high",
 };
 
 export interface Tab {
@@ -207,7 +207,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     offLine: "no wifi",
     offSub: "tasks still run, sync when it's back",
     pairCode: s.pairCode ? s.pairCode.slice(0, 3) + " " + s.pairCode.slice(3) : "",
-    pairSub: "OPEN THE NUDGE APP · ADD THIS WALL",
+    pairSub: d.pairRole === "parent" ? "FOR THE PARENT APP" : "OPEN THE NUDGE APP · ADD THIS WALL",
     pairUrl: typeof location !== "undefined" ? location.host : "",
 
     aboutRows: [

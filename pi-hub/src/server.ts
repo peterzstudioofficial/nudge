@@ -20,6 +20,18 @@ declare module "fastify" {
   }
 }
 
+/** The Android and Windows shells load the apps from their own origin and call the hub with a token. */
+const APP_ORIGINS = ["capacitor://localhost", "http://localhost", "https://localhost", "app://nudge"];
+
+function sameOrigin(origin: string | undefined, host: string | undefined): boolean {
+  if (!origin) return true; // not a browser page (GPIO daemon, curl)
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 function parse<T extends z.ZodTypeAny>(schema: T, data: unknown): z.infer<T> {
   const r = schema.safeParse(data ?? {});
   if (!r.success) throw new HttpError(400, "bad request: " + r.error.issues.map((i) => `${i.path.join(".") || "body"} ${i.message}`).join("; "));
@@ -58,7 +70,20 @@ export async function buildServer(ctx: Ctx): Promise<FastifyInstance> {
     }
     const h = req.headers.authorization;
     const token = h && h.startsWith("Bearer ") ? h.slice(7) : null;
-    req.caller = auth.identify(token, ip, true);
+    // The Pi's own kiosk is trusted as the wall — but never a web page from another origin.
+    req.caller = auth.identify(token, ip, sameOrigin(req.headers.origin, req.headers.host));
+    const origin = req.headers.origin;
+    if (origin && APP_ORIGINS.includes(origin)) {
+      reply.header("access-control-allow-origin", origin);
+      reply.header("vary", "origin");
+      reply.header("access-control-allow-headers", "authorization, content-type, idempotency-key");
+      reply.header("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      reply.header("access-control-max-age", "600");
+      if (req.method === "OPTIONS") {
+        reply.code(204).send();
+        return reply;
+      }
+    }
     reply.header("x-content-type-options", "nosniff");
     reply.header("referrer-policy", "no-referrer");
     reply.header("x-frame-options", "DENY");
@@ -382,7 +407,7 @@ export async function buildServer(ctx: Ctx): Promise<FastifyInstance> {
       }
       if (!caller) {
         if (msg.type !== "auth") return;
-        caller = auth.identify(msg.token ?? null, ip, true);
+        caller = auth.identify(msg.token ?? null, ip, sameOrigin(req.headers.origin, req.headers.host));
         clearTimeout(authTimer);
         if (!caller) {
           socket.close(4401, "unpaired");

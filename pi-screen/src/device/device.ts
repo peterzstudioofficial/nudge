@@ -693,8 +693,10 @@ export class Device {
     if (k) k.act();
   }
 
-  async showPair() {
-    const r = await this.call<{ code: string }>("POST", "/api/pairing-codes", { role: "owner" });
+  pairRole: "owner" | "parent" = "owner";
+  async showPair(role: "owner" | "parent" = "owner") {
+    const r = await this.call<{ code: string }>("POST", "/api/pairing-codes", { role });
+    this.pairRole = role;
     if (r) this.set({ mode: "pair", pairCode: r.code, lastAct: this.now() });
     this.later("pair", 10 * 60_000, () => this.s.mode === "pair" && this.set({ mode: "standby", pairCode: null }));
   }
@@ -711,7 +713,12 @@ export class Device {
         }
         return [K("start", this.begin, "primary"), K("tasks", () => this.set({ mode: "select" })), null, K("reward", () => this.set({ mode: "reward" }))];
       case "about": return [K("pair", () => void this.showPair()), null, null, K("ok", home, "primary")];
-      case "pair": return [null, null, null, K("done", () => this.set({ mode: "standby", pairCode: null }), "primary")];
+      case "pair": return [
+        this.pairRole === "parent" ? K("phone", () => void this.showPair("owner")) : null,
+        this.pairRole === "owner" ? K("parent", () => void this.showPair("parent")) : null,
+        null,
+        K("done", () => this.set({ mode: "standby", pairCode: null }), "primary"),
+      ];
       case "bright": return [
         K("dimmer", () => this.setBright(Math.max(0, this.s.bright - 1))),
         K("brighter", () => this.setBright(Math.min(4, this.s.bright + 1))),
