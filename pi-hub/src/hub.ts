@@ -786,8 +786,9 @@ export class Hub {
       .sort((a, b) => rank(a) - rank(b) || b.receivedAt - a.receivedAt)[0];
     if (!soon) return "";
     const who = soon.from ? (soon.source === "mail" ? `, ${soon.from.toLowerCase()} emailed` : ` (${soon.from.toLowerCase()})`) : "";
-    if (soon.kind === "bring") return `${soon.title}${who}`;
-    return `${soon.title}${soon.due ? " — due " + dueLabel(soon.due, today) : ""}`;
+    const title = soon.title.split(" — ")[0];
+    if (soon.kind === "bring") return `${title}${soon.source === "mail" ? who : ""}`;
+    return `${title}${soon.due ? " — due " + dueLabel(soon.due, today) : ""}`;
   }
 }
 

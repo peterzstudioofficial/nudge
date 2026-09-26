@@ -235,6 +235,13 @@ export async function buildServer(ctx: Ctx): Promise<FastifyInstance> {
     return out;
   });
 
+  app.post("/api/nfc/seen", async (req) => {
+    need(req, "day.arrive");
+    const { uid } = parse(z.object({ uid: z.string().min(2).max(40) }), req.body);
+    hub.db.kvSet("lastNfc", { uid, at: Date.now() });
+    return { ok: true };
+  });
+
   /* --------------------------------- rewards -------------------------------- */
   app.get("/api/rewards", async (req) => (need(req, "read"), hub.rewardState()));
   app.put("/api/rewards", async (req) => {
@@ -348,7 +355,7 @@ export async function buildServer(ctx: Ctx): Promise<FastifyInstance> {
   });
   app.get("/api/config", async (req) => {
     need(req, "read");
-    return { terms: hub.terms(), timetable: hub.timetable(), birthdays: hub.birthdays(), kept: hub.keptItems() };
+    return { terms: hub.terms(), timetable: hub.timetable(), birthdays: hub.birthdays(), kept: hub.keptItems(), lastNfc: hub.db.kvGet("lastNfc", null) };
   });
   app.put("/api/config/terms", async (req) => (need(req, "settings.owner"), hub.setTerms(parse(z.array(TermDate).max(12), req.body)), { ok: true }));
   app.put("/api/config/timetable", async (req) => (need(req, "settings.owner"), hub.setTimetable(parse(Timetable, req.body)), { ok: true }));

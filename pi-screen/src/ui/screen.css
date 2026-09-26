@@ -1,0 +1,91 @@
+/* Keyframes copied verbatim from "Screen v2.dc.html" and "ND-1 Panel v2.dc.html". */
+@keyframes sFade{from{opacity:0}to{opacity:1}}
+@keyframes sOff{from{opacity:1}to{opacity:0}}
+@keyframes sBob{0%,100%{transform:translateY(0) scale(1.12,.86)}28%{transform:translateY(-34px) scale(.93,1.08)}56%{transform:translateY(-12px) scale(1,1)}82%{transform:translateY(0) scale(1.04,.96)}}
+@keyframes sDiscoRing{0%{transform:scale(.42);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+@keyframes sDiscoKick{0%{transform:scale(1.14)}35%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes sUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes sTab{from{transform:translateY(30px)}to{transform:none}}
+@keyframes sAlarmRing{0%{border-width:2px}50%{border-width:11px}100%{border-width:2px}}
+@keyframes sPeek{0%{opacity:0;transform:scale(.94)}9%{opacity:1;transform:scale(1)}68%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.02)}}
+@keyframes sHalo{0%{transform:scale(.75);opacity:.85}100%{transform:scale(1.55);opacity:0}}
+@keyframes sChev{0%,100%{opacity:.14;transform:rotate(45deg) translate(-2px,-2px)}50%{opacity:1;transform:rotate(45deg) translate(2px,2px)}}
+@keyframes sCount{0%{transform:scale(1.45);opacity:0}26%{transform:scale(1);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes sRise{from{opacity:0;transform:translateY(40px) scale(.7)}60%{opacity:1;transform:translateY(-5px) scale(1.05)}to{opacity:1;transform:none}}
+@keyframes sBell{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+@keyframes sDrop{0%{transform:translateY(-101%)}100%{transform:translateY(0)}}
+@keyframes sLift{0%{transform:translateY(0)}100%{transform:translateY(-101%)}}
+@keyframes sSwap{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+@keyframes sBUp{0%,52%{transform:translateY(-19px);color:#ff4d17}72%{transform:translateY(2px);color:#f4f3ef}100%{transform:none;color:#f4f3ef}}
+@keyframes sBDown{0%,52%{transform:translateY(19px);color:#ff4d17}72%{transform:translateY(-2px);color:#f4f3ef}100%{transform:none;color:#f4f3ef}}
+@keyframes sPip{0%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:none}}
+@keyframes sTick{0%{opacity:0;transform:scale(.5)}55%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@keyframes sGlow{0%{background:#ff4d1740}100%{background:transparent}}
+@keyframes sCell{0%{opacity:0;transform:scale(.6)}64%{opacity:1;transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+@keyframes sPop{0%{transform:scale(.4);opacity:0}62%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes sFall{0%{transform:translateY(-34px) rotate(0);opacity:0}14%{opacity:1}100%{transform:translateY(228px) rotate(320deg);opacity:0}}
+@keyframes sEq{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
+@keyframes sWipe{from{background-position:100% 0}to{background-position:0% 0}}
+@keyframes sDoze{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
+@keyframes sBootOut{to{opacity:0}}
+@keyframes sBootIn{from{opacity:0}to{opacity:1}}
+@keyframes sErupt{0%{transform:translateY(0) scale(.3) rotate(0);opacity:0}12%{opacity:1}72%{opacity:1}100%{transform:translateY(-118px) scale(1) rotate(220deg);opacity:0}}
+@keyframes sBreath{
+0%{transform:scale(.7) rotate(0deg);border-radius:50%;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+25%{transform:scale(1.16) rotate(0deg);border-radius:30px;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+50%{transform:scale(1.16) rotate(90deg);border-radius:30px;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+75%{transform:scale(.7) rotate(90deg);border-radius:50%;animation-timing-function:linear}
+100%{transform:scale(.7) rotate(90deg);border-radius:50%}}
+@keyframes sSpinSoft{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sStep{0%,100%{opacity:.2}50%{opacity:1}}
+@keyframes sLead{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+@keyframes sVeil{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+@keyframes sSeep{0%{opacity:0;letter-spacing:6px;filter:blur(4px)}100%{opacity:1;letter-spacing:0;filter:blur(0)}}
+@keyframes sBarGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes sNow{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes sPipPop{0%{transform:scale(.3)}58%{transform:scale(1.5)}100%{transform:scale(1)}}
+@keyframes sOrbit{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sDash{0%{opacity:.25}50%{opacity:1}100%{opacity:.25}}
+@keyframes sBlob{0%,100%{border-radius:14px 14px 14px 14px}33%{border-radius:18px 12px 16px 13px}66%{border-radius:12px 17px 13px 17px}}
+@keyframes sTrophy{0%{transform:scale(.3) rotate(-14deg);opacity:0}58%{transform:scale(1.14) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes sRayGrow{0%{transform:scaleY(0)}100%{transform:scaleY(1)}}
+@keyframes sRayFade{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes sWordIn{0%{opacity:0;transform:translateY(14px) scale(.9)}64%{opacity:1;transform:translateY(-2px) scale(1.02)}100%{opacity:1;transform:none}}
+@keyframes sCurtain{0%{transform:scaleY(1)}100%{transform:scaleY(0)}}
+@keyframes sSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sStamp{0%{transform:rotate(-30deg) scale(.4);opacity:0}62%{transform:rotate(-2deg) scale(1.08);opacity:1}100%{transform:rotate(-6deg) scale(1);opacity:1}}
+@keyframes sCountIn{0%{opacity:0;transform:scale(1.6)}26%{opacity:1;transform:scale(1)}72%{opacity:1;transform:scale(1)}100%{opacity:.15;transform:scale(.94)}}
+@keyframes sRotor{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sMorph{
+0%{border-radius:50%;transform:rotate(0deg) scale(1)}
+16%{border-radius:38%;transform:rotate(48deg) scale(1.06)}
+33%{border-radius:24%;transform:rotate(120deg) scale(1.12)}
+50%{border-radius:32% 32% 46% 46% / 46% 46% 30% 30%;transform:rotate(186deg) scale(1.08)}
+66%{border-radius:26%;transform:rotate(240deg) scale(1.13)}
+84%{border-radius:42%;transform:rotate(312deg) scale(1.04)}
+100%{border-radius:50%;transform:rotate(360deg) scale(1)}}
+@keyframes sMorphTint{0%{background:#ff4d17}30%{background:#ff7a4d}50%{background:#f4f3ef}72%{background:#ff7a4d}100%{background:#ff4d17}}
+@keyframes sRingOut{0%{transform:scale(.55);opacity:.5}70%{opacity:0}100%{transform:scale(1.5);opacity:0}}
+@keyframes sBurst{0%{transform:scale(.3);opacity:.75}75%{opacity:0}100%{transform:scale(1.9);opacity:0}}
+@keyframes sBox{0%{transform:scale(.62)}25%{transform:scale(1)}50%{transform:scale(1)}75%{transform:scale(.62)}100%{transform:scale(.62)}}
+@keyframes sBoxWord{0%,100%{opacity:1}}
+@keyframes sSheen{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+@keyframes lPulse{0%,100%{opacity:.16}50%{opacity:1}}
+@keyframes lBurst{0%,100%{opacity:.14}45%{opacity:1}}
+@keyframes lStep{0%,72%,100%{opacity:.12}12%,60%{opacity:1}}
+@keyframes lSpark{0%,100%{opacity:.12}50%{opacity:1}}
+@keyframes lGather{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes lDrift{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes lSettle{0%{opacity:1}100%{opacity:.3}}
+@keyframes lSweep{0%,100%{opacity:.1}45%{opacity:1}}
+@keyframes lBreathe{0%{opacity:.1}25%{opacity:.9}50%{opacity:.9}75%{opacity:.1}100%{opacity:.1}}
+@keyframes lAlarm{0%{opacity:.06}22%{opacity:1}54%{opacity:1}100%{opacity:.06}}
+@keyframes lRise{from{opacity:0}to{opacity:1}}
+
+html, body, #root { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+body { -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; cursor: none; }
+html:has(body.sim), body.sim, body.sim #root { height: auto; overflow: visible; }
+body.sim { cursor: default; background: #0d0d10; }
+.ms { font-family: "Material Symbols Rounded"; line-height: 1; font-weight: normal; font-style: normal; letter-spacing: normal; text-transform: none; white-space: nowrap; direction: ltr; font-feature-settings: "liga"; font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 20; }
+.scr * { box-sizing: border-box; }
+.scr .rowsSlide { transition: transform .5s cubic-bezier(.22,1,.36,1); will-change: transform; }
