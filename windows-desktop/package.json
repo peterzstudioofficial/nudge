@@ -1,0 +1,27 @@
+{
+  "name": "@nudge/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nudge for Windows",
+  "author": "peterzstudio",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "node build.mjs --dev && electron .",
+    "build": "node build.mjs",
+    "dist": "node build.mjs && electron-builder --win --publish never",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@nudge/shared": "*",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.25.10",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "vite": "^7.1.0"
+  }
+}

@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Doto:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=block" rel="stylesheet" />
+<style>
+html,body{margin:0;padding:0;background:#e6e4de}
+a{color:#ff4d17;text-decoration:none}
+a:hover{color:#ff7a4d}
+@keyframes fIn{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes popIn{0%{opacity:0;transform:scale(.86)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
+@keyframes popOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.92)}}
+@keyframes sheetDown{from{transform:none}to{transform:translateY(100%)}}
+@keyframes scrimIn{from{opacity:0}to{opacity:1}}
+@keyframes scrimOut{from{opacity:1}to{opacity:0}}
+@keyframes cNudge{0%,100%{transform:translateX(0);opacity:.35}50%{transform:translateX(-4px);opacity:1}}
+@keyframes cRise{0%,100%{transform:translateY(0);opacity:.45}50%{transform:translateY(-3px);opacity:1}}
+@keyframes cPop{0%{transform:scale(0)}100%{transform:scale(1)}}
+@keyframes wSent{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes lvl{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+</style>
+</helmet>
+<div style="min-height:100vh;box-sizing:border-box;padding:20px 40px;display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start;font-family:'DM Mono',ui-monospace,monospace;color:#17171b;background:#e6e4de">
+
+  <div style="position:relative;width:390px;height:clamp(440px,calc(100vh - 40px),780px);flex:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:46px;overflow:hidden;background:#f4f3ef;box-shadow:0 40px 80px -30px #0000005c,inset 0 0 0 1px #ffffff">
+
+    <div ref="{{ paneRef }}" onScroll="{{ onScroll }}" style="position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;z-index:1;isolation:isolate;padding:0 0 140px;box-sizing:border-box">
+      <div style="height:52px"></div>
+
+      <div ref="{{ bigRef }}" style="padding:0 20px 14px;display:flex;align-items:flex-end;gap:10px;transform-origin:0 100%;will-change:transform,opacity">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:40px;line-height:.9;letter-spacing:-1px">notes</span>
+        <span style="flex:1"></span>
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:13px;line-height:1;padding-bottom:5px;color:#5a5852">{{ total }}</span>
+      </div>
+
+      <div style="padding:0 16px 18px">
+        <div ref="{{ searchRef }}" style="height:40px;transform-origin:0 50%;border-radius:12px;display:flex;align-items:center;gap:9px;padding:0 12px;background:{{ searchBg }};box-shadow:{{ searchRing }};transition:background-color .25s,box-shadow .25s">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px;flex:none;color:#5a5852">search</span>
+          <input spellCheck="false" ref="{{ inputRef }}" value="{{ query }}" onChange="{{ onQuery }}" placeholder="search" style="user-select:text;-webkit-user-select:text;flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:'DM Mono',monospace;font-size:13px;color:#17171b" />
+          <sc-if value="{{ query }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:17px;flex:none;cursor:pointer;color:#5a5852" onClick="{{ clearQuery }}">cancel</span>
+          </sc-if>
+        </div>
+        <sc-if value="{{ query }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 4px 0;font-size:11px;color:#5a5852;animation:fIn .25s ease-out">{{ resultLine }}</div>
+        </sc-if>
+      </div>
+
+      <div ref="{{ pageRef }}" onPointerDown="{{ swipeDown }}" onPointerUp="{{ swipeUp }}" onPointerCancel="{{ swipeCancel }}" style="touch-action:pan-y;will-change:transform,opacity">
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:9px;padding:50px 30px 0">
+          <span style="font-family:'Material Symbols Rounded';font-size:34px;color:#bdbbb3">search_off</span>
+          <span style="font-size:12px;text-align:center;color:#5a5852">{{ emptyLine }}</span>
+        </div>
+      </sc-if>
+
+      <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="4">
+        <div style="position:relative;padding-bottom:26px">
+          <div data-fade="1" data-flip="{{ sec.flipKey }}" style="position:relative;z-index:0;height:22px;pointer-events:none">
+            <div style="position:absolute;right:14px;top:0;width:{{ sec.headW }};height:22px">
+              <svg width="{{ sec.headW }}" height="22" style="position:absolute;left:0;top:0;display:block;overflow:visible">
+                <path d="{{ sec.headD }}" fill="#17171b"></path>
+              </svg>
+              <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.04em;line-height:1;color:#f4f3ef">{{ sec.day }}</span>
+            </div>
+          </div>
+
+          <sc-for list="{{ sec.rows }}" as="f" hint-placeholder-count="3">
+            <div data-open="{{ f.openMark }}" data-rid="{{ f.rid }}" data-flip="{{ f.rid }}" style="position:relative;margin-top:{{ f.mt }};z-index:{{ f.z }}">
+              <div style="position:relative;height:44px;cursor:pointer" onClick="{{ f.go }}">
+                <svg width="390" height="44" viewBox="0 0 390 44" style="position:absolute;left:0;top:0;overflow:visible;display:block">
+                  <path d="{{ f.fillD }}" fill="{{ f.fill }}" style="transition:fill .9s ease"></path>
+                  <path d="{{ f.lineD }}" fill="none" stroke="#aeaca5" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="butt"></path>
+                </svg>
+                <div data-tab="1" style="position:absolute;left:14px;top:0;width:{{ f.tabW }};height:30px;display:flex;align-items:center;gap:8px;padding:0 13px;box-sizing:border-box">
+                  <sc-if value="{{ f.mark }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;flex:none;color:#5a5852">{{ f.mark }}</span>
+                  </sc-if>
+                  <span style="font-size:12px;line-height:1;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#17171b">{{ f.label }}</span>
+                  <sc-if value="{{ f.onWall }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;flex:none;color:#ff4d17">north_east</span>
+                  </sc-if>
+                  <span style="font-family:Doto,monospace;font-weight:900;font-size:10px;line-height:1;flex:none;color:#5a5852">{{ f.stamp }}</span>
+                </div>
+              </div>
+
+              <div style="position:relative;margin:0 14px;border-radius:{{ f.bodyR }};background:{{ f.fill }};transition:background-color .9s ease">
+                <span style="position:absolute;left:-0.75px;top:0;bottom:{{ f.capH }};width:1.5px;background:#aeaca5;pointer-events:none"></span>
+                <span style="position:absolute;right:-0.75px;top:0;bottom:{{ f.capH }};width:1.5px;background:#aeaca5;pointer-events:none"></span>
+                <sc-if value="{{ f.last }}" hint-placeholder-val="{{ false }}">
+                  <svg width="390" height="14" viewBox="0 0 390 14" style="position:absolute;left:-14px;bottom:0;display:block;overflow:visible;pointer-events:none">
+                    <path d="M 14 0 V 2 Q 14 14 26 14 H 364 Q 376 14 376 2 V 0" fill="none" stroke="#aeaca5" strokeWidth="1.5" strokeLinecap="butt"></path>
+                  </svg>
+                </sc-if>
+                <div style="display:grid;grid-template-rows:{{ f.rows }};transition:grid-template-rows .52s cubic-bezier(.32,.72,0,1)">
+                  <div data-inner="1" style="min-height:0;overflow:hidden">
+                    <div style="padding:6px 18px 8px;display:flex;flex-direction:column;gap:14px;">
+                      <sc-if value="{{ f.wave }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;align-items:center;gap:12px">
+                          <span style="width:36px;height:36px;flex:none;border-radius:50%;background:#17171b;display:flex;align-items:center;justify-content:center;cursor:pointer" onClick="{{ f.play }}">
+                            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#f4f3ef">{{ f.playIcon }}</span>
+                          </span>
+                          <div style="flex:1;display:flex;align-items:center;gap:2px;height:30px;min-width:0;cursor:pointer" onClick="{{ f.play }}">
+                            <sc-for list="{{ f.wave }}" as="w" hint-placeholder-count="40">
+                              <span style="flex:1;height:{{ w.h }};border-radius:1px;background:{{ w.c }};transition:background-color .2s"></span>
+                            </sc-for>
+                          </div>
+                          <span style="font-family:Doto,monospace;font-weight:900;font-size:11px;flex:none;color:#5a5852">{{ f.dur }}</span>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ true }}" hint-placeholder-val="{{ true }}">
+                        <sc-for list="{{ f.lines }}" as="ln" hint-placeholder-count="3">
+                          <div style="display:flex;gap:9px">
+                            <sc-if value="{{ ln.bullet }}" hint-placeholder-val="{{ false }}">
+                              <span style="width:4px;height:4px;border-radius:50%;flex:none;margin-top:9px;background:#ff4d17"></span>
+                            </sc-if>
+                            <span style="font-size:{{ ln.size }};line-height:1.5;font-family:{{ ln.font }};color:{{ ln.fg }};text-wrap:pretty">{{ ln.text }}</span>
+                          </div>
+                        </sc-for>
+                        <div style="display:flex;gap:6px">
+                          <sc-for list="{{ f.acts }}" as="a" hint-placeholder-count="3">
+                            <div style="flex:{{ a.flex }};height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;background:{{ a.bg }}" onClick="{{ a.go }}">
+                              <span style="font-family:'Material Symbols Rounded';font-size:16px;color:{{ a.fg }}">{{ a.icon }}</span>
+                              <sc-if value="{{ a.label }}" hint-placeholder-val="{{ true }}">
+                                <span style="font-size:11px;color:{{ a.fg }}">{{ a.label }}</span>
+                              </sc-if>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </div>
+                <div style="height:{{ f.lip }}"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+      </div>
+    </div>
+
+    <div ref="{{ navRef }}" style="position:absolute;left:0;right:0;top:0;height:96px;z-index:5;pointer-events:none;background:transparent">
+      <div style="position:absolute;left:0;right:0;top:0;height:44px;display:flex;align-items:center;padding:0 26px;box-sizing:border-box">
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:13px;letter-spacing:.5px;color:#17171b">15:40</span>
+        <span style="flex:1"></span>
+        <span style="font-family:'Material Symbols Rounded';font-size:14px;color:#5a5852">cloud_done</span>
+      </div>
+      <div ref="{{ searchBtnRef }}" style="position:absolute;left:20px;top:52px;width:{{ navSearchW }};height:40px;border-radius:12px;background:{{ navSearchBg }};box-shadow:{{ navSearchRing }};display:flex;align-items:center;gap:9px;padding:0 11px;box-sizing:border-box;overflow:hidden;cursor:pointer;pointer-events:none;opacity:0;transform:translateY(-28px);transition:width .5s cubic-bezier(.32,.72,0,1),background-color .3s,box-shadow .3s" onClick="{{ openNavSearch }}">
+        <span style="font-family:'Material Symbols Rounded';font-size:18px;flex:none;color:{{ navSearchIcon }};transition:color .35s">search</span>
+        <sc-if value="{{ navSearch }}" hint-placeholder-val="{{ false }}">
+          <input spellCheck="false" ref="{{ navInputRef }}" value="{{ query }}" onChange="{{ onQuery }}" placeholder="search" style="user-select:text;-webkit-user-select:text;flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:'DM Mono',monospace;font-size:13px;color:#17171b;animation:fIn .3s ease .15s both" />
+          <span style="font-size:12px;flex:none;color:#5a5852;animation:fIn .3s ease .2s both" onClick="{{ closeNavSearch }}">cancel</span>
+        </sc-if>
+      </div>
+      <div ref="{{ smallRef }}" onClick="{{ toTop }}" style="position:absolute;left:120px;right:120px;top:22px;height:22px;display:flex;align-items:center;justify-content:center;opacity:0;cursor:pointer;will-change:transform,opacity">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:17px;line-height:1;color:#17171b">notes</span>
+      </div>
+    </div>
+
+    <div style="position:absolute;left:0;right:0;bottom:0;height:104px;pointer-events:none;background:linear-gradient(#f4f3ef00,#f4f3ef 64%);z-index:6"></div>
+
+    <sc-if value="{{ ghostOn }}" hint-placeholder-val="{{ false }}">
+      <div ref="{{ ghostRef }}" style="position:absolute;left:0;top:0;height:30px;display:flex;align-items:center;gap:8px;padding:0 13px;box-sizing:border-box;border-radius:15px;background:#ff4d17;z-index:9;visibility:hidden;overflow:hidden;white-space:nowrap;will-change:transform,width">
+        <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;flex:none;color:#0b0b0d">graphic_eq</span>
+        <span style="font-size:12px;line-height:1;flex:1;min-width:0;color:#0b0b0d">new recording</span>
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:10px;line-height:1;flex:none;color:#0b0b0d">now</span>
+      </div>
+    </sc-if>
+
+    <div style="position:absolute;left:0;right:0;bottom:20px;display:flex;justify-content:center;z-index:8;pointer-events:none">
+      <div ref="{{ islandRef }}" style="position:relative;height:52px;width:{{ islandW }};border-radius:26px;background:#17171b;box-shadow:0 14px 30px -12px #00000080,inset 0 1px 0 #ffffff1a;pointer-events:auto;transition:width .55s cubic-bezier(.32,.72,0,1)">
+        <div style="position:absolute;left:5px;top:5px;bottom:5px;right:52px;border-radius:21px;overflow:hidden;opacity:{{ segO }};pointer-events:{{ segPE }};transition:opacity .22s ease {{ segDelay }}">
+          <span style="position:absolute;top:0;left:0;height:42px;width:{{ pillW }};border-radius:21px;background:#f4f3ef;transform:translateX({{ pillX }});transition:transform .45s cubic-bezier(.32,.72,0,1)"></span>
+          <div style="position:relative;display:flex;height:42px">
+            <sc-for list="{{ drawers }}" as="d" hint-placeholder-count="3">
+              <div style="width:{{ d.w }};flex:none;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;opacity:{{ d.o }};transition:width .45s cubic-bezier(.32,.72,0,1),opacity .25s" onClick="{{ d.go }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:18px;color:{{ d.fg }};transition:color .3s">{{ d.icon }}</span>
+                <sc-if value="{{ d.label }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-size:11px;white-space:nowrap;color:{{ d.fg }};transition:color .3s">{{ d.label }}</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="position:absolute;right:5px;bottom:26px;width:42px;height:{{ lockH }};border-radius:21px;background:#26262c;overflow:hidden;opacity:{{ lockO }};transition:{{ lockT }};z-index:1;pointer-events:none">
+          <div style="display:flex;flex-direction:column;align-items:center;padding-top:12px">
+            <span ref="{{ lockRef }}" style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:{{ lockFg }};transition:color .25s ease">{{ lockIcon }}</span>
+            <span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;margin-top:4px;color:#f4f3ef;opacity:{{ lockArrowO }};transition:opacity .2s ease;animation:cRise 1.3s ease-in-out infinite">keyboard_arrow_up</span>
+          </div>
+        </div>
+
+        <div ref="{{ capRef }}" style="position:absolute;right:5px;top:5px;height:42px;width:{{ capW }};border-radius:21px;background:{{ capBg }};overflow:{{ capOverflow }};z-index:2;transition:width .5s cubic-bezier(.32,.72,0,1),background-color .45s ease">
+          <div style="position:absolute;left:0;top:0;bottom:0;right:42px;display:flex;align-items:center;gap:10px;padding-left:5px;box-sizing:border-box;opacity:{{ recO }};pointer-events:{{ recPE }};transition:opacity .2s ease {{ recDelay }}">
+            <span ref="{{ binRef }}" onClick="{{ cancelRec }}" style="width:32px;height:32px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ binBg }};transform:scale({{ binS }});transition:{{ binT }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:{{ binFg }};transition:{{ binFgT }}">delete</span>
+            </span>
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;opacity:{{ trackO }};transform:translateX({{ trackX }}) scale({{ trackS }});transform-origin:0 50%;transition:{{ trackT }}">
+              <sc-if value="{{ chevOn }}" hint-placeholder-val="{{ false }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;flex:none;margin-left:-4px;color:#8e8e97;animation:cNudge 1.1s ease-in-out infinite">keyboard_double_arrow_left</span>
+              </sc-if>
+              <span style="font-family:Doto,monospace;font-weight:900;font-size:16px;line-height:1;flex:none;letter-spacing:.5px;color:#f4f3ef">{{ recTime }}</span>
+              <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1;flex:none;color:#ff4d17;animation:cPop .45s cubic-bezier(.2,1.4,.4,1)">lock</span>
+              </sc-if>
+            </div>
+          </div>
+          <div ref="{{ micRef }}" onPointerDown="{{ micDown }}" onPointerMove="{{ micMove }}" onPointerUp="{{ micUp }}" onPointerCancel="{{ micUp }}" style="position:absolute;right:{{ micInset }};top:{{ micInset }};width:{{ micSize }};height:{{ micSize }};border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;user-select:none;background:{{ micBg }};transform:translate({{ micX }},{{ micY }}) scale({{ micPress }});box-shadow:{{ micShadow }};opacity:{{ micOp }};transition:{{ micT }};z-index:3">
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:{{ micIconFg }};pointer-events:none;transition:color .15s">{{ micIconNow }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ sheetOn }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;z-index:20;background:#17171b59;animation:{{ scrimAnim }}"></div>
+      <div style="position:absolute;inset:0;z-index:21;display:flex;align-items:center;justify-content:center;padding:{{ popPad }};box-sizing:border-box;pointer-events:none;transition:padding .3s ease">
+      <div style="width:100%;max-height:100%;height:{{ popH }};border-radius:{{ popR }};background:#f4f3ef;box-shadow:0 30px 60px -20px #00000073,0 0 0 1px #00000008;display:flex;flex-direction:column;overflow:hidden;pointer-events:auto;transform-origin:{{ popOrigin }};animation:{{ sheetAnim }}">
+        <div style="flex:none;display:flex;align-items:center;height:46px;padding:0 16px;margin-top:{{ popTop }}">
+          <span style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#e9e8e3" onClick="{{ closeSheet }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:18px;color:#17171b">close</span>
+          </span>
+          <span style="flex:1;text-align:center;font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:17px;line-height:1;color:#17171b">{{ popTitle }}</span>
+          <span style="width:32px"></span>
+        </div>
+
+        <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+            <div style="flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:14px;padding:8px 22px 14px">
+              <input value="{{ eLabel }}" onChange="{{ onELabel }}" style="user-select:text;-webkit-user-select:text;border:0;outline:0;background:transparent;padding:0 0 10px;border-bottom:1.5px solid #e2e0d9;font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:1.1;color:#17171b" spellCheck="false" />
+              <sc-if value="{{ eVoice }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:12px;background:#ffffff;box-shadow:inset 0 0 0 1.5px #e2e0d9">
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#ff4d17">graphic_eq</span>
+                  <span style="flex:1"></span>
+                  <span style="font-family:Doto,monospace;font-weight:900;font-size:12px;color:#5a5852">{{ eDur }}</span>
+                </div>
+              </sc-if>
+              <textarea ref="{{ eRef }}" rows="{{ eRows }}" value="{{ eBody }}" onChange="{{ onEBody }}" style="user-select:text;-webkit-user-select:text;flex:1;min-height:140px;border:0;outline:0;resize:none;background:transparent;padding:0;font-family:'DM Mono',monospace;font-size:15px;line-height:1.65;color:#2c2c31"></textarea>
+            </div>
+            <div style="flex:none;display:flex;align-items:center;gap:6px;padding:10px 16px 30px;border-top:1px solid #e2e0d9">
+              <sc-for list="{{ eTools }}" as="t" hint-placeholder-count="3">
+                <div style="width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ t.bg }};transition:background-color .25s" onClick="{{ t.go }}">
+                  <span style="font-family:'Material Symbols Rounded';font-size:19px;color:{{ t.fg }};transition:color .25s">{{ t.icon }}</span>
+                </div>
+              </sc-for>
+              <span style="flex:1"></span>
+              <div style="height:42px;padding:0 18px;border-radius:13px;display:flex;align-items:center;gap:7px;cursor:pointer;background:#17171b" onClick="{{ eDone }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#f4f3ef">check</span>
+                <span style="font-size:12px;color:#f4f3ef">done</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isWall }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;min-height:0">
+          <div style="min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:18px;padding:4px 20px 16px">
+            <div style="align-self:center;width:310px;flex:none;border-radius:18px;padding:12px 12px 11px;box-sizing:border-box;background:#fbfaf7;box-shadow:0 18px 36px -20px #0000006b,inset 0 0 0 1.5px #e2e0d9">
+              <div style="position:relative;width:286px;height:214px;border-radius:10px;background:#0a0a0c;overflow:hidden">
+                <div style="position:absolute;left:14px;right:14px;top:13px;display:flex;align-items:center;gap:7px">
+                  <span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:#ff4d17">{{ wallIcon }}</span>
+                  <span style="font-size:10px;letter-spacing:.14em;color:#9a9aa3">{{ wallTag }}</span>
+                  <span style="flex:1"></span>
+                  <span style="font-family:Doto,monospace;font-weight:900;font-size:14px;line-height:1;color:#f4f3ef">{{ wallClock }}</span>
+                </div>
+                <div style="position:absolute;left:14px;right:14px;top:48px;display:flex;flex-direction:column;gap:7px">
+                  <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:27px;line-height:1.02;color:#f4f3ef;text-wrap:pretty">{{ wallTitle }}</span>
+                  <span style="font-size:12px;line-height:1.4;color:#b6b5af;text-wrap:pretty">{{ wallLine }}</span>
+                </div>
+                <div style="position:absolute;left:8px;right:8px;bottom:0;height:30px;display:flex;gap:6px">
+                  <sc-for list="{{ wallKeys }}" as="k" hint-placeholder-count="4">
+                    <div style="flex:1;border-radius:7px 7px 0 0;display:flex;align-items:center;justify-content:center;font-size:11px;background:{{ k.bg }};color:{{ k.fg }};transition:background-color .35s,color .35s">{{ k.label }}</div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ wallSent }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;inset:0;background:#0a0a0cf2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;animation:fIn .2s ease-out">
+                    <span style="font-family:'Material Symbols Rounded';font-size:46px;line-height:1;color:#ff4d17;animation:wSent .5s cubic-bezier(.2,1.3,.4,1)">check_circle</span>
+                    <span style="font-family:Doto,monospace;font-weight:900;font-size:13px;color:#f4f3ef">{{ wallClock }}</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display:flex;gap:6px;padding:10px 8px 0">
+                <sc-for list="{{ wallHard }}" as="h" hint-placeholder-count="4">
+                  <span style="flex:1;height:24px;border-radius:6px;background:{{ h.bg }};box-shadow:{{ h.shadow }};transition:background-color .35s,box-shadow .35s"></span>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex:none">
+              <sc-for list="{{ asOpts }}" as="o" hint-placeholder-count="2">
+                <div style="flex:1;height:62px;border-radius:16px;padding:0 14px;box-sizing:border-box;display:flex;align-items:center;gap:11px;cursor:pointer;background:{{ o.bg }};transition:background-color .3s" onClick="{{ o.go }}">
+                  <span style="font-family:'Material Symbols Rounded';font-size:20px;flex:none;color:{{ o.icon2 }};transition:color .3s">{{ o.icon }}</span>
+                  <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                    <span style="font-size:13px;color:{{ o.fg }};transition:color .3s">{{ o.label }}</span>
+                    <span style="font-size:10px;color:{{ o.sub }};transition:color .3s">{{ o.hint }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;flex:none">
+              <div style="display:flex;align-items:flex-end;gap:10px">
+                <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+                  <span style="font-size:10px;letter-spacing:.2em;color:#5a5852">ARRIVES</span>
+                  <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:24px;line-height:1;color:#17171b">{{ whenLabel }}</span>
+                </div>
+                <span style="flex:1"></span>
+                <span style="font-family:Doto,monospace;font-weight:900;font-size:28px;line-height:.9;letter-spacing:.5px;color:#ff4d17">{{ wallClock }}</span>
+              </div>
+
+              <div ref="{{ stripRef }}" onPointerDown="{{ scrubDown }}" onPointerMove="{{ scrubMove }}" onPointerUp="{{ scrubUp }}" onPointerCancel="{{ scrubUp }}" style="position:relative;height:96px;border-radius:18px;background:#17171b;overflow:hidden;touch-action:none;cursor:grab">
+                <div style="position:absolute;left:50%;top:0;bottom:0;width:{{ rulerW }};transform:translateX({{ rulerX }});transition:{{ rulerT }};pointer-events:none">
+                  <sc-for list="{{ rZones }}" as="z" hint-placeholder-count="3">
+                    <div style="position:absolute;left:{{ z.l }};width:{{ z.w }};top:12px;height:24px;border-radius:8px;background:repeating-linear-gradient(135deg,#2e2e36 0 4px,#1f1f25 4px 8px);display:flex;align-items:center;justify-content:center;gap:5px">
+                      <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;color:#8e8e97">{{ z.icon }}</span>
+                    </div>
+                  </sc-for>
+                  <sc-for list="{{ rTicks }}" as="t" hint-placeholder-count="30">
+                    <span style="position:absolute;left:{{ t.l }};bottom:30px;width:2px;height:{{ t.h }};margin-left:-1px;border-radius:1px;background:{{ t.c }}"></span>
+                  </sc-for>
+                  <sc-for list="{{ rHours }}" as="h" hint-placeholder-count="15">
+                    <span style="position:absolute;left:{{ h.l }};bottom:11px;transform:translateX(-50%);font-family:Doto,monospace;font-weight:900;font-size:11px;line-height:1;color:#6f6f78">{{ h.t }}</span>
+                  </sc-for>
+                  <sc-for list="{{ rStops }}" as="p" hint-placeholder-count="4">
+                    <span style="position:absolute;left:{{ p.l }};top:44px;width:{{ p.d }};height:{{ p.d }};transform:translate(-50%,-50%);border-radius:50%;background:{{ p.c }};transition:width .25s ease,height .25s ease,background-color .25s ease"></span>
+                  </sc-for>
+                </div>
+                <span style="position:absolute;left:0;top:0;bottom:0;width:70px;background:linear-gradient(90deg,#17171b,#17171b00);pointer-events:none"></span>
+                <span style="position:absolute;right:0;top:0;bottom:0;width:70px;background:linear-gradient(270deg,#17171b,#17171b00);pointer-events:none"></span>
+                <span style="position:absolute;left:50%;top:8px;bottom:8px;width:3px;margin-left:-1.5px;border-radius:2px;background:#ff4d17;pointer-events:none"></span>
+                <span style="position:absolute;left:50%;top:4px;width:11px;height:6px;margin-left:-5.5px;border-radius:0 0 6px 6px;background:#ff4d17;pointer-events:none"></span>
+              </div>
+
+              <div style="display:flex;gap:6px">
+                <sc-for list="{{ whenChips }}" as="c" hint-placeholder-count="4">
+                  <div style="flex:1;height:46px;border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;background:{{ c.bg }};transition:background-color .3s" onClick="{{ c.go }}">
+                    <span style="font-size:10px;line-height:1;white-space:nowrap;color:{{ c.fg }};transition:color .3s">{{ c.label }}</span>
+                    <span style="font-family:Doto,monospace;font-weight:900;font-size:11px;line-height:1;color:{{ c.sub }};transition:color .3s">{{ c.time }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="flex:none;padding:10px 16px 16px;border-top:1px solid #e2e0d9">
+            <div style="height:54px;border-radius:17px;background:#17171b;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer" style-active="transform:scale(.98)" onClick="{{ sheetPrimary }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:18px;color:#ff4d17">north_east</span>
+              <span style="font-size:13px;color:#f4f3ef">send to the wall</span>
+            </div>
+          </div>
+          </div>
+        </sc-if>
+      </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ hint }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:16px;bottom:84px;z-index:9;padding:8px 12px;border-radius:10px;background:#17171b;font-size:11px;color:#f4f3ef;animation:rise .28s cubic-bezier(.32,.72,0,1)">{{ hint }}</div>
+    </sc-if>
+  </div>
+
+  <div style="width:360px;display:flex;flex-direction:column;gap:14px;padding-top:6px">
+    <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:27px;line-height:1">nudge notes</span>
+    <span style="font-size:10px;letter-spacing:.2em;color:#5a5852">SECOND APP · CAPTURE ONLY</span>
+    <sc-for list="{{ notes }}" as="n" hint-placeholder-count="5">
+      <div style="display:flex;align-items:flex-start;gap:11px">
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:11px;line-height:1;flex:none;padding:4px 6px;border-radius:4px;background:#17171b;color:#ff4d17">{{ n.k }}</span>
+        <span style="font-size:12px;line-height:1.5;color:#3c3c42;text-wrap:pretty">{{ n.t }}</span>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:900,&quot;height&quot;:820}}">
+const SEED = [
+  { kind: "note", label: "song idea, second verse", stamp: "14:02", day: "today", tags: ["song", "music", "verse", "rain"], body: "Something about the walk home in the rain\nSlower than the first verse\nTry it in D" },
+  { kind: "voice", label: "riff", stamp: "13:48", day: "today", secs: 14, tags: ["song", "music", "riff", "guitar"], body: "Hummed into the wall on the way past" },
+  { kind: "note", label: "ask Mr Hale about the mock", stamp: "11:20", day: "today", tags: ["school", "chem", "hale", "mock", "exam"], body: "Whether the practical counts toward the final grade" },
+  { kind: "task", label: "restring the guitar", stamp: "18:40", day: "yesterday", tags: ["music", "guitar", "shop"], body: "Two strings gone\nShop shuts at five on Saturdays" },
+  { kind: "voice", label: "chorus melody", stamp: "16:02", day: "yesterday", secs: 22, tags: ["song", "music", "chorus"], body: "Falls apart at the end, keep the first half" },
+  { kind: "note", label: "revision order for chem", stamp: "15:15", day: "yesterday", tags: ["school", "chem", "revision", "exam"], body: "Bonding first\nThen rates\nEquilibrium last, it needs the other two" },
+  { kind: "note", label: "birthday, mum", stamp: "20:10", day: "tuesday", tags: ["home", "birthday", "mum", "gift"], body: "Something for the garden\nAsk Dad what she already has" },
+  { kind: "voice", label: "bass line", stamp: "17:26", day: "tuesday", secs: 31, tags: ["song", "music", "bass"], body: "Recorded in the kitchen, too much noise on it" },
+  { kind: "task", label: "return the library book", stamp: "12:05", day: "monday", tags: ["school", "library", "book"], body: "Overdue since Friday" },
+  { kind: "note", label: "words that sound good", stamp: "09:48", day: "monday", tags: ["song", "words", "writing"], body: "Harbour\nLantern\nOvergrown" },
+  { kind: "voice", label: "idea, half asleep", stamp: "23:51", day: "sunday", secs: 8, tags: ["song", "music"], body: "Unusable. Keeping it because it made me laugh" },
+  { kind: "note", label: "kit list for Thursday", stamp: "19:30", day: "sunday", tags: ["school", "pe", "kit"], body: "Indoor kit\nNot the studs" },
+  { kind: "note", label: "physics formula sheet", stamp: "14:12", day: "saturday", tags: ["school", "physics", "revision", "exam"], body: "Only the ones not given in the exam" },
+  { kind: "task", label: "charge the pedal board", stamp: "11:00", day: "saturday", tags: ["music", "guitar"], body: "Both batteries flat" },
+  { kind: "note", label: "essay opening", stamp: "16:44", day: "friday", tags: ["school", "english", "essay", "writing"], body: "Start with the stage direction\nNot the quote everyone uses" },
+  { kind: "voice", label: "drum pattern", stamp: "15:20", day: "friday", secs: 11, tags: ["song", "music", "drums"], body: "Tapped on the desk, half of it is furniture" },
+].map((it, i) => ({ ...it, id: "n" + i }));
+
+const CONTEXT = {
+  music: ["song", "music", "riff", "chorus", "bass", "drums", "guitar", "verse", "words", "writing"],
+  school: ["school", "chem", "physics", "english", "revision", "exam", "mock", "essay", "library", "pe", "kit", "hale", "book"],
+  home: ["home", "birthday", "mum", "gift", "shop", "rain"],
+};
+
+const DRAWERS = [
+  { id: "all", label: "all", icon: "inbox" },
+  { id: "voice", label: "voice", icon: "graphic_eq" },
+  { id: "task", label: "tasks", icon: "check_box_outline_blank" },
+];
+
+const WHEN = [
+  { id: "now", label: "right now", chip: "now", time: "now", h: 15 + 40 / 60 },
+  { id: "school", label: "after school", chip: "home", time: "16:10", h: 16 + 10 / 60 },
+  { id: "night", label: "tonight", chip: "tonight", time: "19:00", h: 19 },
+  { id: "morning", label: "tomorrow morning", chip: "morning", time: "07:30", h: 31.5 },
+];
+const ZONES = [
+  { from: 14.5, to: 15.5, icon: "school" },
+  { from: 16.5, to: 18, icon: "timer" },
+  { from: 22.5, to: 31, icon: "bedtime" },
+];
+const H0 = 14.5, H1 = 32.5;
+// hour -> px knots; stops sit 75 / 175 / 240px apart
+const KNOTS = [[14.5, 0], [15.5, 60], [15 + 40 / 60, 100], [16 + 10 / 60, 175], [16.5, 200], [18, 290], [19, 350], [22.5, 440], [31, 540], [31.5, 590], [32.5, 640]];
+const rx = (h) => {
+  for (let i = 1; i < KNOTS.length; i++) {
+    const [h0, x0] = KNOTS[i - 1], [h1, x1] = KNOTS[i];
+    if (h <= h1) return x0 + ((h - h0) / (h1 - h0)) * (x1 - x0);
+  }
+  return KNOTS[KNOTS.length - 1][1];
+};
+const rh = (x) => {
+  for (let i = 1; i < KNOTS.length; i++) {
+    const [h0, x0] = KNOTS[i - 1], [h1, x1] = KNOTS[i];
+    if (x <= x1) return h0 + ((x - x0) / (x1 - x0)) * (h1 - h0);
+  }
+  return KNOTS[KNOTS.length - 1][0];
+};
+
+const MARK = { note: "", voice: "graphic_eq", task: "check_box_outline_blank" };
+const L = 14, R = 376, TH = 30, H = 44;
+
+function silhouette(tw) {
+  const x2 = L + tw;
+  const d =
+    "M " + L + " " + H +
+    " L " + L + " 10 Q " + L + " 0 " + (L + 10) + " 0" +
+    " L " + (x2 - 16) + " 0" +
+    " C " + (x2 - 6) + " 0 " + (x2 - 8) + " " + TH + " " + (x2 + 6) + " " + TH +
+    " L " + (R - 2) + " " + TH +
+    " Q " + R + " " + TH + " " + R + " " + (TH + 2) +
+    " L " + R + " " + H;
+  return { fill: d + " Z", line: d };
+}
+
+function dayHead(label) {
+  const w = Math.round(label.length * 7.4 + 28);
+  const r = 7, h = 22;
+  const d = "M 0 " + h + " Q " + r + " " + h + " " + r + " " + (h - r) +
+    " L " + r + " " + r + " Q " + r + " 0 " + (r * 2) + " 0" +
+    " L " + (w + r * 2 - r * 2) + " 0 Q " + (w + r) + " 0 " + (w + r) + " " + r +
+    " L " + (w + r) + " " + (h - r) + " Q " + (w + r) + " " + h + " " + (w + r * 2) + " " + h + " Z";
+  return { d, w: w + r * 2 };
+}
+
+class Component extends DCLogic {
+  paneRef = React.createRef();
+  bigRef = React.createRef();
+  smallRef = React.createRef();
+  navRef = React.createRef();
+  searchRef = React.createRef();
+  searchBtnRef = React.createRef();
+  navInputRef = React.createRef();
+  ghostRef = React.createRef();
+  islandRef = React.createRef();
+  micRef = React.createRef();
+  pageRef = React.createRef();
+  capRef = React.createRef();
+  lockRef = React.createRef();
+  editRef = React.createRef();
+  stripRef = React.createRef();
+  binRef = React.createRef();
+  inputRef = React.createRef();
+  lastY = 0;
+
+  frame = () => {
+    this.raf = 0;
+    const pane = this.paneRef.current;
+    if (!pane) return;
+    const y = pane.scrollTop;
+    const t = Math.min(1, Math.max(0, y / 44));
+    const big = this.bigRef.current, small = this.smallRef.current, nav = this.navRef.current;
+    if (big) { big.style.opacity = String(1 - t); big.style.transform = "scale(" + (1 - t * 0.08).toFixed(3) + ")"; }
+    if (small) { small.style.opacity = String(Math.max(0, t * 1.6 - 0.6)); small.style.transform = "translateY(" + ((1 - t) * 6).toFixed(1) + "px)"; }
+    const sf = this.searchRef.current, sb = this.searchBtnRef.current;
+    const ks = Math.min(1, Math.max(0, (y - 40) / 40));
+    if (sf) { sf.style.opacity = String(1 - ks); sf.style.transform = "scaleX(" + (1 - ks * 0.12).toFixed(3) + ")"; }
+    const kb = Math.min(1, Math.max(0, (y - 90) / 30));
+    if (sb) {
+      const v = this.state.navSearch ? 1 : kb;
+      const ev = 1 - Math.pow(1 - v, 3);
+      sb.style.opacity = String(ev);
+      sb.style.transform = "translateY(" + (-(1 - ev) * 28).toFixed(2) + "px)";
+      sb.style.pointerEvents = v > 0.6 ? "auto" : "none";
+    }
+    if (small && this.state.navSearch) small.style.opacity = "0";
+    const box = pane.getBoundingClientRect();
+    const ease = (k) => { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); };
+    pane.querySelectorAll("[data-open],[data-fade]").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      const up = ease((178 - (Math.min(r.bottom, r.top + 64) - box.top)) / 96);
+      el.style.opacity = String(1 - up);
+      el.style.transformOrigin = "50% 100%";
+      el.style.transform = up ? "scale(" + (1 - up * 0.07).toFixed(4) + ")" : "";
+    });
+  };
+  state = { items: SEED, drawer: "all", open: "", rec: false, recSec: 0, q: "", playing: "", fresh: "", y: 0, mini: false, holding: false, locked: false, dx: 0, dy: 0, hint: "", sheet: "", sheetId: "", closing: false, draft: null, wallAs: "reminder", wallWhen: "school", navSearch: false, ghostOn: false, binning: false, editing: "", eDraft: null, lockFlash: false, wallSent: false, wallDrag: -1 };
+
+  componentDidMount() { requestAnimationFrame(this.frame); }
+  componentWillUnmount() { clearTimeout(this.lockTo); clearTimeout(this.sendTo); clearTimeout(this.flyTo); clearTimeout(this.binTo); clearTimeout(this.sheetTo); clearTimeout(this.hintTo); clearInterval(this.recIv); clearTimeout(this.freshTo); clearTimeout(this.settleTo); cancelAnimationFrame(this.raf); }
+
+  componentDidUpdate() {
+    const s = this.state;
+    const ps = this._prev || s;
+    this._prev = { drawer: s.drawer, q: s.q, open: s.open };
+    const g = window.gsap;
+    const pane = this.paneRef.current;
+    if (!pane) return;
+    if (ps.q !== s.q && pane.scrollTop > 0 && g) {
+      g.to(pane, { scrollTop: 0, duration: 0.4, ease: "power3.inOut", overwrite: true });
+    }
+    requestAnimationFrame(this.frame);
+    if (ps.open !== s.open && s.open) requestAnimationFrame(() => this.settle(s.open));
+  }
+
+  settle(id) {
+    const g = window.gsap;
+    const pane = this.paneRef.current;
+    if (!g || !pane) return;
+    const row = pane.querySelector('[data-open="1"]');
+    if (!row) return;
+    const top = row.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+    const inner = row.querySelector('[data-inner]');
+    const extra = inner ? Math.max(0, inner.scrollHeight - inner.offsetHeight) : 0;
+    const bottom = top + row.offsetHeight + extra;
+    let want = pane.scrollTop;
+    if (top < 90) want = pane.scrollTop + top - 90;
+    else if (bottom > pane.clientHeight - 110) want = pane.scrollTop + Math.min(top - 90, bottom - (pane.clientHeight - 110));
+    want = Math.max(0, Math.min(pane.scrollHeight - pane.clientHeight, want));
+    if (Math.abs(want - pane.scrollTop) > 4) g.to(pane, { scrollTop: want, duration: 0.52, ease: "power4.out", overwrite: true });
+  }
+
+  onScroll = () => {
+    const pane = this.paneRef.current;
+    if (!pane) return;
+    if (!this.raf) this.raf = requestAnimationFrame(this.frame);
+    const y = pane.scrollTop;
+    const d = y - this.lastY;
+    const patch = {};
+    if (Math.abs(d) > 8) {
+      const mini = d > 0 && y > 60;
+      if (mini !== this.state.mini) patch.mini = mini;
+      this.lastY = y;
+    }
+    if (Object.keys(patch).length) this.setState(patch);
+  };
+
+  startRec() {
+    clearInterval(this.recIv);
+    this.recIv = setInterval(() => this.setState((p) => ({ recSec: p.recSec + 1 })), 1000);
+  }
+  stopRec(save) {
+    clearInterval(this.recIv);
+    const secs = this.state.recSec;
+    this.setState({ rec: false, holding: false, locked: false, dx: 0, dy: 0, settling: true });
+    clearTimeout(this.settleTo);
+    this.settleTo = setTimeout(() => this.setState({ settling: false }), 520);
+    const mb = this.micRef.current, gg = window.gsap;
+    if (mb && gg) gg.fromTo(mb, { scale: 0.9 }, { scale: 1, duration: 0.45, ease: "back.out(3)", clearProps: "scale" });
+    if (!save) return;
+    const id = "r" + Date.now();
+    const item = { id, kind: "voice", label: "new recording", stamp: "now", day: "today", secs: Math.max(1, secs), tags: ["music"], body: "Transcribing" };
+    const g = window.gsap;
+    const pane = this.paneRef.current;
+    const fly = () => {
+      const before = new Map();
+      if (pane) pane.querySelectorAll("[data-flip]").forEach((el) => before.set(el.getAttribute("data-flip"), el.getBoundingClientRect().top));
+      this.setState((p) => ({ q: "", navSearch: false, open: "", drawer: p.drawer === "task" ? "all" : p.drawer, items: [item].concat(p.items), ghostOn: true }), () => {
+        {
+          const gh = this.ghostRef.current, mic = this.micRef.current;
+          const row = pane && pane.querySelector('[data-rid="' + id + '"]');
+          if (!g || !gh || !row || !mic || !gh.offsetParent) { this.setState({ ghostOn: false }); return; }
+          row.style.visibility = "hidden";
+          pane.querySelectorAll("[data-flip]").forEach((el) => {
+            const k = el.getAttribute("data-flip");
+            if (!before.has(k)) return;
+            const d = before.get(k) - el.getBoundingClientRect().top;
+            if (Math.abs(d) > 0.5) g.fromTo(el, { y: d }, { y: 0, duration: 0.64, delay: 0.24, ease: "power3.inOut", clearProps: "transform" });
+          });
+          const box = gh.offsetParent.getBoundingClientRect();
+          const m = mic.getBoundingClientRect();
+          const tab = row.querySelector("[data-tab]") || row;
+          const t = tab.getBoundingClientRect();
+          const w0 = gh.offsetWidth;
+          const sx = m.left + m.width / 2 - box.left - w0 / 2;
+          const sy = m.top + m.height / 2 - box.top - 15;
+          g.set(gh, { x: sx, y: sy, scale: 0.28, opacity: 0, visibility: "visible", transformOrigin: "50% 50%" });
+          g.timeline({
+            onComplete: () => {
+              row.style.visibility = "";
+              this.setState({ ghostOn: false, fresh: id });
+              clearTimeout(this.freshTo);
+              this.freshTo = setTimeout(() => this.setState({ fresh: "" }), 700);
+            },
+          })
+            .to(gh, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.2)" })
+            .to(gh, { y: sy - 36, duration: 0.2, ease: "power2.out" }, "-=0.1")
+            .to(gh, { x: t.left - box.left, y: t.top - box.top, duration: 0.64, ease: "power3.inOut" })
+            .to(gh, { width: t.width, borderRadius: "12px 12px 0 0", duration: 0.28, ease: "power2.inOut" }, "-=0.28")
+            .to(gh, { scaleY: 0.9, scaleX: 1.03, transformOrigin: "50% 100%", duration: 0.08, ease: "power1.out" })
+            .to(gh, { scaleY: 1, scaleX: 1, duration: 0.18, ease: "back.out(3)" });
+        }
+      });
+    };
+    const go = () => { clearTimeout(this.flyTo); this.flyTo = setTimeout(fly, 220); };
+    if (pane && g && pane.scrollTop > 0) g.to(pane, { scrollTop: 0, duration: 0.34, ease: "power2.out", onComplete: go });
+    else go();
+  }
+  micDown = (e) => {
+    if (this.state.locked) { this.stopRec(true); return; }
+    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
+    this.p0 = { x: e.clientX, y: e.clientY, t: Date.now() };
+    this.setState({ rec: true, holding: true, locked: false, recSec: 0, dx: 0, dy: 0, hint: "", recFlash: true });
+    clearTimeout(this.flashTo);
+    this.flashTo = setTimeout(() => this.setState({ recFlash: false }), 380);
+    this.startRec();
+  };
+  micMove = (e) => {
+    if (!this.state.holding || !this.p0) return;
+    const dx = Math.min(0, e.clientX - this.p0.x);
+    const dy = Math.min(0, e.clientY - this.p0.y);
+    if (dy < -72) {
+      this.p0 = null;
+      this.setState({ holding: true, locked: true, dx: 0, dy: -72, lockFlash: true });
+      setTimeout(() => this.setState({ holding: false }), 10);
+      const g = window.gsap, lk = this.lockRef.current;
+      if (g && lk) g.fromTo(lk, { scale: 0.7, rotate: -12 }, { scale: 1, rotate: 0, duration: 0.42, ease: "back.out(2.6)" });
+      clearTimeout(this.lockTo);
+      this.lockTo = setTimeout(() => this.setState({ lockFlash: false, dy: 0 }), 380);
+      return;
+    }
+    if (dx < -120) { this.p0 = null; this.binCancel(); return; }
+    // lock one axis once the drag commits to it
+    this.setState(Math.abs(dx) > Math.abs(dy) ? { dx, dy: 0 } : { dx: 0, dy });
+  };
+  micUp = () => {
+    if (!this.state.holding) return;
+    const quick = this.p0 && Date.now() - this.p0.t < 350;
+    this.p0 = null;
+    if (quick) {
+      this.stopRec(false);
+      this.setState({ hint: "hold to record, slide up to lock" });
+      clearTimeout(this.hintTo);
+      this.hintTo = setTimeout(() => this.setState({ hint: "" }), 1800);
+      return;
+    }
+    this.stopRec(true);
+  };
+  binCancel() {
+    const g = window.gsap, bin = this.binRef.current, cap = this.capRef.current, mic = this.micRef.current;
+    let binDx = -200;
+    if (bin && mic) {
+      const a = bin.getBoundingClientRect(), b = mic.getBoundingClientRect();
+      binDx = (a.left + a.width / 2) - (b.left + b.width / 2) + (this.state.holding ? this.state.dx : 0);
+    }
+    this.setState({ holding: false, binning: true, binDx, dy: 0 });
+    if (g && bin) {
+      g.timeline()
+        .to(bin, { scale: 1.35, rotate: -16, duration: 0.14, ease: "power2.out" })
+        .to(bin, { rotate: 14, duration: 0.1, ease: "sine.inOut" })
+        .to(bin, { rotate: 0, scale: 1, duration: 0.24, ease: "back.out(2.4)" });
+    }
+    clearTimeout(this.binTo);
+    this.binTo = setTimeout(() => {
+      this.setState({ binning: false, micHide: true, dx: 0 });
+      this.stopRec(false);
+      setTimeout(() => {
+        this.setState({ micHide: false });
+        const mb = this.micRef.current;
+        if (g && mb) g.fromTo(mb, { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.42, ease: "back.out(2.6)", clearProps: "scale,opacity" });
+      }, 40);
+      if (g && cap) g.fromTo(cap, { x: 0 }, { keyframes: [{ x: -5, duration: 0.06 }, { x: 4, duration: 0.07 }, { x: -2, duration: 0.07 }, { x: 0, duration: 0.1 }], delay: 0.36 });
+    }, 420);
+  }
+  cancelRec = (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.binCancel(); };
+
+  switchDrawer(id) {
+    const s = this.state;
+    if (id === s.drawer || this.paging) return;
+    const from = DRAWERS.findIndex((d) => d.id === s.drawer), to = DRAWERS.findIndex((d) => d.id === id);
+    const dir = to > from ? 1 : -1;
+    const g = window.gsap, el = this.pageRef.current, pane = this.paneRef.current;
+    if (!g || !el) { this.setState({ drawer: id, open: "" }); return; }
+    this.paging = true;
+    g.to(el, { x: -dir * 90, opacity: 0, duration: 0.2, ease: "power2.in", onComplete: () => {
+      if (pane) pane.scrollTop = 0;
+      this.setState({ drawer: id, open: "" }, () => {
+        g.fromTo(el, { x: dir * 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out", clearProps: "transform,opacity", onComplete: () => { this.paging = false; } });
+      });
+    } });
+  }
+  swipeDown = (e) => { this.sw = { x: e.clientX, y: e.clientY, t: Date.now() }; };
+  swipeUp = (e) => {
+    const sw = this.sw; this.sw = null;
+    if (!sw || this.state.rec || this.state.sheet) return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - sw.t > 600) return;
+    const i = DRAWERS.findIndex((d) => d.id === this.state.drawer);
+    const j = Math.max(0, Math.min(DRAWERS.length - 1, i + (dx < 0 ? 1 : -1)));
+    if (j !== i) this.switchDrawer(DRAWERS[j].id);
+  };
+  swipeCancel = () => { this.sw = null; };
+  toTop = () => {
+    const pane = this.paneRef.current;
+    if (pane && window.gsap) window.gsap.to(pane, { scrollTop: 0, duration: 0.7, ease: "expo.out", overwrite: true });
+  };
+  openNavSearch = () => {
+    if (this.state.navSearch) return;
+    this.setState({ navSearch: true }, () => setTimeout(() => { const i = this.navInputRef.current; if (i) i.focus(); }, 220));
+  };
+  closeNavSearch = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    this.setState({ navSearch: false, q: "", open: "" });
+    requestAnimationFrame(this.frame);
+  };
+  jumpToSearch = () => {
+    const pane = this.paneRef.current;
+    if (pane && window.gsap) window.gsap.to(pane, { scrollTop: 0, duration: 0.5, ease: "power3.inOut", onComplete: () => { const i = this.inputRef.current; if (i) i.focus(); } });
+  };
+  openSheet(kind, it) {
+    this.setState({ sheet: kind, sheetId: it.id, closing: false, wallSent: false, wallDrag: -1, draft: { label: it.label, body: it.body, kind: it.kind, secs: it.secs || 0 }, wallAs: it.kind === "task" ? "task" : "reminder", wallWhen: "school" });
+  }
+  closeSheet = () => {
+    if (!this.state.sheet || this.state.closing) return;
+    this.setState({ closing: true });
+    clearTimeout(this.sheetTo);
+    this.sheetTo = setTimeout(() => this.setState({ sheet: "", closing: false, draft: null, editing: "", eDraft: null }), 240);
+  };
+  toast(text) {
+    this.setState({ hint: text });
+    clearTimeout(this.hintTo);
+    this.hintTo = setTimeout(() => this.setState({ hint: "" }), 2000);
+  }
+  sheetPrimary = () => {
+    const s = this.state;
+    if (!s.draft || s.wallSent) return;
+    const w = WHEN.find((o) => o.id === s.wallWhen) || WHEN[0];
+    this.setState({ wallSent: true });
+    clearTimeout(this.sendTo);
+    this.sendTo = setTimeout(() => {
+      this.setState((p) => ({ items: p.items.map((x) => (x.id === p.sheetId ? { ...x, wall: true } : x)) }));
+      this.closeSheet();
+      this.toast("on the wall · " + w.time);
+    }, 820);
+  };
+
+  startEdit(it) {
+    this.setState({ sheet: "edit", sheetId: it.id, closing: false, editing: it.id, eDraft: { label: it.label, body: it.body, kind: it.kind, secs: it.secs || 0 }, draft: { label: it.label, body: it.body, kind: it.kind, secs: it.secs || 0 } });
+  }
+  endEdit(save) {
+    const id = this.state.editing;
+    if (save) {
+      this.setState((p) => ({ items: p.items.map((x) => (x.id === p.editing && p.eDraft ? { ...x, label: p.eDraft.label.trim() || x.label, body: p.eDraft.body, kind: p.eDraft.kind } : x)) }));
+    }
+    this.closeSheet();
+    if (save) {
+      clearTimeout(this.freshTo);
+      this.freshTo = setTimeout(() => {
+        this.setState({ fresh: id });
+        this.freshTo = setTimeout(() => this.setState({ fresh: "" }), 700);
+      }, 240);
+    }
+  }
+
+  curH() {
+    const s = this.state;
+    return s.wallDrag >= 0 ? s.wallDrag : (WHEN.find((o) => o.id === s.wallWhen) || WHEN[0]).h;
+  }
+  nearestWhen(h) {
+    const x = rx(h);
+    return WHEN.reduce((a, b) => (Math.abs(rx(b.h) - x) < Math.abs(rx(a.h) - x) ? b : a)).id;
+  }
+  scrubDown = (e) => {
+    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
+    const r = e.currentTarget.getBoundingClientRect();
+    const x0 = rx(this.curH());
+    this.scrub = { x: e.clientX, x0, moved: false, tapX: x0 + (e.clientX - r.left - r.width / 2) };
+    this.setState({ wallDrag: this.curH() });
+  };
+  scrubMove = (e) => {
+    if (!this.scrub) return;
+    const dx = e.clientX - this.scrub.x;
+    if (Math.abs(dx) > 4) this.scrub.moved = true;
+    if (!this.scrub.moved) return;
+    const lo = rx(WHEN[0].h), hi = rx(WHEN[WHEN.length - 1].h);
+    const h = rh(Math.max(lo, Math.min(hi, this.scrub.x0 - dx)));
+    this.setState({ wallDrag: h, wallWhen: this.nearestWhen(h) });
+  };
+  scrubUp = () => {
+    const sc = this.scrub;
+    this.scrub = null;
+    if (!sc) return;
+    if (!sc.moved) this.setState({ wallWhen: this.nearestWhen(rh(sc.tapX)), wallDrag: -1 });
+    else this.setState({ wallDrag: -1 });
+  };
+
+  matches() {
+    const q = this.state.q.trim().toLowerCase();
+    const d = this.state.drawer;
+    const list = this.state.items.filter((it) => d === "all" || it.kind === d);
+    if (!q) return list;
+    const words = q.split(/\s+/);
+    const direct = (it) => words.some((w) => it.label.toLowerCase().includes(w) || it.body.toLowerCase().includes(w) || it.tags.some((t) => t.includes(w)));
+    const groups = Object.keys(CONTEXT).filter((gk) => CONTEXT[gk].some((t) => words.some((w) => t.includes(w) || w.includes(t))));
+    const near = (it) => groups.some((gk) => it.tags.some((t) => CONTEXT[gk].includes(t)));
+    return list.filter(direct).concat(list.filter((it) => !direct(it) && near(it)));
+  }
+
+  autoFormat(it) {
+    const raw = it.body.split("\n").filter(Boolean);
+    if (raw.length === 1) return [{ text: raw[0], bullet: false, size: "14px", font: "'DM Mono',monospace", fg: "#2c2c31" }];
+    return raw.map((t, k) => ({
+      text: t, bullet: k > 0,
+      size: k === 0 ? "18px" : "13px",
+      font: k === 0 ? "'ZCOOL QingKe HuangYou',sans-serif" : "'DM Mono',monospace",
+      fg: k === 0 ? "#17171b" : "#3c3c42",
+    }));
+  }
+
+  tabWidth(it) {
+    const w = it.label.length * 7.2 + (MARK[it.kind] ? 22 : 0) + it.stamp.length * 6.5 + 44;
+    return Math.round(Math.min(280, Math.max(110, w)));
+  }
+
+  row(it, n, last, stroke) {
+    const s = this.state;
+    const open = s.open === it.id;
+    const voice = it.kind === "voice";
+    const playing = s.playing === it.id;
+    const tw = this.tabWidth(it);
+    const p = silhouette(tw);
+    const ed = s.editing === it.id ? s.eDraft : null;
+    return {
+      openMark: open ? "1" : "0",
+      rid: it.id,
+      mt: "-30px",
+      z: n + 1,
+      fillD: p.fill, lineD: p.line,
+      fill: s.fresh === it.id ? "#ff4d17" : "#ffffff",
+      tabW: tw + "px",
+      mark: MARK[it.kind],
+      label: it.label,
+      onWall: !!it.wall,
+      stamp: it.stamp,
+      rows: open ? "1fr" : "0fr",
+      innerO: open ? 1 : 0,
+      innerY: open ? "0px" : "-6px",
+      innerDelay: open ? ".12s" : "0s",
+      lip: last ? "16px" : "36px",
+      bodyR: last ? "0 0 12px 12px" : "0",
+      last,
+      capH: last ? "14px" : "0px",
+      lines: this.autoFormat(it),
+      viewing: !ed,
+      editing: !!ed,
+      eLabel: ed ? ed.label : "",
+      eBody: ed ? ed.body : "",
+      eRows: ed ? Math.max(3, ed.body.split("\n").length + 1) : 3,
+      eRef: this.editRef,
+      onELabel: (e) => { const v = e.target.value; this.setState((pp) => ({ eDraft: { ...pp.eDraft, label: v } })); },
+      onEBody: (e) => { const v = e.target.value; this.setState((pp) => ({ eDraft: { ...pp.eDraft, body: v } })); },
+      eDone: () => this.endEdit(true),
+      tools: ed
+        ? [
+            { icon: "format_list_bulleted", bg: "#efeee9", fg: "#17171b", go: () => this.setState((pp) => ({ eDraft: { ...pp.eDraft, body: pp.eDraft.body.replace(/\s*$/, "") + "\n" } }), () => { const ta = this.editRef.current; if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; } }) },
+            voice ? null : { icon: ed.kind === "task" ? "check_box" : "check_box_outline_blank", bg: ed.kind === "task" ? "#17171b" : "#efeee9", fg: ed.kind === "task" ? "#f4f3ef" : "#17171b", go: () => this.setState((pp) => ({ eDraft: { ...pp.eDraft, kind: pp.eDraft.kind === "task" ? "note" : "task" } })) },
+            { icon: "undo", bg: "#efeee9", fg: "#5a5852", go: () => this.setState({ eDraft: { label: it.label, body: it.body, kind: it.kind } }) },
+          ].filter(Boolean)
+        : [],
+      wave: voice
+        ? Array.from({ length: 40 }, (_, k) => ({
+            h: (5 + ((k * 29) % 11) * 2.2).toFixed(0) + "px",
+            c: playing && k < 15 ? "#ff4d17" : "#d2d0c8",
+          }))
+        : null,
+      dur: voice ? "0:" + String(it.secs).padStart(2, "0") : "",
+      playIcon: playing ? "pause" : "play_arrow",
+      play: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setState((pp) => ({ playing: pp.playing === it.id ? "" : it.id })); },
+      acts: [
+        { label: "edit", icon: "edit", flex: 1.6, bg: "#efeee9", fg: "#17171b", go: () => this.startEdit(it) },
+        { label: it.wall ? "on wall" : "to wall", icon: "north_east", flex: 1.4, bg: "#17171b", fg: "#f4f3ef", go: () => this.openSheet("wall", it) },
+        { label: "", icon: "delete", flex: 0.6, bg: "#efeee9", fg: "#5a5852", go: () => this.setState((pp) => ({ open: "", items: pp.items.filter((x) => x.id !== it.id) })) },
+      ],
+      go: () => this.setState((pp) => ({ open: pp.open === it.id ? "" : it.id, playing: "", editing: pp.editing === it.id ? "" : pp.editing, eDraft: pp.editing === it.id ? null : pp.eDraft })),
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const rows = this.matches();
+    const q = s.q.trim();
+    const stroke = "#17171b6b";
+
+    const sections = [];
+    if (q) {
+      if (rows.length) sections.push({ day: "results", flipKey: "h-results", headD: dayHead("results").d, headW: dayHead("results").w + "px", rows: rows.map((it, n) => this.row(it, n, n === rows.length - 1, stroke)) });
+    } else {
+      const order = [];
+      rows.forEach((it) => { if (!order.includes(it.day)) order.push(it.day); });
+      order.forEach((day) => {
+        const list = rows.filter((it) => it.day === day);
+        sections.push({ day, flipKey: "h-" + day, headD: dayHead(day).d, headW: dayHead(day).w + "px", rows: list.map((it, n) => this.row(it, n, n === list.length - 1, stroke)) });
+      });
+    }
+
+    const mini = s.mini;
+    const islandPx = (mini ? 112 : 112 + 52 * 2) + 57;
+    const cp = Math.min(1, -s.dx / 120);
+    const lq = Math.min(1, -s.dy / 72);
+    const on = DRAWERS.findIndex((d) => d.id === s.drawer);
+    const offW = 52, onW = 112;
+    const wSel = WHEN.find((o) => o.id === s.wallWhen) || WHEN[0];
+    return {
+      paneRef: this.paneRef,
+      bigRef: this.bigRef,
+      smallRef: this.smallRef,
+      navRef: this.navRef,
+      onScroll: this.onScroll,
+      sections,
+      total: String(s.items.length).padStart(2, "0"),
+      empty: rows.length === 0,
+      emptyLine: q ? "nothing filed under “" + q + "”" : "nothing in here yet",
+      resultLine: rows.length + (rows.length === 1 ? " note" : " notes") + ", closest first",
+      query: s.q,
+      onQuery: (e) => this.setState({ q: e.target.value, open: "" }),
+      clearQuery: () => this.setState({ q: "", open: "" }),
+      searchBg: q ? "#ffffff" : "#e9e8e3",
+      searchRing: q ? "inset 0 0 0 1.5px #17171b" : "none",
+      segW: (mini ? onW : onW + offW * 2) + "px",
+      pillW: onW + "px",
+      pillX: mini ? "0px" : (on === 0 ? 0 : on === 1 ? offW : offW * 2) + "px",
+      drawers: DRAWERS.map((d, i) => {
+        const act = i === on;
+        return {
+          icon: d.icon,
+          label: act ? d.label : "",
+          w: act ? onW + "px" : mini ? "0px" : offW + "px",
+          o: act || !mini ? 1 : 0,
+          fg: act ? "#0b0b0d" : "#a3a19b",
+          go: () => (mini ? this.setState({ mini: false }) : this.switchDrawer(d.id)),
+        };
+      }),
+      recTime: Math.floor(s.recSec / 60) + ":" + String(s.recSec % 60).padStart(2, "0"),
+      recIcon: s.locked ? "arrow_upward" : "mic",
+      micBg: s.recFlash ? "#f4f3ef" : "#ff4d17",
+      micSize: "42px",
+      micInset: "0px",
+      micX: (s.binning ? s.binDx : s.holding ? Math.max(-150, s.dx) : 0) + "px",
+      micY: (s.holding ? Math.max(-80, s.dy) : 0) + "px",
+      micPress: String(s.binning ? 0.3 : s.holding ? 1.34 - cp * 0.08 : s.rec ? 1.08 : 1),
+      micOp: s.binning || s.micHide ? "0" : "1",
+      micShadow: s.holding ? "0 10px 24px -8px #ff4d17a6" : "none",
+      micIconFg: s.holding && cp > 0.55 ? "#ffffff" : "#0b0b0d",
+      micIconNow: s.holding && cp > 0.55 ? "delete" : s.holding && lq > 0.85 ? "lock" : (s.locked ? "arrow_upward" : "mic"),
+      micT: s.micHide ? "none" : s.binning ? "transform .34s cubic-bezier(.5,0,.75,0),opacity .22s ease .12s" : s.holding ? "transform .04s linear,box-shadow .2s ease,background-color .7s cubic-bezier(.4,0,.2,1)" : "transform .4s cubic-bezier(.32,.72,0,1),background-color .35s ease,width .4s cubic-bezier(.32,.72,0,1),height .4s cubic-bezier(.32,.72,0,1),right .4s cubic-bezier(.32,.72,0,1),top .4s cubic-bezier(.32,.72,0,1)",
+      capBg: s.rec ? "#26262c" : "#ff4d17",
+      capOverflow: s.rec || s.holding || s.binning || s.settling ? "visible" : "hidden",
+      micRef: this.micRef,
+      capRef: this.capRef,
+      lockRef: this.lockRef,
+      micDown: this.micDown,
+      micMove: this.micMove,
+      micUp: this.micUp,
+      islandW: islandPx + "px",
+      islandRef: this.islandRef,
+      binRef: this.binRef,
+      capW: (s.rec ? islandPx - 10 : 42) + "px",
+      segO: s.rec ? 0 : 1,
+      segDelay: s.rec ? "0s" : ".28s",
+      segPE: s.rec ? "none" : "auto",
+      recO: s.rec ? 1 : 0,
+      recPE: s.rec ? "auto" : "none",
+      recDelay: s.rec ? ".22s" : "0s",
+      ghostOn: s.ghostOn,
+      ghostRef: this.ghostRef,
+      navSearch: s.navSearch,
+      navSearchW: s.navSearch ? "350px" : "40px",
+      navSearchBg: s.navSearch ? "#ffffff" : "#e9e8e3",
+      navSearchRing: s.navSearch ? "inset 0 0 0 1.5px #17171b" : "inset 0 0 0 1.5px #17171b73,0 8px 18px -10px #00000059",
+      navSearchIcon: "#5a5852",
+      navInputRef: this.navInputRef,
+      openNavSearch: this.openNavSearch,
+      closeNavSearch: this.closeNavSearch,
+      toTop: this.toTop,
+      locked: s.locked,
+      chevOn: s.holding && cp < 0.08 && lq < 0.08,
+      binBg: s.binning ? "#ff4d17" : (() => { const t = Math.max(0, Math.min(1, cp)); const a = [58, 58, 66], b = [255, 77, 23]; return "#" + a.map((v, k) => Math.round(v + (b[k] - v) * t).toString(16).padStart(2, "0")).join(""); })(),
+      binFg: s.binning || cp > 0.55 ? "#0b0b0d" : "#f4f3ef",
+      binFgT: "color .12s ease",
+      binS: String(s.binning ? 1.18 : 1 + cp * 0.2 + (cp > 0.75 ? 0.12 : 0)),
+      binT: s.holding ? "transform .12s cubic-bezier(.3,1.6,.5,1),background-color .05s linear" : "transform .35s cubic-bezier(.32,.72,0,1),background-color .25s ease",
+      trackO: String(s.binning ? 0 : 1 - cp * 0.85),
+      trackS: String(s.binning ? 0.6 : 1 - cp * 0.25),
+      trackX: (s.binning ? -34 : s.holding ? s.dx * 0.35 : 0) + "px",
+      trackT: s.holding ? "none" : "transform .35s cubic-bezier(.32,.72,0,1),opacity .25s",
+      lockH: (s.holding ? 58 + lq * 34 : 26) + "px",
+      lockO: s.holding || s.lockFlash ? 1 : 0,
+      lockT: s.holding ? (lq === 0 ? "height .34s cubic-bezier(.32,.72,0,1),opacity .18s ease" : "height .1s ease-out") : "height .45s cubic-bezier(.32,.72,0,1),opacity .22s ease .2s",
+      lockFg: s.lockFlash || lq > 0.85 ? "#ff4d17" : "#f4f3ef",
+      lockIcon: s.lockFlash || lq > 0.85 ? "lock" : "lock_open",
+      lockArrowO: String(s.lockFlash ? 0 : Math.max(0, 1 - lq * 1.4)),
+      cancelRec: this.cancelRec,
+      hint: s.hint,
+      searchRef: this.searchRef,
+      searchBtnRef: this.searchBtnRef,
+      inputRef: this.inputRef,
+      jumpToSearch: this.jumpToSearch,
+      sheetOn: !!s.sheet && !!s.draft,
+      isWall: s.sheet === "wall",
+      isEdit: s.sheet === "edit" && !!s.eDraft,
+      popTitle: s.sheet === "edit" ? "edit" : "to the wall",
+      popPad: s.sheet === "edit" ? "0px" : "58px 14px 34px",
+      popH: s.sheet === "edit" ? "100%" : "auto",
+      popR: s.sheet === "edit" ? "46px" : "26px",
+      popTop: s.sheet === "edit" ? "40px" : "0px",
+      popOrigin: "50% 60%",
+      sheetAnim: s.closing ? "popOut .22s cubic-bezier(.4,0,1,1) both" : "popIn .42s cubic-bezier(.2,1.2,.35,1) both",
+      scrimAnim: s.closing ? "scrimOut .24s ease both" : "scrimIn .28s ease both",
+      pageRef: this.pageRef,
+      swipeDown: this.swipeDown,
+      swipeUp: this.swipeUp,
+      swipeCancel: this.swipeCancel,
+      eLabel: s.eDraft ? s.eDraft.label : "",
+      eBody: s.eDraft ? s.eDraft.body : "",
+      eRows: s.eDraft ? Math.max(4, s.eDraft.body.split("\n").length + 1) : 4,
+      eRef: this.editRef,
+      eVoice: !!(s.eDraft && s.eDraft.kind === "voice"),
+      eDur: s.eDraft ? "0:" + String(s.eDraft.secs || 0).padStart(2, "0") : "",
+      onELabel: (e) => { const v = e.target.value; this.setState((pp) => ({ eDraft: { ...pp.eDraft, label: v } })); },
+      onEBody: (e) => { const v = e.target.value; this.setState((pp) => ({ eDraft: { ...pp.eDraft, body: v } })); },
+      eDone: () => this.endEdit(true),
+      eTools: s.eDraft
+        ? [
+            { icon: "format_list_bulleted", bg: "#e9e8e3", fg: "#17171b", go: () => this.setState((pp) => ({ eDraft: { ...pp.eDraft, body: pp.eDraft.body.replace(/\s*$/, "") + "\n" } }), () => { const ta = this.editRef.current; if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; } }) },
+            s.eDraft.kind === "voice" ? null : { icon: s.eDraft.kind === "task" ? "check_box" : "check_box_outline_blank", bg: s.eDraft.kind === "task" ? "#17171b" : "#e9e8e3", fg: s.eDraft.kind === "task" ? "#f4f3ef" : "#17171b", go: () => this.setState((pp) => ({ eDraft: { ...pp.eDraft, kind: pp.eDraft.kind === "task" ? "note" : "task" } })) },
+            { icon: "undo", bg: "#e9e8e3", fg: "#5a5852", go: () => this.setState((pp) => ({ eDraft: { ...pp.draft } })) },
+          ].filter(Boolean)
+        : [],
+      closeSheet: this.closeSheet,
+      sheetPrimary: this.sheetPrimary,
+      wallSent: s.wallSent,
+      wallIcon: s.wallAs === "task" ? "check_box_outline_blank" : "push_pin",
+      wallTag: s.wallAs === "task" ? "NEW TASK" : "REMINDER",
+      wallClock: wSel.time,
+      whenLabel: wSel.label,
+      wallTitle: s.draft ? s.draft.label : "",
+      wallLine: s.draft ? (s.draft.body.split("\n")[0] || "") : "",
+      wallKeys: (s.wallAs === "task" ? ["start", "later", "", ""] : ["", "", "", "got it"]).map((l, i) => ({
+        label: l,
+        bg: !l ? "#101015" : i === 0 || l === "got it" ? "#f4f3ef" : "#1d1d24",
+        fg: !l ? "#101015" : i === 0 || l === "got it" ? "#0b0b0d" : "#c9c8c2",
+      })),
+      wallHard: (s.wallAs === "task" ? [1, 1, 0, 0] : [0, 0, 0, 1]).map((on) => ({
+        bg: on ? "#ffffff" : "#eceae4",
+        shadow: on ? "0 2px 0 #cfccc4,inset 0 0 0 1px #e2e0d9" : "inset 0 0 0 1px #e2e0d9",
+      })),
+      asOpts: [
+        { id: "reminder", label: "reminder", icon: "push_pin", hint: "shows once" },
+        { id: "task", label: "task", icon: "check_box_outline_blank", hint: "joins the list" },
+      ].map((o) => {
+        const on = s.wallAs === o.id;
+        return { ...o, bg: on ? "#17171b" : "#e9e8e3", fg: on ? "#f4f3ef" : "#17171b", sub: on ? "#b6b5af" : "#5a5852", icon2: on ? "#ff4d17" : "#5a5852", go: () => this.setState({ wallAs: o.id }) };
+      }),
+      stripRef: this.stripRef,
+      rulerW: rx(H1) + "px",
+      rulerX: -rx(this.curH()) + "px",
+      rulerT: s.wallDrag >= 0 ? "none" : "transform .5s cubic-bezier(.32,.72,0,1)",
+      rZones: ZONES.map((z) => ({ l: rx(z.from) + "px", w: rx(z.to) - rx(z.from) + "px", icon: z.icon })),
+      rTicks: (() => {
+        const out = []; let last = -99;
+        for (let h = H0; h <= H1 + 0.001; h += 0.5) {
+          const x = rx(h), major = Math.abs(h - Math.round(h)) < 0.01;
+          if (x - last < 6) continue;
+          last = x;
+          out.push({ l: x + "px", h: major ? "14px" : "7px", c: major ? "#6f6f78" : "#3c3c44" });
+        }
+        return out;
+      })(),
+      rHours: (() => {
+        const out = []; let last = -99;
+        for (let h = Math.ceil(H0); h <= H1; h++) {
+          const x = rx(h);
+          if (x - last < 34) continue;
+          last = x;
+          out.push({ l: x + "px", t: String(h % 24).padStart(2, "0") });
+        }
+        return out;
+      })(),
+      rStops: WHEN.map((w) => ({ l: rx(w.h) + "px", d: w.id === s.wallWhen ? "12px" : "8px", c: w.id === s.wallWhen ? "#ff4d17" : "#f4f3ef" })),
+      whenChips: WHEN.map((w) => {
+        const on = w.id === s.wallWhen;
+        return { label: w.chip, time: w.time, bg: on ? "#17171b" : "#e9e8e3", fg: on ? "#f4f3ef" : "#17171b", sub: on ? "#ff4d17" : "#5a5852", go: () => this.setState({ wallWhen: w.id, wallDrag: -1 }) };
+      }),
+      scrubDown: this.scrubDown,
+      scrubMove: this.scrubMove,
+      scrubUp: this.scrubUp,
+      notes: [
+        { k: "01", t: "One large title, search directly under it, then the filing. As you scroll, the title shrinks into a small centred one while the notes fade away beneath it." },
+        { k: "02", t: "Each day is a small black tab tucked behind the right end of its first folder, fading away with the notes as you scroll." },
+        { k: "03", t: "Each note is a single outlined folder. Tapping it changes nothing on the tab; the sheet grows to show what was already inside. Edit and to wall open as a pop-up card over the list." },
+        { k: "04", t: "The toolbar is a capsule with a sliding selection and the record button. Changing section, by tap or swipe, slides the whole page sideways." },
+        { k: "05", t: "Hold the mic and it grows into the recorder where it sits. Slide left to the bin, up to lock. Let go and the recording rises as a pill while today makes room for it." },
+        { k: "06", t: "To the wall shows exactly what the device will show, and a day strip where school, sessions and sleep are blocked out, so you only pick times it can actually land." },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

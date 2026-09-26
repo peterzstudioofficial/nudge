@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Doto:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+html,body{margin:0;padding:0;background:#0d0d10}
+a{color:#ff4d17;text-decoration:none}
+a:hover{color:#ff8355}
+@keyframes lPulse{0%,100%{opacity:.16}50%{opacity:1}}
+@keyframes lBurst{0%,100%{opacity:.14}45%{opacity:1}}
+@keyframes lStep{0%,72%,100%{opacity:.12}12%,60%{opacity:1}}
+@keyframes lSpark{0%,100%{opacity:.12}50%{opacity:1}}
+@keyframes lGather{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes lDrift{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes lSettle{0%{opacity:1}100%{opacity:.3}}
+@keyframes lSweep{0%,100%{opacity:.1}45%{opacity:1}}
+@keyframes lBreathe{0%{opacity:.1}25%{opacity:.9}50%{opacity:.9}75%{opacity:.1}100%{opacity:.1}}
+@keyframes lAlarm{0%{opacity:.06}22%{opacity:1}54%{opacity:1}100%{opacity:.06}}
+@keyframes lRise{from{opacity:0}to{opacity:1}}
+</style>
+</helmet>
+<div style="min-height:100vh;box-sizing:border-box;padding:56px 56px 96px;display:flex;flex-direction:column;align-items:flex-start;gap:44px;background:radial-gradient(130% 90% at 50% 0%,#1e1e23,#0a0a0d 74%);font-family:'DM Mono',ui-monospace,monospace">
+
+  <div style="width:1000px;display:flex;align-items:flex-end;justify-content:space-between;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#5f5f67">
+    <span>peterzstudio nudge · nd-1</span>
+    <span>dial: drag / ← → / push · keys 1-4 · t touch pad</span>
+  </div>
+
+  <div style="display:flex;align-items:flex-start">
+    <div style="position:relative;width:1000px;height:700px;border-radius:16px;background:linear-gradient(160deg,#f4f2ed,#eae8e1 54%,#e2e0d8);box-shadow:0 60px 120px -46px #0000008c,inset 0 2px 0 #ffffff,inset 0 -2px 0 #00000012;color:#26262a">
+      <div style="position:absolute;inset:6px;border-radius:12px;pointer-events:none;box-shadow:inset 0 0 0 1px #ffffffb3,inset 0 0 0 2px #0000000f"></div>
+
+      <sc-for list="{{ screws }}" as="s" hint-placeholder-count="6">
+        <div style="position:absolute;left:{{ s.x }};top:{{ s.y }};width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#f6f5f1,#d2d0c8 70%,#c2c0b8);box-shadow:inset 0 1px 2px #ffffff,0 1px 2px #00000026">
+          <span style="position:absolute;left:50%;top:50%;width:11px;height:2px;margin:-1px 0 0 -5.5px;border-radius:1px;background:#a8a69e;transform:rotate({{ s.rot }})"></span>
+        </div>
+      </sc-for>
+
+      <div style="position:absolute;left:49px;top:49px;width:466px;height:350px;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 1px 0 #ffffffd9">
+        <div style="width:320px;height:240px;transform:scale(1.4562);transform-origin:0 0">
+          <dc-import name="Screen v2" hint-size="320px,240px" vm="{{ vm }}"></dc-import>
+        </div>
+      </div>
+
+      <sc-for list="{{ panelKeys }}" as="k" hint-placeholder-count="4">
+        <div style="position:absolute;top:424px;left:{{ k.x }};width:100px;height:100px;border-radius:11px;cursor:pointer;overflow:hidden;background:{{ k.bg }};box-shadow:{{ k.shadow }};transform:translateY({{ k.dy }});transition:transform .1s cubic-bezier(.3,0,.4,1),box-shadow .1s" onPointerDown="{{ k.down }}" onPointerUp="{{ k.up }}" onPointerLeave="{{ k.up }}">
+          <span style="position:absolute;inset:0;background:linear-gradient(#ffffffcc,transparent 56%);pointer-events:none"></span>
+          <span style="position:absolute;left:0;bottom:0;height:4px;background:#ff4d17;width:{{ k.holdW }};transition:width .09s linear"></span>
+        </div>
+      </sc-for>
+
+      <div style="position:absolute;left:46px;top:562px;display:flex;flex-direction:column;gap:5px">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:50px;line-height:1;letter-spacing:-1.5px;color:#26262a">nudge</span>
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:8px;letter-spacing:.3em;color:#a8a69e">PETERZSTUDIO · ND-1</span>
+      </div>
+
+      <div style="position:absolute;left:266px;top:556px;width:252px;height:104px;border-radius:13px;cursor:pointer;box-sizing:border-box;background:linear-gradient(#f7f6f2,#e8e6df);box-shadow:inset 0 0 0 1px #ffffff,0 3px 0 #d6d4cc,0 8px 14px -8px #0000003d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;transition:transform .1s cubic-bezier(.3,0,.4,1)" style-active="transform:translateY(3px)" onClick="{{ pressTouch }}">
+        <span style="position:relative;width:34px;height:34px;border-radius:50%;box-sizing:border-box;border:2px solid {{ touchRing }};display:flex;align-items:center;justify-content:center;transition:border-color .35s">
+          <span style="position:absolute;width:15px;height:2px;border-radius:1px;background:{{ touchRing }};transition:background-color .35s"></span>
+          <span style="position:absolute;width:2px;height:15px;border-radius:1px;background:{{ touchRing }};transition:background-color .35s"></span>
+        </span>
+        <span style="font-size:8px;letter-spacing:.28em;color:#a8a69e">TOUCH</span>
+      </div>
+
+      <div style="position:absolute;left:598px;top:44px;width:284px;height:284px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#f0eee8 60%,#e0ded6 82%,#d2d0c8);box-shadow:inset 0 0 0 1px #ffffff,0 2px 5px -2px #00000026;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none" onPointerDown="{{ dialDown }}" onWheel="{{ dialWheel }}">
+        <div style="position:relative;width:224px;height:224px;border-radius:50%;background:conic-gradient(from 210deg,#b8b6ae,#f4f3ef 12%,#a8a6a0 27%,#eceae4 42%,#adaba4 56%,#f2f0ea 70%,#b2b0a8 85%,#e4e2da 100%);box-shadow:0 6px 16px -8px #00000059,inset 0 0 0 1px #ffffff80;transform:rotate({{ dialDeg }}deg);transition:transform .13s cubic-bezier(.2,.9,.25,1)">
+          <span style="position:absolute;left:50%;top:26px;width:4px;height:56px;margin-left:-2px;border-radius:2px;background:#4a4a4e"></span>
+        </div>
+        <div style="position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;cursor:pointer;background:radial-gradient(circle at 42% 34%,#f6f5f1,#dedcd4);box-shadow:inset 0 0 0 1px #ffffff,0 2px 5px -2px #00000040;display:flex;align-items:center;justify-content:center;transform:translateY({{ dialPressY }});transition:transform .1s cubic-bezier(.3,0,.4,1)" onPointerDown="{{ dialPushDown }}">
+          <span style="width:10px;height:10px;border-radius:50%;background:#ff4d17;opacity:{{ dialLed }};transition:opacity .35s"></span>
+        </div>
+      </div>
+
+      <div style="position:absolute;left:600px;top:378px;display:grid;grid-template-columns:repeat(5,34px);grid-template-rows:repeat(5,34px);gap:32px">
+        <sc-for list="{{ leds }}" as="l" hint-placeholder-count="25">
+          <span style="width:34px;height:34px;border-radius:50%;background:{{ l.bg }};opacity:{{ l.o }};box-shadow:{{ l.glow }};animation:{{ l.anim }};animation-delay:{{ l.delay }};transition:background-color .5s cubic-bezier(.4,0,.2,1),opacity .45s ease,box-shadow .5s ease"></span>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:600px;top:658px;width:298px;text-align:center;font-size:8px;letter-spacing:.26em;color:#a8a69e">{{ ledLabel }}</div>
+    </div>
+  </div>
+
+  <div style="width:1000px;display:flex;flex-direction:column;gap:9px">
+    <span style="font-size:9px;letter-spacing:.2em;color:#5f5f67">TOP / LOOKING DOWN</span>
+    <div style="position:relative;width:1000px;height:76px;border-radius:14px;box-sizing:border-box;background:linear-gradient(#f0eee8,#e2e0d8);box-shadow:0 22px 50px -28px #000000a6,inset 0 2px 0 #ffffff;display:flex;align-items:center;padding:0 48px;gap:22px">
+      <div style="position:relative;flex:1;height:22px;border-radius:11px;overflow:hidden;background:#dad8d0;box-shadow:inset 0 2px 5px #00000026">
+        <div style="position:absolute;left:2px;top:2px;bottom:2px;right:2px;border-radius:9px;background:linear-gradient(94deg,#fff4ec,#ffe3d4);opacity:{{ barLit }};transition:opacity .7s cubic-bezier(.4,0,.2,1)"></div>
+        <div style="position:absolute;left:2px;top:2px;bottom:2px;border-radius:9px;background:linear-gradient(94deg,#ff7a33,#ff4d17);width:{{ barPct }};opacity:{{ barOn }};box-shadow:0 0 18px 3px #ff4d1766;transition:width 1s cubic-bezier(.4,0,.2,1),opacity .6s ease"></div>
+        <div style="position:absolute;inset:2px;border-radius:9px;pointer-events:none;background:linear-gradient(#ffffff8c,transparent 48%)"></div>
+      </div>
+      <span style="font-size:8px;letter-spacing:.24em;flex:none;color:#a8a69e">PROGRESS</span>
+    </div>
+  </div>
+
+  <div style="width:1000px;height:74px;border-radius:15px;background:linear-gradient(#eae7e1,#d9d5cd);box-shadow:0 24px 56px -30px #000000a6,inset 0 2px 0 #ffffff8c;display:flex;align-items:center;padding:0 38px;box-sizing:border-box;gap:38px">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="width:50px;height:17px;border-radius:9px;background:#2a2a2e;box-shadow:inset 0 2px 4px #000000a6"></div>
+      <span style="font-size:8px;letter-spacing:.2em;color:#8e8a82">USB-C</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:11px;cursor:pointer" onClick="{{ togglePower }}">
+      <div style="width:66px;height:29px;border-radius:15px;background:#d0ccc4;box-shadow:inset 0 2px 4px #00000024;padding:3px;box-sizing:border-box;display:flex;justify-content:{{ pwrJustify }}">
+        <span style="width:23px;height:23px;border-radius:50%;background:linear-gradient(#f7f5f1,#d5d1c9);box-shadow:0 1px 3px #00000059;transition:all .2s"></span>
+      </div>
+      <span style="font-size:8px;letter-spacing:.2em;color:#4a4a50">ON / OFF</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:11px;cursor:pointer" onClick="{{ toggleMic }}">
+      <div style="width:66px;height:29px;border-radius:15px;background:#d0ccc4;box-shadow:inset 0 2px 4px #00000024;padding:3px;box-sizing:border-box;display:flex;justify-content:{{ micJustify }}">
+        <span style="width:23px;height:23px;border-radius:50%;background:linear-gradient(#f7f5f1,#d5d1c9);box-shadow:0 1px 3px #00000059;transition:all .2s"></span>
+      </div>
+      <span style="font-size:8px;letter-spacing:.2em;color:#4a4a50">LISTENING {{ micLabel }}</span>
+    </div>
+  </div>
+
+  <div style="width:1080px;display:flex;flex-direction:column;gap:18px;padding-top:12px;border-top:1px solid #ffffff17">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#55555d;width:64px">day</span>
+      <sc-for list="{{ dayBtns }}" as="d" hint-placeholder-count="5">
+        <div style="padding:8px 13px;border-radius:6px;font-size:10px;letter-spacing:.1em;cursor:pointer;border:1px solid #ffffff1f;background:{{ d.bg }};color:{{ d.fg }}" style-hover="border-color:#ff4d17" onClick="{{ d.go }}">{{ d.label }}</div>
+      </sc-for>
+      <span style="width:22px"></span>
+      <sc-for list="{{ tagBtns }}" as="t" hint-placeholder-count="4">
+        <div style="padding:8px 13px;border-radius:6px;font-size:10px;letter-spacing:.1em;cursor:pointer;border:1px dashed #ffffff33;color:#b6b5af" style-hover="border-color:#ff4d17;color:#ff4d17" onClick="{{ t.go }}">{{ t.label }}</div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <span style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#55555d;width:64px">states</span>
+      <sc-for list="{{ stateBtns }}" as="s" hint-placeholder-count="19">
+        <div style="padding:8px 13px;border-radius:6px;font-size:10px;letter-spacing:.1em;cursor:pointer;border:1px solid #ffffff1f;background:{{ s.bg }};color:{{ s.fg }}" style-hover="border-color:#ff4d17" onClick="{{ s.go }}">{{ s.label }}</div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const TINT = { maths: "#2f5fa8", chem: "#1f7a4d", eng: "#8a2f5c", study: "#a8761f", mine: "#8d8d97", bag: "#c9c6cf" };
+const PH = ["home", "study", "mine", "bag"];
+const LEAVE = 7 * 60 + 55;
+const BRK = 300;
+const LOCKED = ["home", "study", "mine", "bag"];
+
+class Component extends DCLogic {
+  state = {
+    mode: "boot", school: true, lieIn: true, arrived: false,
+    sel: 0, rem: 0, total: 1500, over: 0, brem: BRK, countN: 3,
+    tick: 0, mins: 16 * 60 + 8, bank: 24, skips: 2,
+    mic: true, power: true, dial: 0, hold: 0, holdKey: -1, flash: -1, dialPress: false, bright: 2, discoBeat: 0, armed: false,
+    iconKeys: false, aiOn: true, listTop: 0, lastAct: 0, lastMode: "", preDoze: "standby", bT0: 0, eggTurns: 0, peek: false, slab: null, bagIdx: 2, bagFlash: -1, updPct: 0, fxSeq: 0,
+    tasks: [
+      { name: "quadratics", subj: "maths", ph: "home", mins: 25, done: false, spent: 0, started: false },
+      { name: "atoms q1-8", subj: "chem", ph: "home", mins: 25, done: false, spent: 0 },
+      { name: "essay plan", subj: "eng", ph: "home", mins: 25, done: false, spent: 0 },
+      { name: "revision one", subj: "study", ph: "study", mins: 25, done: false, spent: 0 },
+      { name: "revision two", subj: "study", ph: "study", mins: 25, done: false, spent: 0 },
+      { name: "guitar", subj: "mine", ph: "mine", mins: 20, done: false, spent: 0 },
+      { name: "tidy desk", subj: "mine", ph: "mine", mins: 10, done: false, spent: 0 },
+      { name: "pack bag", subj: "bag", ph: "bag", mins: 5, done: false, spent: 0 },
+    ],
+    bag: [
+      { name: "planner", subj: "mine", got: true, kept: true },
+      { name: "calculator", subj: "maths", got: true, kept: true },
+      { name: "chemistry", subj: "chem", got: false, note: "green, not blue" },
+      { name: "maths exercise", subj: "maths", got: false },
+      { name: "english lit", subj: "eng", got: false, note: "act 3 notes" },
+    ],
+    kit: "PE kit — rugby, boots",
+  };
+
+  componentDidMount() {
+    this.t0 = setTimeout(() => this.setState({ mode: "standby" }), 6600);
+    this.iv = setInterval(() => this.beat(), 1000);
+    this.onKey = (e) => {
+      const n = { "1": 0, "2": 1, "3": 2, "4": 3 }[e.key];
+      if (n !== undefined) { this.keyDown(n); setTimeout(() => this.keyUp(), 130); return; }
+      if (e.key === "ArrowRight") this.turn(1);
+      else if (e.key === "ArrowLeft") this.turn(-1);
+      else if (e.key === "t" || e.key === "T") this.wake();
+      else if (e.key === "Enter") this.pressDial();
+    };
+    window.addEventListener("keydown", this.onKey);
+  }
+  componentWillUnmount() {
+    [this.t0, this.slabTo, this.awTo, this.peekTo, this.selTo, this.aiTo, this.scanTo].forEach(clearTimeout);
+    clearInterval(this.iv); clearInterval(this.holdIv);
+    window.removeEventListener("keydown", this.onKey);
+  }
+
+  beat() {
+    this.setState((s) => {
+      const n = { tick: s.tick + 1 };
+      if (s.tick % 60 === 59) n.mins = s.mins + 1;
+      if (s.mode === "disco" && s.tick % 8 === 7) n.discoBeat = s.discoBeat + 1;
+      const entered = s.mode !== s.lastMode;
+      if (entered) { n.lastMode = s.mode; n.lastAct = s.tick; n.fxSeq = s.fxSeq + 1; }
+      const busy = ["active", "countdown", "paused", "overrun", "claim", "breathe", "break", "resumeScan"].includes(s.mode);
+      const quiet = !busy && ["select", "welcome", "reward", "nextReward", "bag", "unlock"].includes(s.mode);
+      if (!entered && quiet && s.tick - s.lastAct > 75) { n.mode = "doze"; n.preDoze = s.mode; }
+      if (!entered && s.mode === "brief" && !s.school && s.tick - s.lastAct > 40) { n.mode = "doze"; n.preDoze = "standby"; }
+      if (s.mode === "brief" && s.school && s.mins >= LEAVE) { n.mode = "doze"; n.preDoze = "standby"; }
+      if (s.mode === "breathe" && s.tick - s.bT0 >= 67) { n.mode = "active"; }
+      if (s.mode === "countdown") { if (s.cdHeld) { if (s.countN <= 1) { n.mode = "active"; n.rem = s.total - s.tasks[s.sel].spent; } else n.countN = s.countN - 1; } else n.cdHeld = true; }
+      else if (s.mode === "active") {
+        if (s.rem <= 1) { n.rem = 0; n.mode = "claim"; n.over = 0; }
+        else {
+          n.rem = s.rem - 1;
+          n.tasks = s.tasks.map((t, i) => (i === s.sel ? { ...t, spent: t.spent + 1 } : t));
+        }
+      }
+      else if (s.mode === "overrun") n.over = s.over + 1;
+      else if (s.mode === "break") { if (s.brem <= 1) { n.brem = 0; n.mode = "resumeScan"; } else n.brem = s.brem - 1; }
+      else if (s.mode === "claim") { n.over = s.over + 1; if (s.over > 28) n.mode = "overrun"; }
+      else if (s.mode === "update") { if (s.updPct >= 100) n.mode = "standby"; else n.updPct = Math.min(100, s.updPct + 9); }
+      return n;
+    });
+  }
+
+  open() { return this.state.tasks.map((t, i) => ({ t, i })).filter((o) => !o.t.done); }
+  cur() { return this.state.tasks[this.state.sel] || this.state.tasks[0]; }
+  say(icon, line, sub, ms) {
+    this.setState({ slab: { icon, line, sub } });
+    clearTimeout(this.slabTo); clearTimeout(this.slabOutTo);
+    this.slabTo = setTimeout(() => {
+      this.setState((p) => (p.slab ? { slab: { ...p.slab, leaving: true } } : {}));
+      this.slabOutTo = setTimeout(() => this.setState({ slab: null }), 420);
+    }, ms || 4200);
+  }
+
+  eggBump = () => {
+    const s = this.state;
+    if (!["standby", "select", "reward"].includes(s.mode)) return;
+    const n = s.eggTurns + 1;
+    if (n >= 8) { this.setState({ eggTurns: 0, mode: "disco", discoBeat: 0 }); return; }
+    this.setState({ eggTurns: n });
+    clearTimeout(this.eggTo);
+    this.eggTo = setTimeout(() => this.setState({ eggTurns: 0 }), 1400);
+  };
+  turn = (d) => {
+    this.touch();
+    const s = this.state;
+    if (s.mode === "bag") {
+      const n = s.bag.length;
+      this.setState({ bagIdx: (s.bagIdx + d + n) % n, dial: s.dial + d * 26 });
+      return;
+    }
+    if (["boot", "active", "countdown", "claim", "award", "sleep", "night", "alarm", "update", "unlock", "nextReward", "breathe", "doze", "offline", "resume", "agent"].includes(s.mode)) {
+      this.setState((p) => ({ dial: p.dial + d * 26 }));
+      return;
+    }
+    if (["active", "paused"].includes(s.mode)) this.say("bookmark", "kept at " + this.mmss(s.tasks[s.sel].spent), "PICK IT UP ANY TIME", 3000);
+    const same = this.open();
+    if (same.length < 2) { this.setState((p) => ({ dial: p.dial + d * 26 })); return; }
+    const at = same.findIndex((o) => o.i === s.sel);
+    const nextAt = (at + d + same.length) % same.length;
+    this.setState((q) => ({
+      sel: same[nextAt].i, dial: q.dial + d * 26, mode: "select",
+      listTop: Math.max(0, Math.min(nextAt - 1, Math.max(0, same.length - 4))),
+    }));
+    clearTimeout(this.selTo);
+    this.selTo = setTimeout(() => this.setState((p) => (p.mode === "select" ? { mode: "standby" } : {})), 5000);
+  };
+
+  begin = () => {
+    const s = this.state;
+    if (["active", "countdown", "claim", "award", "break", "resumeScan", "update"].includes(s.mode)) return;
+    if (s.mode === "paused") { this.setState({ mode: "active" }); return; }
+    const t = this.cur();
+    if (t.ph === "bag") { this.setState({ mode: "bag", bagIdx: Math.max(0, s.bag.findIndex((b) => !b.got)) }); return; }
+    const first = !t.started;
+    this.setState({
+      mode: "countdown", countN: 3, cdHeld: false, total: t.mins * 60, over: 0,
+      bank: s.bank + (first ? 1 : 0),
+      tasks: s.tasks.map((x, i) => (i === s.sel ? { ...x, started: true } : x)),
+    });
+    if (first) this.say("bolt", "+1 for starting", "", 2200);
+  };
+  touch = () => this.setState((s) => ({ lastAct: s.tick, ...(s.mode === "doze" ? { mode: s.preDoze || "standby" } : {}) }));
+  pressDial = () => {
+    this.touch();
+    const s = this.state;
+    const m = s.mode;
+    if (m === "bag") return;
+    if (m === "alarm") { this.dismissAlarm(); return; }
+    if (m === "sleep" || m === "night") { this.peekNow(); return; }
+    if (m === "break" || m === "resumeScan") { this.resume(); return; }
+    if (["active", "overrun"].includes(m)) { this.setState((q) => ({ mode: "breathe", bT0: q.tick + 3 })); return; }
+    if (["countdown", "paused"].includes(m)) { this.say("timer", this.mmss(s.rem) + " left", "", 2600); return; }
+    if (["claim", "overrun"].includes(m)) { this.claim(); return; }
+    this.begin();
+  };
+  resume = () => {
+    this.setState((s) => {
+      const t = s.tasks[s.sel];
+      const first = !t.started;
+      return {
+        mode: "countdown", countN: 3, cdHeld: false, total: t.mins * 60,
+        bank: s.bank + (first ? 1 : 0),
+        tasks: s.tasks.map((x, i) => (i === s.sel ? { ...x, started: true } : x)),
+      };
+    });
+  };
+  dismissAlarm = () => this.setState({ mode: "brief", lastAct: this.state.tick });
+  peekNow = () => {
+    this.setState({ peek: true });
+    clearTimeout(this.peekTo);
+    this.peekTo = setTimeout(() => this.setState({ peek: false }), 6000);
+  };
+  pause = () => this.setState((s) => (s.mode === "active" || s.mode === "overrun" ? { mode: "paused" } : s.mode === "paused" ? { mode: "active" } : {}));
+  takeBreak = () => {
+    const s = this.state;
+    const spent = s.total - s.rem;
+    if (["active", "overrun"].includes(s.mode) && spent < 300) {
+      this.say("self_improvement", "break in " + Math.ceil((300 - spent) / 60) + " min", "", 2600);
+      return;
+    }
+    this.setState({ mode: "break", brem: BRK });
+  };
+
+  claim = () => {
+    const s = this.state;
+    if (!["claim", "overrun"].includes(s.mode)) return;
+    this.setState({ mode: "award" });
+    clearTimeout(this.awTo);
+    this.awTo = setTimeout(() => {
+      this.setState((p) => {
+        const tasks = p.tasks.map((t, i) => (i === p.sel ? { ...t, done: true } : t));
+        const left = tasks.map((t, i) => ({ t, i })).filter((o) => !o.t.done);
+        const bank = p.bank + 3;
+        if (bank >= 60) return { tasks, bank, mode: "unlock" };
+        if (!left.length) return { tasks, bank, mode: "standby" };
+        return { tasks, bank, sel: left[0].i, mode: "break", brem: BRK };
+      });
+    }, 1700);
+  };
+
+  skip = () => {
+    const s = this.state;
+    const open = this.open();
+    if (!open.length) return;
+    const at = Math.max(0, open.findIndex((o) => o.i === s.sel));
+    const nextAt = (at + 1) % open.length;
+    this.setState({
+      sel: open[nextAt].i, mode: "select", lastAct: s.tick,
+      listTop: Math.max(0, Math.min(nextAt - 1, Math.max(0, open.length - 4))),
+    });
+    if (open.length < 2) this.say("block", "last one left", "", 1800);
+  };
+
+  confirmItem = () => {
+    const s = this.state;
+    const item = s.bag[s.bagIdx];
+    if (!item || item.got) {
+      const j = s.bag.findIndex((b) => !b.got);
+      if (j >= 0) this.setState({ bagIdx: j });
+      return;
+    }
+    clearTimeout(this.scanTo);
+    this.scanTo = setTimeout(() => {
+      this.setState((p) => {
+        const bag = p.bag.map((b, i) => (i === p.bagIdx ? { ...b, got: true } : b));
+        const j = bag.findIndex((b) => !b.got);
+        if (j === -1) {
+          const tasks = p.tasks.map((t) => (t.ph === "bag" ? { ...t, done: true } : t));
+          clearTimeout(this.awTo);
+          this.awTo = setTimeout(() => this.setState({ mode: "standby" }), 1700);
+          return { bag, tasks, bagFlash: p.bagIdx, mode: "award", bank: p.bank + 3 };
+        }
+        return { bag, bagIdx: j, bagFlash: p.bagIdx };
+      });
+    }, 60);
+  };
+  bagMiss = () => {
+    this.setState((p) => {
+      const bag = p.bag.map((b, i) => (i === p.bagIdx ? { ...b, skipped: true } : b));
+      const n = bag.length;
+      let j = -1;
+      for (let k = 1; k <= n; k++) { const c = (p.bagIdx + k) % n; if (!bag[c].got && !bag[c].skipped) { j = c; break; } }
+      return { bag, bagIdx: j >= 0 ? j : (p.bagIdx + 1) % n };
+    });
+  };
+
+  press = (which) => {
+    const s = this.state;
+    if (["active", "countdown", "paused"].includes(s.mode)) {
+      this.say("timer", "still running, " + this.mmss(s.rem) + " left", "", 3000);
+      return;
+    }
+    if (s.mode === "bag") { this.confirmItem(); return; }
+    if (s.mode === "alarm") { this.setState({ mode: "brief" }); return; }
+    if (s.mode === "break" || s.mode === "resumeScan") { this.resume(); return; }
+    if (s.mode === "claim" || s.mode === "overrun") { this.claim(); return; }
+    if (["award", "unlock", "nextReward", "update", "egg"].includes(s.mode)) return;
+    if (which === "door") {
+      if (s.arrived) { this.say("home", "already back", this.open().length + " STILL TO DO", 3000); return; }
+      this.setState({ mode: "welcome", arrived: true });
+      return;
+    }
+    if (which === "desk") { this.begin(); return; }
+    this.setState({ mode: "alarm", mins: 7 * 60 + 10 });
+  };
+
+
+  wake = () => {
+    const s = this.state;
+    if (!s.aiOn) return;
+    if (["unlock", "update", "boot"].includes(s.mode)) return;
+    this.setState({ slab: { icon: "blur_on", line: "listening", sub: "" } });
+    clearTimeout(this.slabTo); clearTimeout(this.aiTo);
+    this.aiTo = setTimeout(() => {
+      this.setState({
+        slab: {
+          icon: "smart_toy", line: "email your chemistry teacher?", sub: "",
+          ask: true,
+          rows: [{ k: "TO", v: "mr hale" }, { k: "ASK", v: "deadline for q1-8" }, { k: "FROM", v: "your school mail" }],
+        },
+      });
+    }, 1500);
+  };
+  aiConfirm = () => this.say("send", "sent", "", 2600);
+  aiCancel = () => { this.setState((p) => (p.slab ? { slab: { ...p.slab, leaving: true } } : {})); clearTimeout(this.slabTo); this.slabOutTo = setTimeout(() => this.setState({ slab: null }), 420); };
+
+  holdIdx() { return ["select", "standby"].includes(this.state.mode) ? 2 : this.state.mode === "bag" ? 2 : -1; }
+
+  keyDown = (i) => {
+    this.touch();
+    const s = this.state;
+    if (s.mode === "doze") { this.setState((q) => ({ mode: q.preDoze || "standby", lastAct: q.tick })); return; }
+    if (!s.power || ["sleep", "night"].includes(s.mode)) { this.peekNow(); return; }
+    if (s.mode === "alarm") { this.dismissAlarm(); return; }
+    this.setState({ flash: i });
+    setTimeout(() => this.setState((p) => (p.flash === i ? { flash: -1 } : {})), 180);
+    if (i !== this.holdIdx()) return this.fire(i);
+    clearInterval(this.holdIv);
+    this.setState({ holdKey: i, hold: 0 });
+    const t0 = Date.now();
+    this.holdIv = setInterval(() => {
+      const p = Math.min(1, (Date.now() - t0) / 1000);
+      this.setState({ hold: p });
+      if (p >= 1) { clearInterval(this.holdIv); this.setState({ hold: 0, holdKey: -1 }); this.fire(i); }
+    }, 55);
+  };
+  keyUp = () => { clearInterval(this.holdIv); this.setState({ hold: 0, holdKey: -1 }); };
+  dialPushDown = (e) => {
+    e.stopPropagation();
+    this.setState({ dialPress: true });
+    clearTimeout(this.dpTo);
+    this.dpTo = setTimeout(() => this.setState({ dialPress: false }), 130);
+    this.pressDial();
+  };
+  fire = (i) => {
+    if (this.state.armed) {
+      clearTimeout(this.armTo);
+      this.setState({ armed: false });
+      if (i === 2) { this.setState({ mode: "bright" }); return; }
+      if (i === 3) { this.setState({ mode: "about" }); return; }
+    }
+    const a = (this.plan(this.state.mode)[i] || {}).act;
+    if (a) a();
+  };
+
+  plan(m) {
+    const K = (label, act, tone) => ({ label, act, tone });
+    const home = () => this.setState({ mode: "standby" });
+    const sl = this.state.slab;
+    if (sl && sl.ask) return [K("no", this.aiCancel), null, null, K("yes", this.aiConfirm, "live")];
+    const locked = LOCKED.includes(this.cur().ph);
+    switch (m) {
+      case "standby": return [K("start", this.begin, "primary"), K("tasks", () => this.setState({ mode: "select" })), null, K("reward", () => this.setState({ mode: "reward" }))];
+      case "about": return [null, null, null, K("ok", home, "primary")];
+      case "bright": return [K("dimmer", () => this.setState((q) => ({ bright: Math.max(0, q.bright - 1) }))), K("brighter", () => this.setState((q) => ({ bright: Math.min(4, q.bright + 1) }))), null, K("ok", home, "primary")];
+      case "disco": return [null, null, null, K("stop", home)];
+      case "welcome": return [K("start", this.begin, "live"), null, null, K("later", home)];
+      case "brief": return this.state.school ? [null, null, null, null] : [K("start", this.begin, "primary"), K("tasks", () => this.setState({ mode: "select" })), null, K("ok", home)];
+      case "breathe": return [null, null, null, null];
+      case "resume": return [K("start", this.begin, "primary"), null, null, K("switch", () => this.setState({ mode: "select" }))];
+      case "offline": return [K("retry", home, "primary"), null, null, K("ok", home)];
+      case "doze": return [null, null, null, null];
+      case "select": return [K("start", this.begin, "live"), null, K("skip", this.skip), K("back", home)];
+      case "countdown": return [null, null, null, K("stop", home)];
+      case "active": return [null, K("pause", this.pause), K("break", this.takeBreak), K("switch", () => this.setState({ mode: "select" }))];
+      case "paused": return [K("resume", this.pause, "primary"), null, K("break", this.takeBreak), K("switch", () => this.setState({ mode: "select" }))];
+      case "break": return [K("resume", this.resume, "primary"), null, null, K("switch", () => this.setState({ mode: "select" }))];
+      case "resumeScan": return [K("resume", this.resume, "live"), null, null, K("switch", () => this.setState({ mode: "select" }))];
+      case "overrun": return [null, K("pause", this.pause), null, K("claim", this.claim, "live")];
+      case "claim": return [null, null, null, K("claim", this.claim, "live")];
+      case "bag": return [null, null, K("skip", this.bagMiss), K("got it", this.confirmItem, "primary")];
+      case "reward": return [null, null, null, K("back", home, "primary")];
+      case "unlock": return [null, null, null, K("next", () => this.setState({ mode: "nextReward" }), "live")];
+      case "nextReward": return [null, null, null, K("ok", () => this.setState({ mode: "standby", bank: 4 }), "primary")];
+      case "agent": return [null, null, null, K("stop", home)];
+      case "agent2": return [null, null, null, K("stop", home)];
+      case "alarm": return [null, null, null, K("up", this.dismissAlarm, "live")];
+      default: return [null, null, null, null];
+    }
+  }
+
+  dialDown = (e) => {
+    const b = e.currentTarget.getBoundingClientRect();
+    const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+    let last = Math.atan2(e.clientY - cy, e.clientX - cx), acc = 0;
+    const move = (ev) => {
+      const a = Math.atan2(ev.clientY - cy, ev.clientX - cx);
+      let d = a - last;
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      last = a; acc += (d * 180) / Math.PI;
+      if (Math.abs(acc) > 24) { this.turn(acc > 0 ? -1 : 1); acc = 0; }
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  dialWheel = (e) => { e.preventDefault(); this.turn(e.deltaY > 0 ? 1 : -1); };
+
+  mmss(v) { const a = Math.abs(Math.round(v)); return String(Math.floor(a / 60)).padStart(2, "0") + ":" + String(a % 60).padStart(2, "0"); }
+  hhmm(m) { return String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
+
+  renderVals() {
+    const s = this.state;
+    const hour = Math.floor(s.mins / 60) % 24;
+    const off = !s.power;
+    const late = hour >= 23 || hour < 6;
+    const raw = s.mode;
+    const mode = off ? "night" : late && !["alarm", "brief", "update"].includes(raw) ? "sleep" : raw;
+    const working = ["active", "countdown", "overrun"].includes(mode);
+    const mono = ["sleep", "night", "doze"].includes(mode);
+    const onLight = ["claim", "award", "unlock"].includes(mode);
+    const bElapsed = s.tick - s.bT0;
+    const bPhase = Math.floor((Math.max(0, bElapsed) % 16) / 4);
+    const bCycle = Math.min(4, Math.floor(Math.max(0, bElapsed) / 16));
+    const accent = mono ? "#5f5f69" : "#ff4d17";
+    const clock = this.hhmm(s.mins);
+    const t = this.cur();
+    const openT = this.open();
+    const doneN = s.tasks.filter((x) => x.done).length;
+    const GOAL = 60;
+
+    let hero = this.mmss(s.rem), heroLabel = "LEFT", heroFg = accent;
+    if (mode === "paused") { heroLabel = "PAUSED, SAVED"; heroFg = "#55555f"; }
+    if (mode === "overrun") { hero = this.mmss(s.over); heroLabel = "EXTRA"; }
+    if (mode === "break") { hero = this.mmss(s.brem); heroLabel = "STAND UP, WALK"; heroFg = "#f4f3ef"; }
+
+    const frac = mode === "break" ? s.brem / BRK : mode === "overrun" ? 0 : s.rem / Math.max(1, s.total);
+
+    const phases = PH.map((id, i) => {
+      const inP = s.tasks.filter((x) => x.ph === id);
+      const dn = inP.filter((x) => x.done).length;
+      const mine = t.ph === id;
+      let pct = inP.length ? (dn / inP.length) * 100 : 0;
+      if (mine && working) pct = ((dn + (1 - frac)) / inP.length) * 100;
+      return {
+        flex: inP.length,
+        radius: i === 0 ? "6px 3px 3px 6px" : i === 3 ? "3px 6px 6px 3px" : "3px",
+        track: mono ? "#141419" : "#1c1c23",
+        fill: mine && !mono ? accent : mono ? "#32323b" : "#e0dcd4",
+        pct: Math.min(100, pct) + "%",
+      };
+    });
+
+    const ICON = {
+      start: "play_arrow", resume: "play_arrow", pause: "pause", break: "coffee",
+      switch: "swap_horiz", tasks: "list", skip: "keyboard_double_arrow_down", back: "arrow_back",
+      stop: "close", claim: "check", "got it": "check", done: "check", ok: "check", up: "wb_sunny",
+      next: "arrow_forward", reward: "redeem", later: "schedule", no: "close", yes: "check",
+    };
+    const plan = this.plan(mode);
+    const tab = (i) => {
+      const k = plan[i];
+      if (!k) return { l: "", bg: mode === "disco" ? "transparent" : onLight ? "#0b0b0d14" : "#101015", fg: "transparent", r: "4px 4px 0 0" };
+      const flash = s.flash === i;
+      const live = k.tone === "live", prim = k.tone === "primary";
+      return {
+        l: s.iconKeys ? (ICON[k.label] || k.label) : k.label,
+        bg: onLight ? "#0b0b0d" : flash ? "#ffffff" : live ? accent : prim ? "#f4f3ef" : "#22222b",
+        fg: onLight ? accent : flash ? "#0b0b0d" : live || prim ? "#0b0b0d" : "#b9b8b2",
+        r: "13px 13px 0 0",
+      };
+    };
+    const T = [tab(0), tab(1), tab(2), tab(3)];
+    const askOwns = !!(s.slab && s.slab.ask && !s.slab.leaving);
+    const tabRing = (i) => (askOwns && plan[i] ? "inset 0 0 0 2px #f4f3ef" : "none");
+
+    const sched = s.school
+      ? [
+          { name: "maths", tint: TINT.maths, span: 2, now: true },
+          { name: "chem", tint: TINT.chem, span: 2 },
+          { name: "english", tint: TINT.eng, span: 1 },
+          { name: "PE", tint: "#4a4a54", span: 2 },
+          { name: "history", tint: "#6a4a2f", span: 1 },
+        ]
+      : [
+          { name: "free", tint: "#2a2a33", span: 2, free: true },
+          { name: "revision", tint: TINT.study, span: 2, now: true },
+          { name: "free", tint: "#2a2a33", span: 2, free: true },
+          { name: "guitar", tint: TINT.mine, span: 2 },
+        ];
+
+    const seeded = (n, sd) => Array.from({ length: n }, (_, i) => (Math.sin((i + 1) * sd) + 1) / 2);
+
+    const vm = {
+      accent,
+      clock,
+      hero: mode === "overrun" ? "+" + this.mmss(s.over) : this.mmss(Math.max(0, s.rem)),
+      heroFg: mode === "paused" ? "#6d6d77" : mode === "overrun" ? accent : mode === "active" ? "#f4f3ef" : accent,
+      heroLabel: mode === "paused" ? "PAUSED" : mode === "overrun" ? "OVER" : "LEFT",
+      showBreatheIn: mode === "breathe" && bElapsed < 0,
+      bInLine: String(Math.max(1, -bElapsed)),
+      bInSub: "SETTLE IN",
+      breatheFill: bPhase === 1 || bPhase === 2 ? "#ff4d1714" : "transparent",
+      fxOn: ["award", "unlock"].includes(mode),
+      fxKind: mode === "unlock" ? "unlock" : "award",
+      fxKey: ["award", "unlock"].includes(mode) ? mode + ":" + s.fxSeq : "",
+      rwIcon: "savings",
+      unlockName: "cinema trip",
+      unlockSub: "UNLOCKED",
+      unlockIcon: "redeem",
+      nextName: "new headphones",
+      nextGoal: "60 pt",
+      nextIcon: "headphones",
+      offLine: "no wifi",
+      offSub: "tasks still run, sync when it's back",
+      phases: ["morning", "home", "study", "free"].map((ph, i, arr) => {
+        const own = s.tasks.filter((t) => t.ph === ph);
+        const dn = own.filter((t) => t.done).length;
+        const pct = own.length ? Math.round((dn / own.length) * 100) : 100;
+        return {
+          flex: Math.max(1, own.length),
+          radius: i === 0 ? "6px 2px 2px 6px" : i === arr.length - 1 ? "2px 6px 6px 2px" : "2px",
+          track: "#17171d",
+          pct: pct + "%",
+          fill: pct === 100 ? "#4a4a54" : accent,
+        };
+      }),
+      bg: onLight ? accent : "#000000",
+      fg: onLight ? "#0b0b0d" : "#f4f3ef",
+      mid: onLight ? "#0b0b0d" : "#c2c1bb",
+      dim: mono ? "#43434c" : "#8e8e97",
+      briefSubFg: "#b6b5af", newsFg: "#dedad4",
+      accent,
+      arc: "conic-gradient(" + heroFg + " " + Math.round(frac * 100) + "%, " + (mono ? "#1d1d24" : "#25252d") + " 0)",
+
+      showHead: !["boot", "claim", "award", "unlock", "night", "sleep", "doze", "countdown", "update", "nextReward", "brief", "breathe", "alarm", "disco"].includes(mode),
+      showStandby: mode === "standby",
+      showAlarm: mode === "alarm" && !(!s.school && s.lieIn),
+      showWelcome: mode === "welcome",
+      showBrief: mode === "brief" || (mode === "alarm" && !s.school && s.lieIn),
+      showList: mode === "select",
+      showTimer: ["active", "paused", "overrun", "break"].includes(mode),
+      showCount: mode === "countdown",
+      showClaim: mode === "claim",
+      showAward: mode === "award",
+      showScan: mode === "resumeScan",
+      showBag: mode === "bag",
+      showReward: mode === "reward",
+      showUnlock: mode === "unlock",
+      showNext: mode === "nextReward",
+      showAbout: mode === "about",
+      aboutRows: [
+        { k: "MODEL", v: "ND-1 rev C" },
+        { k: "FIRMWARE", v: "2.4.1 (b" + (4120 + 7) + ")" },
+        { k: "MCU", v: "ESP32-S3 · 240 MHz" },
+        { k: "HEAP", v: (182 - (s.tick % 7)) + " / 320 KB" },
+        { k: "UPTIME", v: Math.floor(s.tick / 3600) + "h " + String(Math.floor(s.tick / 60) % 60).padStart(2, "0") + "m " + String(s.tick % 60).padStart(2, "0") + "s" },
+        { k: "WI-FI", v: "home-5g · " + (-54 - (s.tick % 4)) + " dBm" },
+        { k: "IP", v: "192.168.1.42" },
+        { k: "TEMP", v: (41 + (s.tick % 3)) + " °C" },
+        { k: "MIC", v: s.mic ? "on" : "hard off" },
+        { k: "SYNC", v: "2 min ago" },
+      ],
+      showBright: mode === "bright",
+      brightBars: [0, 1, 2, 3, 4].map((k) => ({
+        h: (30 + k * 24) + "px",
+        c: k <= s.bright ? accent : "#17171d",
+        ico: k === 0 ? "bedtime" : k === 4 ? "light_mode" : "",
+        icoC: k <= s.bright ? "#0b0b0d" : "#3d3d45",
+      })),
+      showDisco: mode === "disco",
+      discoLine: ["nudge fm", "turn it up", "go on then", "one more"][s.discoBeat % 4],
+      discoFg: s.discoBeat % 2 ? "#f4f3ef" : accent,
+      discoBpm: 118 + (s.discoBeat % 3) * 6,
+      discoBeatS: (60 / (116 + ((s.tick >> 3) % 4) * 4)).toFixed(3) + "s",
+      discoCols: Array.from({ length: 20 }, (_, i) => {
+        const mid = Math.abs(i - 9.5) / 9.5;
+        return { h: Math.round(150 - mid * 96) + "px", d: (-((i * 5) % 9) * 0.061).toFixed(3) + "s", k: (0.5 + ((i * 3) % 4) * 0.25).toFixed(2), c: i % 5 === 2 ? "#f4f3ef" : accent };
+      }),
+      discoBars: Array.from({ length: 28 }, (_, i) => ({ rot: (i * 360 / 28).toFixed(1) + "deg", d: (-((i * 7) % 11) * 0.047).toFixed(3) + "s", c: i % 7 === 0 ? "#f4f3ef" : accent })),
+      discoVu: [0, 1, 2, 3].map((k) => ({ c: k <= (s.tick + s.discoBeat) % 4 ? accent : "#23232b" })),
+      discoCells: Array.from({ length: 192 }, (_, k) => {
+        const c = k % 16, r = Math.floor(k / 16);
+        const h = 4 + ((c * 37 + s.discoBeat * 5) % 9);
+        const lit = r >= 12 - h;
+        const warm = (c + s.discoBeat) % 4 === 0;
+        return {
+          r: warm ? "50%" : "1px",
+          bg: lit ? (warm ? "#f4f3ef" : accent) : "#101016",
+          o: lit ? 1 : 0.55,
+          dur: (0.34 + (c % 5) * 0.08).toFixed(2) + "s",
+          d: ((c % 8) * 0.05).toFixed(2) + "s",
+        };
+      }),
+      showUpdate: mode === "update",
+      showAlarmRing: mode === "alarm",
+      updLine: s.updPct >= 100 ? "ready" : "updating",
+      updPct: s.updPct + "%",
+      updSub: s.updPct >= 100 ? "RESTARTING" : "KEEP IT ON THE WALL",
+      showAgent: mode === "agent",
+      showAgent2: mode === "agent2",
+      showResume: mode === "resume",
+      rsTag: "PICKED UP WHERE YOU LEFT IT",
+      rsName: t.name,
+      rsPct: Math.round((t.spent / (t.mins * 60)) * 100) + "%",
+      rsLeft: this.mmss(t.mins * 60 - t.spent),
+      showOffline: mode === "offline",
+      showWeek: false,
+      showBreathe: mode === "breathe" && bCycle < 4,
+      breatheWord: ["breathe in", "hold", "breathe out", "hold"][bPhase],
+      breatheSub: "ANY KEY TO GO BACK",
+      bCount: 4 - (Math.max(0, bElapsed) % 4),
+      bCycles: Array.from({ length: 4 }, (_, k) => ({
+        w: k < bCycle ? "26px" : k === bCycle ? "16px" : "10px",
+        c: k < bCycle ? accent : k === bCycle ? "#4a4a54" : "#23232b",
+      })),
+      showBreatheEnd: mode === "breathe" && bCycle >= 4,
+      bEndLine: "back to it",
+      bEndN: Math.max(1, 4 - (bElapsed - 64)),
+      showSleep: mode === "sleep" && !s.peek,
+      showDoze: mode === "doze" && !s.peek,
+      showDark: mode === "night" && !s.peek,
+      showPeek: (mode === "sleep" || mode === "night") && s.peek,
+      peekClock: this.hhmm(s.mins),
+      peekDate: (s.school ? "FRI" : "SAT") + " 4 SEP",
+      showBoot: mode === "boot",
+      bootLetters: "nudge".split("").map((ch, i) => ({
+        ch,
+        anim: (i % 2 ? "sBDown" : "sBUp") + " 1.5s cubic-bezier(.24,1.3,.32,1) " + (i * 0.07).toFixed(2) + "s both",
+      })),
+      showBar: !["boot", "night", "sleep", "claim", "award", "unlock", "countdown", "alarm", "update", "reward", "nextReward", "breathe", "doze", "offline", "resume", "agent", "agent2", "welcome", "bag", "breathe", "brief", "doze", "disco", "bright", "about"].includes(mode),
+      showTabs: !["boot", "night", "sleep", "doze", "update", "breathe"].includes(mode),
+
+      k1ring: tabRing(0), k2ring: tabRing(1), k3ring: tabRing(2), k4ring: tabRing(3),
+      kFont: s.iconKeys ? "'Material Symbols Rounded'" : "'DM Mono', monospace",
+      kSize: s.iconKeys ? "15px" : "8px",
+      clock,
+      headClock: ["standby", "alarm"].includes(mode) ? "" : clock,
+      tagline: mode === "welcome" ? "home" : ["agent", "agent2"].includes(mode) ? "working on it" : working ? "focus" : mode === "bag" ? "for tomorrow" : mode === "break" ? "break" : mode === "resumeScan" ? "waiting" : mode === "reward" ? "reward" : s.school ? "school day" : "weekend",
+      pips: s.tasks.map((x, i) => ({
+        r: i < doneN ? "50%" : "2px",
+        f: i < doneN ? accent : "#f4f3ef",
+        anim: i === doneN - 1 ? "sPipPop .5s cubic-bezier(.2,.9,.25,1) both" : "sPip .4s ease-out both " + (i * 0.04).toFixed(2) + "s",
+      })),
+
+      curName: t.name, curDur: t.mins + "m", curTint: TINT[t.subj],
+      curNote: t.spent > 30 ? Math.round((t.spent / (t.mins * 60)) * 100) + "% kept" : "",
+      noteBg: "#1e1e26", noteFg: "#b9b8b2",
+
+      hero, heroLabel, heroFg,
+      countN: s.countN,
+      awardPts: "+3", awardNote: "BANKED " + (s.bank + 3),
+      claimSub: "+3 POINTS",
+      chevrons: [{ d: "0s" }, { d: ".16s" }, { d: ".32s" }],
+      alarmHint: "PRESS ANY KEY",
+
+      wcHead: hour < 14 ? "back early" : hour < 17 ? "welcome home" : "long one today",
+      wcName: "peter",
+      wcRows: [
+        { icon: "task_alt", text: this.open().length + " tasks, " + Math.round(s.tasks.filter((x) => !x.done).reduce((a, x) => a + x.mins, 0) / 60 * 10) / 10 + "h total", iconFg: accent },
+        { icon: "schedule", text: "free by " + this.hhmm(s.mins + 30 + s.tasks.filter((x) => !x.done).reduce((a, x) => a + x.mins + 5, 0)), iconFg: "#4f4f59" },
+        { icon: "backpack", text: s.bag.filter((b) => !b.got).length + " books to pack later", iconFg: "#4f4f59" },
+      ],
+      briefDay: s.school ? "fri" : "sat",
+      briefMon: s.school ? "4 SEP" : "5 SEP",
+      briefNum: s.school ? "4" : "5",
+      briefMonShort: "SEP",
+      briefKind: s.school ? "SCHOOL" : s.hol ? "HALF TERM" : s.lieIn ? "LIE IN" : "WEEKEND",
+      ruleC: "#22222a",
+      wxIcon: s.school ? "cloud" : "wb_sunny",
+      wxTemp: s.school ? "14°" : "19°",
+      bdayIcon: "cake",
+      bdayName: s.school ? "mum, in 3 days" : "mum, today",
+      wxRain: s.school ? "rain 4pm" : "",
+      sched: sched.map((x, i) => ({
+        name: x.name,
+        tint: x.now ? "#0b0b0d" : x.tint,
+        flex: x.span,
+        barH: x.span > 1 ? "22px" : "14px",
+        size: x.now ? "12px" : "11px",
+        radius: i === 0 ? "10px 10px 5px 5px" : i === sched.length - 1 ? "5px 5px 10px 10px" : "5px",
+        bg: x.now ? accent : x.free ? "#0f0f14" : "#191920",
+        fg: x.now ? "#0b0b0d" : x.free ? "#7a7a84" : "#dedad4",
+        dbl: x.span > 1,
+        dblC: x.now ? "#0b0b0d80" : "#4a4a54",
+      })),
+      heads: s.school ? "bring your chemistry book, mr hale emailed" : "",
+      news: s.school ? "Rail strike called off, trains running normally." : s.hol ? "Library open ten till four all week." : "Council opening the new skate park this weekend.",
+
+      rowH: "32px",
+      rowsY: "-" + s.listTop * 36 + "px",
+      rows: openT.map((o) => ({
+        name: o.t.name, meta: o.t.mins + "m", tint: TINT[o.t.subj],
+        radius: "8px",
+        bg: o.i === s.sel ? "#f4f3ef" : "transparent",
+        fg: o.i === s.sel ? "#0b0b0d" : "#9a9aa3",
+        metaFg: o.i === s.sel ? "#55555d" : "#4d4d56",
+        note: o.t.spent > 30 ? Math.round((o.t.spent / (o.t.mins * 60)) * 100) + "% kept" : "",
+        noteBg: o.i === s.sel ? "#0b0b0d14" : "#1e1e26",
+        noteFg: o.i === s.sel ? "#55555d" : "#8e8e97",
+        progW: Math.min(100, (o.t.spent / (o.t.mins * 60)) * 100) + "%",
+        progC: o.i === s.sel ? "#0b0b0d" : accent,
+      })),
+
+      scanLine: "press the dial", scanSub: "BREAK IS OVER",
+      bagRail: s.bag.length > 4,
+      bagRailH: Math.round((4 / Math.max(4, s.bag.length)) * 100) + "%",
+      bagRailY: Math.round((Math.max(0, Math.min(s.bagIdx - 3, Math.max(0, s.bag.length - 4))) / Math.max(1, s.bag.length)) * 100) + "%",
+      bagRowH: "31px",
+      bagY: "-" + Math.max(0, Math.min(s.bagIdx - 3, Math.max(0, s.bag.length - 4))) * 34 + "px",
+      bagRows: s.bag.map((b, i) => {
+        const on = i === s.bagIdx;
+        const inBag = b.got || b.kept;
+        return {
+          name: b.name,
+          tint: b.kept ? "#4a4a54" : TINT[b.subj],
+          radius: i === 0 ? "11px 11px 5px 5px" : i === s.bag.length - 1 ? "5px 5px 11px 11px" : "5px",
+          bg: on ? "#26262f" : inBag ? "#131318" : "#0f0f14",
+          ring: inBag ? accent : on ? "#f4f3ef" : "#4a4a54",
+          fill: inBag ? accent : "transparent",
+          tickFg: "#0b0b0d",
+          ticked: inBag,
+          fg: b.skipped ? "#6d6d77" : inBag ? "#9a9aa3" : "#ffffff",
+          strike: b.skipped ? "line-through" : "none",
+          note: b.note || "",
+          noteBg: inBag ? "#26262e" : accent,
+          noteFg: inBag ? "#b6b5af" : "#0b0b0d",
+          stateIcon: b.kept ? "backpack" : b.skipped ? "remove_circle_outline" : on ? "chevron_right" : "",
+          stateFg: b.kept ? "#8e8e97" : b.skipped ? "#6d6d77" : accent,
+        };
+      }),
+      bagRail: s.bag.length > 6,
+      bagRailH: Math.round((6 / Math.max(6, s.bag.length)) * 100) + "%",
+      bagRailY: Math.round((s.bagIdx / Math.max(1, s.bag.length)) * 100) + "%",
+      listRail: openT.length > 4,
+      listRailH: Math.round((4 / Math.max(4, openT.length)) * 100) + "%",
+      listRailY: Math.round((s.listTop / Math.max(1, openT.length)) * 100) + "%",
+      bagKit: s.kit, bagKitBg: "#16161c", bagKitNote: "TOMORROW",
+
+      rwNow: s.bank, rwOf: "/ " + GOAL,
+      rwRing: Array.from({ length: GOAL }, (_, i) => {
+        const a = i * 2.39996;
+        const r = 7 + Math.sqrt(i + 1) * 10.2;
+        const on = i < s.bank;
+        const sz = on ? 6 + (i / GOAL) * 6 : 4;
+        return {
+          x: (74 + Math.cos(a) * r - sz / 2).toFixed(1) + "px",
+          y: (74 + Math.sin(a) * r - sz / 2).toFixed(1) + "px",
+          sz: sz.toFixed(1) + "px",
+          c: on ? (i % 9 === 4 ? "#f4f3ef" : accent) : "#2a2a33",
+          anim: i === s.bank - 1 ? "sNow 1.8s ease-in-out infinite" : "none",
+          d: (i * 0.022).toFixed(3) + "s",
+        };
+      }),
+rwName: "cinema trip",
+      rwWeeks: ["W1", "W2", "W3", "W4"].map((label, w) => {
+        const per = GOAL / 4;
+        const earned = Math.max(0, Math.min(per, s.bank - w * per));
+        const cells = 6;
+        const lit = Math.round((earned / per) * cells);
+        return {
+          label,
+          fg: lit ? "#b6b5af" : "#5c5c66",
+          coins: Array.from({ length: cells }, (_, c) => ({
+            c: c < lit ? accent : "#1b1b22",
+            d: (w * 0.08 + c * 0.03).toFixed(2) + "s",
+          })),
+        };
+      }),
+      _rwStack: Array.from({ length: 9 }, (_, i) => {
+        const filled = Math.round((s.bank / GOAL) * 9);
+        return { h: (5 + i * 1.6).toFixed(0) + "px", radius: "3px", c: i < filled ? accent : "#1d1d24", d: (i * 0.05).toFixed(2) + "s" };
+      }),
+      rwGoalY: "6px",
+      rwPeriod: "THIS MONTH",
+      rwLeft: Math.max(0, GOAL - s.bank) + " TO GO",
+
+      sleepLine: hour >= 23 || hour < 3 ? "go to bed" : "wind down",
+      ringBars: Array.from({ length: 16 }, (_, i) => {
+        const on = i < Math.ceil(frac * 16);
+        const lead = i === Math.ceil(frac * 16) - 1;
+        return {
+          a: (i / 16) * 360 + "deg",
+          h: on ? (lead ? "15px" : "11px") : "6px",
+          c: on ? heroFg : mono ? "#20202a" : "#2a2a34",
+        };
+      }),
+      eq: [
+        { dur: "1.1s", d: "0s" },
+        { dur: "1.4s", d: ".18s" },
+        { dur: "0.9s", d: ".34s" },
+        { dur: "1.3s", d: ".12s" },
+        { dur: "1.05s", d: ".26s" },
+      ],
+      jobsHead: "4 JOBS",
+      jobDots: [
+        { flex: 3, c: accent },
+        { flex: 2, c: accent },
+        { flex: 1, c: "#33333c" },
+        { flex: 1, c: "#26262e" },
+      ],
+      jobIcon: "send",
+      jobNow: "emailing mr hale about the deadline",
+      jobPct: "64%",
+      jobStep: "STEP 2 OF 3",
+      jobQueue: [
+        { name: "friday revision plan", icon: "edit_note", iconFg: accent, fg: "#ffffff", ruleC: accent, meta: "NEXT", metaFg: accent },
+        { name: "chemistry deadline", icon: "check", iconFg: "#8e8e97", fg: "#b6b5af", ruleC: "#26262e", meta: "DONE", metaFg: "#6d6d77" },
+        { name: "add mock to calendar", icon: "schedule", iconFg: "#6d6d77", fg: "#8e8e97", ruleC: "#1d1d24", meta: "HELD", metaFg: "#5c5c66" },
+      ],
+      jobsN: "4",
+      jobs: [
+        { name: "email mr hale", icon: "send", iconAnim: "lPulse 1.6s ease-in-out infinite", iconFg: "#0b0b0d", fg: "#0b0b0d", bg: accent, linkC: accent, pct: "64%", barC: "#0b0b0d33", radius: "13px", flex: 1.5 },
+        { name: "friday revision plan", icon: "edit_note", iconAnim: "lPulse 1.9s ease-in-out infinite", iconFg: accent, fg: "#ffffff", bg: "#22222b", linkC: accent, pct: "38%", barC: accent, radius: "11px", flex: 1.2 },
+        { name: "chemistry deadline", icon: "check", iconAnim: "none", iconFg: "#8e8e97", fg: "#b6b5af", bg: "#141419", linkC: "#33333c", pct: "100%", barC: "#33333c", radius: "9px", flex: 1 },
+        { name: "add mock to calendar", icon: "schedule", iconAnim: "none", iconFg: "#6d6d77", fg: "#8e8e97", bg: "#0f0f14", linkC: "#26262e", pct: "0%", barC: "#2a2a33", radius: "9px", flex: 1 },
+      ],
+      agentElapsed: "0:07",
+      agentSources: [
+        { icon: "school", fg: "#8e8e97" },
+        { icon: "calendar_month", fg: "#8e8e97" },
+        { icon: "mail", fg: accent },
+      ],
+      agentTask: "finding your chemistry deadline",
+      agentSteps: [
+        { icon: "check", text: "read school tasks", meta: "DONE", iconFg: "#8e8e97", fg: "#b6b5af", ruleC: "#26262e", metaFg: "#7a7a84" },
+        { icon: "search", text: "checking notes", meta: "NOW", iconFg: accent, fg: "#ffffff", ruleC: accent, metaFg: accent },
+        { icon: "schedule", text: "add to friday", meta: "NEXT", iconFg: "#6d6d77", fg: "#8e8e97", ruleC: "#1d1d24", metaFg: "#6d6d77" },
+      ],
+      agentDots: Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return { x: 20 + Math.cos(a) * 20 + "px", y: 20 + Math.sin(a) * 20 + "px", s: (3 + (i / 8) * 4).toFixed(1) + "px", o: (0.22 + (i / 8) * 0.78).toFixed(2) };
+      }),
+
+      slabLine: s.slab ? s.slab.line : "", slabSub: s.slab ? s.slab.sub : "", slabIcon: s.slab ? s.slab.icon : "",
+      slabIconFg: "#ff4d17",
+      slabAnim: s.slab && s.slab.leaving ? "sLift .4s cubic-bezier(.5,0,.75,0) both" : "sDrop .52s cubic-bezier(.32,.72,0,1) both",
+      slabPad: s.slab && s.slab.ask ? "14px 18px 16px" : "12px 16px 14px",
+      slabRadius: s.slab && s.slab.ask ? "24px" : "20px",
+      slabIconSize: s.slab && s.slab.ask ? "22px" : "17px",
+      slabSize: s.slab && s.slab.ask ? "12px" : "10px",
+      slabTail: s.slab && s.slab.tail ? s.slab.tail : "",
+      slabAsk: !!(s.slab && s.slab.ask), slabRows: (s.slab && s.slab.rows) || [],
+
+      phases,
+      k1: T[0].l, k1bg: T[0].bg, k1fg: T[0].fg, k1r: T[0].r,
+      k2: T[1].l, k2bg: T[1].bg, k2fg: T[1].fg, k2r: T[1].r,
+      k3: T[2].l, k3bg: T[2].bg, k3fg: T[2].fg, k3r: T[2].r,
+      k4: T[3].l, k4bg: T[3].bg, k4fg: T[3].fg, k4r: T[3].r,
+    };
+
+    let pat = "off";
+    if (mode === "unlock") pat = "sparkle";
+    else if (["claim", "award"].includes(mode)) pat = "burst";
+    else if (mode === "bag") pat = "bag";
+    else if (mode === "countdown") pat = "flood";
+    else if (mode === "resumeScan") pat = "count";
+    else if (mode === "alarm") pat = "alarm";
+    else if (mode === "update") pat = "sweep";
+    else if (mode === "breathe") pat = "breathe";
+    else if (mode === "disco") pat = "disco";
+    else if (mode === "bright") pat = "bright";
+    else if (mode === "doze" || mode === "standby") pat = "idle";
+    else if (s.slab && !s.slab.leaving) pat = s.slab.ask ? "listen" : "voice";
+    else if (working) pat = "fill";
+    const leftN = working ? Math.ceil(frac * 5) : 0;
+    const N = 25, SIDE = 5;
+    const leds = Array.from({ length: N }, (_, i) => {
+      const col = i % SIDE, row = Math.floor(i / SIDE);
+      const dead = { bg: "#d2d0c8", o: 1, anim: "none", delay: "0s", glow: "inset 0 2px 4px #00000026" };
+      if (mono || off) return dead;
+      const on = (o, anim, delay) => ({ bg: "#ff4d17", o, anim: anim || "none", delay: delay || "0s", glow: "0 0 20px 3px #ff4d1773,inset 0 1px 2px #ffffff59" });
+      const white = (o, anim, delay) => ({ bg: "#f4f3ef", o, anim: anim || "none", delay: delay || "0s", glow: "0 0 16px 3px #ffffff80,inset 0 1px 2px #ffffff" });
+      const dim = white;
+
+      if (pat === "fill") {
+        // a single quiet column marks how much is left, nothing else burns
+        const edge = Math.max(0, Math.ceil(frac * SIDE) - 1);
+        if (col !== edge) return dead;
+        return { bg: "#ff4d17", o: 0.55, anim: "lDrift 6s ease-in-out infinite", delay: (row * 0.09).toFixed(2) + "s" };
+      }
+      if (pat === "burst") {
+        const ring = Math.max(Math.abs(col - 2), Math.abs(row - 2));
+        const phase = Math.floor(s.tick / 2) % 4;
+        const show = phase === 0 ? ring < 1.6 : phase === 1 ? ring < 2.6 : phase === 2 ? ring < 3.6 : ring > 2.4;
+        return show ? on(1, "lSpark 1.1s ease-in-out infinite", (ring * 0.11).toFixed(2) + "s") : dead;
+      }
+      if (pat === "bag") {
+        const got = s.bag.filter((b) => b.got).length;
+        const lit = Math.round((got / Math.max(1, s.bag.length)) * SIDE);
+        if (row >= SIDE - lit) return white(0.85);
+        if (row === SIDE - lit - 1) return on(1, "lPulse 2.2s ease-in-out infinite");
+        return dead;
+      }
+      if (pat === "flood") {
+        // every light on as the session opens, then settles
+        return on(1, "lRise .55s cubic-bezier(.3,0,.3,1) both, lPulse 1.6s ease-in-out .55s infinite", ((col + row) * 0.045).toFixed(2) + "s");
+      }
+      if (pat === "sparkle") {
+        const seed = (col * 7 + row * 13) % 11;
+        return seed < 5 ? on(1, "lSpark " + (1.1 + seed * 0.18).toFixed(2) + "s ease-in-out infinite", (seed * 0.16).toFixed(2) + "s") : { bg: "#ff4d17", o: 0.1, anim: "none", delay: "0s" };
+      }
+      if (pat === "alarm") {
+        // full-panel diagonal sweep, every cell firing, alternating white and orange rows
+        const diag = (col + row) / (SIDE * 2 - 2);
+        const warm = (row + Math.floor(s.tick / 2)) % 2 === 0;
+        return {
+          bg: warm ? "#ff4d17" : "#f4f3ef",
+          o: 1,
+          anim: "lAlarm .85s cubic-bezier(.35,0,.4,1) infinite",
+          delay: (diag * 0.7).toFixed(2) + "s",
+        };
+      }
+      if (pat === "voice") {
+        // audio-reactive: each column is a bar off the waveform
+        const h = [3, 6, 8, 5, 7, 4, 6, 2][col];
+        const lit = ((s.tick + col) % 3 === 0) ? h : Math.max(2, h - 2);
+        return row >= SIDE - lit ? on(1, "lSpark .5s ease-in-out infinite", (col * 0.05).toFixed(2) + "s") : dead;
+      }
+      if (pat === "listen") {
+        const ring = Math.max(Math.abs(col - 2), Math.abs(row - 2));
+        return ring > 2.4 ? on(1, "lPulse 1.4s ease-in-out infinite", (col * 0.05).toFixed(2) + "s") : dead;
+      }
+      if (pat === "breathe") {
+        const ring = Math.max(Math.abs(col - 2), Math.abs(row - 2));
+        return { bg: "#ff4d17", o: 0.9, anim: "lBreathe 16s cubic-bezier(.42,0,.58,1) infinite", delay: (ring * 0.42).toFixed(2) + "s" };
+      }
+      if (pat === "sweep") {
+        return row === 3 || row === 4 ? on(1, "lSpark 1.8s ease-in-out infinite", (col * 0.11).toFixed(2) + "s") : dead;
+      }
+      if (pat === "idle") {
+        return (col === 0 && row === SIDE - 1) ? { bg: "#ff4d17", o: 1, anim: "lDrift 7s ease-in-out infinite", delay: "0s" } : dead;
+      }
+      if (pat === "blip") {
+        return row === 0 || row === SIDE - 1 ? on(1, "lSpark 1.3s ease-in-out infinite", (col * 0.07).toFixed(2) + "s") : dead;
+      }
+      if (pat === "wave") {
+        const d = (col + row) * 0.08;
+        return on(0.9, "lSpark 2.6s ease-in-out infinite", d.toFixed(2) + "s");
+      }
+      if (pat === "disco") {
+        const beat = (s.tick + s.discoBeat) % 4;
+        const ring = Math.max(Math.abs(col - 2), Math.abs(row - 2));
+        const hit = beat === 0 ? ring === 0 : beat === 1 ? ring === 1 : beat === 2 ? ring === 2 : (col + row) % 2 === 0;
+        if (!hit) return dead;
+        const warm = (col * 3 + row * 5 + s.discoBeat) % 3 === 0;
+        return { bg: warm ? "#f4f3ef" : "#ff4d17", o: 1, anim: "lSpark .34s ease-in-out infinite", delay: (ring * 0.05).toFixed(2) + "s", glow: "0 0 22px 5px " + (warm ? "#ffffff8c" : "#ff4d1799") };
+      }
+      if (pat === "bright") {
+        return row >= SIDE - 1 - s.bright ? on(0.25 + s.bright * 0.18) : dead;
+      }
+      if (pat === "count") {
+        const ring = Math.max(Math.abs(col - 2), Math.abs(row - 2));
+        return ring < 1.6 ? on(1, "lPulse 1s ease-in-out infinite") : dead;
+      }
+      return dead;
+    });
+
+    const panelKeys = plan.map((k, i) => ({
+      x: (65 + i * 114).toFixed(0) + "px",
+      bg: k ? "linear-gradient(#fdfdfb,#efedE7)" : "linear-gradient(#f0eee8,#e4e2da)",
+      shadow: s.holdKey === i
+        ? "0 1px 0 #d2d0c8,inset 0 2px 5px #00000026"
+        : k ? "0 5px 0 #d6d4cc,0 11px 16px -9px #00000040,inset 0 0 0 1px #ffffff" : "0 4px 0 #dcdad2,inset 0 0 0 1px #ffffffd9",
+      dy: s.holdKey === i ? "3px" : "0px",
+      holdW: s.holdKey === i ? s.hold * 100 + "%" : "0%",
+      down: () => this.keyDown(i), up: () => this.keyUp(),
+    }));
+
+
+    const stateList = ["boot", "alarm", "bright", "about", "disco", "resume", "brief", "welcome", "standby", "select", "countdown", "active", "paused", "break", "resumeScan", "overrun", "claim", "bag", "reward", "unlock", "nextReward", "breathe", "doze", "offline", "resume", "agent", "agent2", "update", "sleep"];
+
+    const barPctN = working ? Math.round(frac * 100) : mode === "countdown" ? 100 : ["claim", "award", "unlock"].includes(mode) ? 100 : 0;
+
+    return {
+      vm, leds, panelKeys,
+      screws: [
+        { x: "22px", y: "22px", rot: "22deg" }, { x: "540px", y: "22px", rot: "-8deg" }, { x: "958px", y: "22px", rot: "40deg" },
+        { x: "22px", y: "658px", rot: "-31deg" }, { x: "540px", y: "382px", rot: "12deg" }, { x: "958px", y: "658px", rot: "-19deg" },
+      ],
+      barLit: mono || !s.power ? 0 : mode === "disco" ? 0.6 : mode === "bright" ? 0.12 + s.bright * 0.18 : 0.1,
+      barOn: ["sleep", "doze", "off"].includes(mode) || !s.power ? 0 : 1,
+      barPct: barPctN + "%",
+      dialPressY: s.dialPress ? "2px" : "0px",
+      dialPushDown: this.dialPushDown,
+      touchRing: ["agent", "agent2"].includes(mode) ? "#ff4d17" : "#c2c0b8",
+      ledLabel: pat === "fill" ? "TIME LEFT" : pat === "bag" ? "PACKED" : "",
+      dialDeg: s.dial,
+      dialLed: working ? 1 : ["select", "bag"].includes(mode) ? 0.7 : mono ? 0.05 : 0.18,
+      micJustify: s.mic ? "flex-end" : "flex-start", micLabel: s.mic ? "ON" : "OFF",
+      pwrJustify: s.power ? "flex-end" : "flex-start",
+      toggleMic: () => this.setState((p) => ({ mic: !p.mic })),
+      togglePower: () => this.setState((p) => ({ power: !p.power })),
+      dialDown: this.dialDown, dialWheel: this.dialWheel, pressDial: this.pressDial,
+      dayBtns: [
+        { label: s.iconKeys ? "icon keys" : "word keys", bg: "transparent", fg: s.iconKeys ? "#ff4d17" : "#6d6d75", go: () => this.setState((q) => ({ iconKeys: !q.iconKeys })) },
+        { label: s.aiOn ? "ai on" : "ai off", bg: "transparent", fg: s.aiOn ? "#ff4d17" : "#6d6d75", go: () => this.setState((q) => ({ aiOn: !q.aiOn, slab: null })) },
+        { label: "school day", bg: s.school ? "#ff4d17" : "transparent", fg: s.school ? "#0b0b0d" : "#b6b5af", go: () => this.setState({ school: true, hol: false }) },
+        { label: "weekend", bg: !s.school && !s.hol ? "#ff4d17" : "transparent", fg: !s.school && !s.hol ? "#0b0b0d" : "#b6b5af", go: () => this.setState({ school: false, hol: false }) },
+        { label: "half term", bg: s.hol ? "#ff4d17" : "transparent", fg: s.hol ? "#0b0b0d" : "#b6b5af", go: () => this.setState({ school: false, hol: true }) },
+        { label: s.lieIn ? "lie in allowed" : "lie in off", bg: "transparent", fg: s.lieIn ? "#ff4d17" : "#6d6d75", go: () => this.setState((q) => ({ lieIn: !q.lieIn })) },
+      ],
+      tagBtns: [{ label: "touch pad", go: this.wake }],
+      pressTouch: this.wake,
+      stateBtns: stateList.map((k) => ({
+        label: k, bg: mode === k ? "#ff4d17" : "transparent", fg: mode === k ? "#0b0b0d" : "#b6b5af",
+        go: () => {
+          const p = { mode: k, slab: null, peek: false };
+          if (k === "active" || k === "paused") { p.rem = 1027; p.total = 1500; }
+          if (k === "overrun") p.over = 172;
+          if (k === "break") p.brem = 208;
+          if (k === "countdown") { p.countN = 3; p.cdHeld = false; p.total = 1500; }
+          if (k === "breathe") { p.bT0 = s.tick; p.rem = 900; p.total = 1500; }
+          if (k === "resume") { p.tasks = s.tasks.map((x, n) => (n === s.sel ? { ...x, spent: 9 * 60 + 20, started: true } : x)); }
+          if (k === "claim") { p.rem = 0; p.over = 0; }
+          if (k === "bag") p.bagIdx = Math.max(0, s.bag.findIndex((b) => !b.got));
+          if (k === "unlock" || k === "nextReward") p.bank = 60;
+          if (k === "agent" || k === "agent2") p.aiOn = true;
+          if (k === "update") p.updPct = 34;
+          if (k === "sleep") p.mins = 23 * 60 + 26;
+          else if (k === "alarm" || k === "brief") p.mins = 7 * 60 + 10;
+          else if (late) p.mins = 16 * 60 + 8;
+          this.setState(p);
+        },
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

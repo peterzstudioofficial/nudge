@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Doto:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0&display=block" rel="stylesheet" />
+<style>
+@keyframes sFade{from{opacity:0}to{opacity:1}}
+@keyframes sOff{from{opacity:1}to{opacity:0}}
+@keyframes sBob{0%,100%{transform:translateY(0) scale(1.12,.86)}28%{transform:translateY(-34px) scale(.93,1.08)}56%{transform:translateY(-12px) scale(1,1)}82%{transform:translateY(0) scale(1.04,.96)}}
+@keyframes sDiscoRing{0%{transform:scale(.42);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+@keyframes sDiscoKick{0%{transform:scale(1.14)}35%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes sUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes sTab{from{transform:translateY(30px)}to{transform:none}}
+@keyframes sAlarmRing{0%{border-width:2px}50%{border-width:11px}100%{border-width:2px}}
+@keyframes sPeek{0%{opacity:0;transform:scale(.94)}9%{opacity:1;transform:scale(1)}68%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.02)}}
+@keyframes sHalo{0%{transform:scale(.75);opacity:.85}100%{transform:scale(1.55);opacity:0}}
+@keyframes sChev{0%,100%{opacity:.14;transform:rotate(45deg) translate(-2px,-2px)}50%{opacity:1;transform:rotate(45deg) translate(2px,2px)}}
+@keyframes sCount{0%{transform:scale(1.45);opacity:0}26%{transform:scale(1);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes sRise{from{opacity:0;transform:translateY(40px) scale(.7)}60%{opacity:1;transform:translateY(-5px) scale(1.05)}to{opacity:1;transform:none}}
+@keyframes sBell{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+@keyframes sDrop{0%{transform:translateY(-101%)}100%{transform:translateY(0)}}
+@keyframes sLift{0%{transform:translateY(0)}100%{transform:translateY(-101%)}}
+@keyframes sSwap{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+@keyframes sBUp{0%,52%{transform:translateY(-19px);color:#ff4d17}72%{transform:translateY(2px);color:#f4f3ef}100%{transform:none;color:#f4f3ef}}
+@keyframes sBDown{0%,52%{transform:translateY(19px);color:#ff4d17}72%{transform:translateY(-2px);color:#f4f3ef}100%{transform:none;color:#f4f3ef}}
+@keyframes sPip{0%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:none}}
+@keyframes sTick{0%{opacity:0;transform:scale(.5)}55%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@keyframes sGlow{0%{background:#ff4d1740}100%{background:transparent}}
+@keyframes sCell{0%{opacity:0;transform:scale(.6)}64%{opacity:1;transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+@keyframes sPop{0%{transform:scale(.4);opacity:0}62%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes sFall{0%{transform:translateY(-34px) rotate(0);opacity:0}14%{opacity:1}100%{transform:translateY(228px) rotate(320deg);opacity:0}}
+@keyframes sEq{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
+@keyframes sWipe{from{background-position:100% 0}to{background-position:0% 0}}
+@keyframes sDoze{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
+@keyframes sBootOut{to{opacity:0}}
+@keyframes sBootIn{from{opacity:0}to{opacity:1}}
+@keyframes sErupt{0%{transform:translateY(0) scale(.3) rotate(0);opacity:0}12%{opacity:1}72%{opacity:1}100%{transform:translateY(-118px) scale(1) rotate(220deg);opacity:0}}
+@keyframes sBreath{
+0%{transform:scale(.7) rotate(0deg);border-radius:50%;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+25%{transform:scale(1.16) rotate(0deg);border-radius:30px;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+50%{transform:scale(1.16) rotate(90deg);border-radius:30px;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+75%{transform:scale(.7) rotate(90deg);border-radius:50%;animation-timing-function:linear}
+100%{transform:scale(.7) rotate(90deg);border-radius:50%}}
+@keyframes sSpinSoft{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sStep{0%,100%{opacity:.2}50%{opacity:1}}
+@keyframes sLead{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+@keyframes sVeil{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+@keyframes sSeep{0%{opacity:0;letter-spacing:6px;filter:blur(4px)}100%{opacity:1;letter-spacing:0;filter:blur(0)}}
+@keyframes sBarGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes sNow{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes sPipPop{0%{transform:scale(.3)}58%{transform:scale(1.5)}100%{transform:scale(1)}}
+@keyframes sOrbit{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sDash{0%{opacity:.25}50%{opacity:1}100%{opacity:.25}}
+@keyframes sBlob{0%,100%{border-radius:14px 14px 14px 14px}33%{border-radius:18px 12px 16px 13px}66%{border-radius:12px 17px 13px 17px}}
+@keyframes sTrophy{0%{transform:scale(.3) rotate(-14deg);opacity:0}58%{transform:scale(1.14) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes sRayGrow{0%{transform:scaleY(0)}100%{transform:scaleY(1)}}
+@keyframes sRayFade{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes sWordIn{0%{opacity:0;transform:translateY(14px) scale(.9)}64%{opacity:1;transform:translateY(-2px) scale(1.02)}100%{opacity:1;transform:none}}
+@keyframes sCurtain{0%{transform:scaleY(1)}100%{transform:scaleY(0)}}
+@keyframes sSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sStamp{0%{transform:rotate(-30deg) scale(.4);opacity:0}62%{transform:rotate(-2deg) scale(1.08);opacity:1}100%{transform:rotate(-6deg) scale(1);opacity:1}}
+@keyframes sCountIn{0%{opacity:0;transform:scale(1.6)}26%{opacity:1;transform:scale(1)}72%{opacity:1;transform:scale(1)}100%{opacity:.15;transform:scale(.94)}}
+@keyframes sRotor{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes sMorph{
+0%{border-radius:50%;transform:rotate(0deg) scale(1)}
+16%{border-radius:38%;transform:rotate(48deg) scale(1.06)}
+33%{border-radius:24%;transform:rotate(120deg) scale(1.12)}
+50%{border-radius:32% 32% 46% 46% / 46% 46% 30% 30%;transform:rotate(186deg) scale(1.08)}
+66%{border-radius:26%;transform:rotate(240deg) scale(1.13)}
+84%{border-radius:42%;transform:rotate(312deg) scale(1.04)}
+100%{border-radius:50%;transform:rotate(360deg) scale(1)}}
+@keyframes sMorphTint{0%{background:#ff4d17}30%{background:#ff7a4d}50%{background:#f4f3ef}72%{background:#ff7a4d}100%{background:#ff4d17}}
+@keyframes sRingOut{0%{transform:scale(.55);opacity:.5}70%{opacity:0}100%{transform:scale(1.5);opacity:0}}
+@keyframes sBurst{0%{transform:scale(.3);opacity:.75}75%{opacity:0}100%{transform:scale(1.9);opacity:0}}
+@keyframes sBox{0%{transform:scale(.62)}25%{transform:scale(1)}50%{transform:scale(1)}75%{transform:scale(.62)}100%{transform:scale(.62)}}
+@keyframes sBoxWord{0%,100%{opacity:1}}
+@keyframes sSheen{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+</style>
+</helmet>
+<div style="position:relative;width:320px;height:240px;box-sizing:border-box;overflow:hidden;border-radius:10px;font-family:'DM Mono',ui-monospace,monospace;background:{{ vm.bg }};color:{{ vm.fg }};transition:background-color .45s cubic-bezier(.4,0,.2,1)">
+
+
+  <sc-if value="{{ vm.showHead }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:14px;right:14px;top:11px;height:11px;display:flex;align-items:center;justify-content:space-between;font-size:8px;letter-spacing:.14em;animation:sFade .3s ease-out">
+      <span style="color:{{ vm.dim }}">{{ vm.tagline }}</span>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span style="font-family:Doto,monospace;font-weight:700;font-size:10px;letter-spacing:1px;color:{{ vm.mid }}">{{ vm.headClock }}</span>
+        <div style="display:flex;gap:3px">
+          <sc-for list="{{ vm.pips }}" as="p" hint-placeholder-count="8">
+            <span style="width:7px;height:7px;border-radius:{{ p.r }};background:{{ p.f }};animation:{{ p.anim }};transition:border-radius .45s cubic-bezier(.4,0,.2,1),background-color .45s cubic-bezier(.4,0,.2,1)"></span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showStandby }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:14px;right:14px;top:30px;bottom:66px;display:flex;flex-direction:column;justify-content:space-between;animation:sFade .34s ease-out">
+      <div style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:76px;line-height:.82;letter-spacing:-1px;margin-left:-3px;color:{{ vm.fg }}">{{ vm.clock }}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ vm.curTint }}"></span>
+        <span style="font-size:12px;flex:none;min-width:max-content;color:{{ vm.fg }}">{{ vm.curName }}</span>
+        <sc-if value="{{ vm.curNote }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:8px;flex:none;min-width:max-content;padding:2px 5px;border-radius:4px;background:#1e1e26;color:#b9b8b2">{{ vm.curNote }}</span>
+        </sc-if>
+        <span style="flex:1"></span>
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:14px;flex:none;color:{{ vm.mid }}">{{ vm.curDur }}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showAlarm }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;animation:sFade .3s ease-out">
+      <span style="font-family:'Material Symbols Rounded';font-size:22px;line-height:1;color:{{ vm.accent }};animation:sBell .9s ease-in-out infinite">notifications_active</span>
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:88px;line-height:.9;color:{{ vm.fg }}">{{ vm.clock }}</span>
+      <span style="font-size:9px;letter-spacing:.18em;white-space:nowrap;color:{{ vm.accent }}">{{ vm.alarmHint }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showBrief }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:0;bottom:38px;display:flex;animation:sFade .3s ease-out">
+      <div style="width:104px;flex:none;padding:8px 0 8px 8px;box-sizing:border-box;display:flex;flex-direction:column;gap:3px">
+        <sc-for list="{{ vm.sched }}" as="p" hint-placeholder-count="6">
+          <div style="position:relative;display:flex;align-items:center;gap:6px;flex:{{ p.flex }};padding:0 8px;border-radius:{{ p.radius }};overflow:hidden;box-sizing:border-box;background:{{ p.bg }}">
+            <span style="width:3px;height:{{ p.barH }};border-radius:2px;flex:none;background:{{ p.tint }}"></span>
+            <span style="font-size:{{ p.size }};line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ p.fg }}">{{ p.name }}</span>
+            <span style="flex:1"></span>
+            <sc-if value="{{ p.dbl }}" hint-placeholder-val="{{ false }}">
+              <span style="width:9px;height:3px;border-radius:2px;flex:none;background:{{ p.dblC }}"></span>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;padding:9px 11px 8px 12px;box-sizing:border-box;display:flex;flex-direction:column;gap:7px;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;letter-spacing:.02em;flex:none;color:{{ vm.fg }}">{{ vm.briefDay }}</span>
+          <span style="font-family:Doto,monospace;font-weight:900;font-size:13px;line-height:1;flex:none;padding:2px 7px;border-radius:9px;background:#f4f3ef;color:#0b0b0d">{{ vm.briefNum }}</span>
+          <span style="font-size:10px;flex:none;color:{{ vm.briefSubFg }}">{{ vm.briefMonShort }}</span>
+          <span style="flex:1"></span>
+          <span style="font-family:Doto,monospace;font-weight:900;font-size:14px;flex:none;color:{{ vm.fg }}">{{ vm.clock }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:'Material Symbols Rounded';font-size:30px;line-height:1;flex:none;color:{{ vm.fg }}">{{ vm.wxIcon }}</span>
+          <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:40px;line-height:.82;flex:none;color:{{ vm.fg }}">{{ vm.wxTemp }}</span>
+          <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:10px;background:#17171d">
+            <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;color:{{ vm.accent }}">{{ vm.bdayIcon }}</span>
+            <span style="font-size:9px;white-space:nowrap;color:{{ vm.fg }}">{{ vm.bdayName }}</span>
+          </div>
+          <span style="flex:1"></span>
+          <sc-if value="{{ vm.wxRain }}" hint-placeholder-val="{{ true }}">
+            <span style="font-size:10px;flex:none;padding:3px 8px;border-radius:10px;background:{{ vm.accent }};white-space:nowrap;color:#0b0b0d">{{ vm.wxRain }}</span>
+          </sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:10px;flex:none;padding:3px 8px;border-radius:10px;background:#f4f3ef;color:#0b0b0d">{{ vm.briefKind }}</span>
+          <div style="display:flex;gap:3px;flex:1;min-width:0">
+            <sc-for list="{{ vm.pips }}" as="p" hint-placeholder-count="8">
+              <span style="width:8px;height:8px;border-radius:{{ p.r }};background:{{ p.f }}"></span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;border-radius:11px;overflow:hidden;background:#141419;box-sizing:border-box">
+          <div style="flex:1;display:flex;align-items:center;gap:8px;padding:7px 9px;min-height:0">
+            <span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1;flex:none;color:{{ vm.mid }}">bolt</span>
+            <span style="font-size:10px;line-height:1.35;color:{{ vm.newsFg }};text-wrap:pretty">{{ vm.news }}</span>
+          </div>
+          <sc-if value="{{ vm.heads }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:none;display:flex;align-items:center;gap:7px;padding:5px 9px;background:{{ vm.accent }};animation:sUp .34s ease-out">
+              <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;flex:none;color:#0b0b0d">push_pin</span>
+              <span style="font-size:10px;line-height:1.25;color:#0b0b0d;text-wrap:pretty">{{ vm.heads }}</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showWelcome }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:14px;right:14px;top:26px;bottom:44px;display:flex;gap:13px;animation:sUp .34s ease-out">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:1;color:{{ vm.fg }}">{{ vm.wcHead }}</span>
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:1;color:{{ vm.accent }}">{{ vm.wcName }}</span>
+      </div>
+      <div style="width:150px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:7px">
+        <sc-for list="{{ vm.wcRows }}" as="r" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;flex:none;color:{{ r.iconFg }}">{{ r.icon }}</span>
+            <span style="font-size:9px;flex:none;min-width:max-content;color:{{ vm.mid }}">{{ r.text }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showList }}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{ vm.listRail }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:5px;top:30px;bottom:68px;width:3px;border-radius:2px;background:#16161c">
+        <span style="display:block;width:3px;border-radius:2px;background:{{ vm.accent }};height:{{ vm.listRailH }};transform:translateY({{ vm.listRailY }});transition:transform .45s cubic-bezier(.22,1,.28,1)"></span>
+      </div>
+    </sc-if>
+    <div style="position:absolute;left:12px;right:14px;top:28px;bottom:66px;overflow:hidden;animation:sUp .26s ease-out">
+      <div ref="{{ rowsRef }}" style="display:flex;flex-direction:column;gap:4px;will-change:transform">
+      <sc-for list="{{ vm.rows }}" as="r" hint-placeholder-count="4">
+        <div style="position:relative;display:flex;align-items:center;gap:9px;height:{{ vm.rowH }};flex:none;padding:0 10px;border-radius:{{ r.radius }};overflow:hidden;background:{{ r.bg }};transition:background-color .45s cubic-bezier(.22,1,.28,1)">
+          <span style="position:absolute;left:0;bottom:0;height:3px;width:{{ r.progW }};border-radius:0 2px 0 0;background:{{ r.progC }};box-shadow:none;transition:width .6s cubic-bezier(.4,0,.2,1)"></span>
+          <span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ r.tint }}"></span>
+          <span style="font-size:11px;flex:none;min-width:max-content;color:{{ r.fg }}">{{ r.name }}</span>
+          <sc-if value="{{ r.note }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:9px;flex:none;min-width:max-content;padding:2px 5px;border-radius:4px;background:{{ r.noteBg }};color:{{ r.noteFg }}">{{ r.note }}</span>
+          </sc-if>
+          <span style="flex:1"></span>
+          <span style="font-family:Doto,monospace;font-weight:700;font-size:11px;flex:none;color:{{ r.metaFg }}">{{ r.meta }}</span>
+        </div>
+      </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showTimer }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:14px;right:14px;top:28px;bottom:66px;display:flex;align-items:center;gap:16px;animation:sFade .3s ease-out">
+      <div style="position:relative;width:54px;height:54px;flex:none">
+        <sc-for list="{{ vm.ringBars }}" as="d" hint-placeholder-count="16">
+          <span style="position:absolute;left:26px;top:2px;width:2px;height:{{ d.h }};border-radius:1px;transform-origin:1px 25px;transform:rotate({{ d.a }});background:{{ d.c }};transition:background-color .6s cubic-bezier(.4,0,.2,1),height .6s cubic-bezier(.4,0,.2,1)"></span>
+        </sc-for>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="width:9px;height:9px;border-radius:3px;flex:none;background:{{ vm.curTint }}"></span>
+          <span style="font-size:10px;flex:none;min-width:max-content;color:{{ vm.mid }}">{{ vm.curName }}</span>
+        </div>
+        <div style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:70px;line-height:.88;letter-spacing:-1px;color:{{ vm.heroFg }};transition:color .5s cubic-bezier(.4,0,.2,1)">{{ vm.hero }}</div>
+        <div style="font-size:8px;letter-spacing:.22em;color:{{ vm.heroFg }};transition:color .5s cubic-bezier(.4,0,.2,1)">{{ vm.heroLabel }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showCount }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+      <span style="font-size:9px;letter-spacing:.22em;color:{{ vm.mid }}">{{ vm.curName }}</span>
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:120px;line-height:1;color:{{ vm.accent }};animation:sCount .95s ease-out">{{ vm.countN }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showClaim }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:22px;right:22px;top:36px;height:104px;display:flex;flex-direction:column;justify-content:center;gap:6px">
+      <span style="font-family:'Material Symbols Rounded';font-size:32px;line-height:1;color:#0b0b0d">task_alt</span>
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#0b0b0d">{{ vm.curName }}</span>
+      <span style="font-size:9px;letter-spacing:.18em;color:#0b0b0d99">{{ vm.claimSub }}</span>
+    </div>
+    <div style="position:absolute;left:230px;width:55px;bottom:58px;display:flex;flex-direction:column;align-items:center;gap:3px">
+      <sc-for list="{{ vm.chevrons }}" as="c" hint-placeholder-count="3">
+        <span style="width:14px;height:14px;border-right:3px solid #0b0b0d;border-bottom:3px solid #0b0b0d;transform:rotate(45deg);animation:sChev 1.5s ease-in-out infinite;animation-delay:{{ c.d }}"></span>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showAward }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:80px;line-height:1;color:#0b0b0d;animation:sRise .52s cubic-bezier(.22,1,.28,1)">{{ vm.awardPts }}</span>
+      <span style="font-size:8px;letter-spacing:.26em;color:#0b0b0d99;animation:sFade .5s ease-out .2s both">{{ vm.awardNote }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showScan }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:14px;right:14px;top:28px;bottom:66px;display:flex;align-items:center;gap:16px;animation:sFade .3s ease-out">
+      <div style="position:relative;width:52px;height:52px;flex:none;display:flex;align-items:center;justify-content:center">
+        <span style="position:absolute;inset:0;border-radius:50%;border:2px solid {{ vm.accent }};animation:sHalo 2.1s ease-out infinite"></span>
+        <span style="font-family:'Material Symbols Rounded';font-size:28px;line-height:1;color:{{ vm.accent }}">radio_button_checked</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+        <span style="display:block;width:100%;font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:22px;line-height:1.05;white-space:nowrap;color:{{ vm.fg }}">{{ vm.scanLine }}</span>
+        <span style="display:block;width:100%;font-size:9px;letter-spacing:.06em;white-space:nowrap;color:{{ vm.dim }}">{{ vm.scanSub }}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showBag }}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{ vm.bagRail }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:5px;top:28px;bottom:46px;width:3px;border-radius:2px;background:#16161c">
+        <span style="display:block;width:3px;border-radius:2px;background:{{ vm.accent }};height:{{ vm.bagRailH }};transform:translateY({{ vm.bagRailY }});transition:transform .45s cubic-bezier(.22,1,.28,1)"></span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ vm.bagRail }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:5px;top:28px;bottom:46px;width:3px;border-radius:2px;background:#16161c">
+        <span style="display:block;width:3px;border-radius:2px;background:{{ vm.accent }};height:{{ vm.bagRailH }};transform:translateY({{ vm.bagRailY }});transition:transform .45s cubic-bezier(.22,1,.28,1)"></span>
+      </div>
+    </sc-if>
+    <div style="position:absolute;left:12px;right:14px;top:26px;bottom:44px;overflow:hidden;animation:sUp .28s ease-out">
+      <div ref="{{ bagRef }}" style="display:flex;flex-direction:column;gap:3px;will-change:transform">
+      <sc-for list="{{ vm.bagRows }}" as="b" hint-placeholder-count="6">
+        <div style="position:relative;display:flex;align-items:center;gap:9px;height:{{ vm.bagRowH }};flex:none;padding:0 9px;border-radius:{{ b.radius }};overflow:hidden;background:{{ b.bg }};transition:background-color .45s cubic-bezier(.22,1,.28,1)">
+          <span style="width:4px;height:17px;border-radius:2px;flex:none;background:{{ b.tint }}"></span>
+          <span style="position:relative;width:16px;height:16px;flex:none;border-radius:50%;box-sizing:border-box;border:2px solid {{ b.ring }};background:{{ b.fill }};display:flex;align-items:center;justify-content:center;transition:border-color .4s cubic-bezier(.4,0,.2,1),background-color .4s cubic-bezier(.4,0,.2,1)">
+            <sc-if value="{{ b.ticked }}" hint-placeholder-val="{{ false }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:12px;line-height:1;color:{{ b.tickFg }};animation:sTick .4s cubic-bezier(.22,1,.28,1)">check</span>
+            </sc-if>
+          </span>
+          <span style="font-size:11px;flex:none;min-width:max-content;color:{{ b.fg }};text-decoration:{{ b.strike }}">{{ b.name }}</span>
+          <sc-if value="{{ b.note }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:9px;flex:none;min-width:max-content;padding:2px 7px;border-radius:8px;background:{{ b.noteBg }};color:{{ b.noteFg }}">{{ b.note }}</span>
+          </sc-if>
+          <span style="flex:1"></span>
+          <sc-if value="{{ b.stateIcon }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;flex:none;color:{{ b.stateFg }}">{{ b.stateIcon }}</span>
+          </sc-if>
+        </div>
+      </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showReward }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:28px;bottom:38px;display:flex;align-items:center;gap:14px;padding:0 16px 0 10px;box-sizing:border-box;animation:sFade .32s ease-out">
+      <div style="position:relative;width:148px;height:148px;flex:none;transform:scale(.94)">
+        <sc-for list="{{ vm.rwRing }}" as="d" hint-placeholder-count="40">
+          <span style="position:absolute;left:{{ d.x }};top:{{ d.y }};width:{{ d.sz }};height:{{ d.sz }};border-radius:50%;background:{{ d.c }};animation:sPop .4s cubic-bezier(.22,1,.28,1) both {{ d.d }},{{ d.anim }};transition:background-color .5s ease"></span>
+        </sc-for>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+          
+        </div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:baseline;gap:5px">
+          <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:46px;line-height:.85;color:{{ vm.accent }}">{{ vm.rwNow }}</span>
+          <span style="font-size:11px;color:{{ vm.mid }}">{{ vm.rwOf }}</span>
+        </div>
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:26px;line-height:1;color:{{ vm.fg }};text-wrap:pretty">{{ vm.rwName }}</span>
+        <span style="align-self:flex-start;font-size:10px;letter-spacing:.1em;padding:4px 9px;border-radius:8px;background:{{ vm.accent }};color:#0b0b0d">{{ vm.rwLeft }}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showUnlock }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow:hidden">
+      <div style="position:absolute;left:22px;top:30px;right:22px;bottom:52px;display:flex;align-items:center;gap:14px">
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0">
+          <span style="font-size:8px;letter-spacing:.34em;color:#0b0b0dad">{{ vm.unlockSub }}</span>
+          <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:38px;line-height:1;color:#0b0b0d;text-wrap:pretty;animation:sWordIn .56s cubic-bezier(.22,1,.28,1) .18s both">{{ vm.unlockName }}</span>
+        </div>
+        <div style="width:76px;height:76px;flex:none;border-radius:22px;background:#0b0b0d;display:flex;align-items:center;justify-content:center;transform:rotate(-6deg);animation:sStamp .6s cubic-bezier(.2,1.1,.3,1) both">
+          <span style="font-family:'Material Symbols Rounded';font-size:40px;line-height:1;color:{{ vm.accent }}">{{ vm.unlockIcon }}</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showNext }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
+      <span style="position:absolute;width:126px;height:126px;border-radius:50%;background:#15151b"></span>
+      <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;color:{{ vm.mid }}">{{ vm.nextIcon }}</span>
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:29px;line-height:1.04;text-align:center;color:{{ vm.fg }};text-wrap:pretty;animation:sSeep 1s cubic-bezier(.3,0,.2,1) .35s both">{{ vm.nextName }}</span>
+        <div style="display:flex;align-items:center;gap:5px;padding:3px 11px;border-radius:11px;background:{{ vm.accent }}">
+          <span style="font-family:Doto,monospace;font-weight:900;font-size:14px;line-height:1;color:#0b0b0d">{{ vm.nextGoal }}</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showAgent }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:12px;right:12px;top:26px;bottom:44px;display:flex;gap:13px;animation:sFade .28s ease-out">
+      <div style="width:56px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px">
+        <div style="position:relative;width:46px;height:46px;animation:sSpin 1.25s linear infinite">
+          <svg viewBox="0 0 46 46" style="display:block;width:46px;height:46px">
+            <circle cx="23" cy="23" r="19" fill="none" stroke="#1d1d24" stroke-width="5"></circle>
+            <circle cx="23" cy="23" r="19" fill="none" stroke="{{ vm.accent }}" stroke-width="5" stroke-linecap="round" stroke-dasharray="34 86"></circle>
+          </svg>
+        </div>
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:12px;color:{{ vm.accent }}">{{ vm.agentElapsed }}</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:20px;line-height:1.1;color:{{ vm.fg }};text-wrap:pretty">{{ vm.agentTask }}</span>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ vm.agentSteps }}" as="a" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;flex:none;color:{{ a.iconFg }}">{{ a.icon }}</span>
+              <span style="font-size:10px;flex:none;min-width:max-content;color:{{ a.fg }}">{{ a.text }}</span>
+              <span style="flex:1;height:3px;border-radius:2px;background:{{ a.ruleC }}"></span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showAgent2 }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:38px;bottom:44px;padding:0 12px;box-sizing:border-box;display:flex;flex-direction:column;gap:7px;animation:sFade .3s ease-out">
+
+      <div style="flex:1;min-height:0;border-radius:15px;overflow:hidden;background:{{ vm.accent }};padding:10px 13px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="display:flex;align-items:flex-start;gap:9px">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;flex:none;color:#0b0b0d">{{ vm.jobIcon }}</span>
+          <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:20px;line-height:1.06;flex:1;min-width:0;color:#0b0b0d;text-wrap:pretty">{{ vm.jobNow }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="flex:1;height:5px;border-radius:3px;overflow:hidden;background:#0b0b0d26">
+            <span style="display:block;height:5px;border-radius:3px;background:#0b0b0d;width:{{ vm.jobPct }};transition:width .9s cubic-bezier(.4,0,.2,1)"></span>
+          </span>
+          <span style="font-size:8px;letter-spacing:.16em;flex:none;color:#0b0b0d99">{{ vm.jobStep }}</span>
+        </div>
+      </div>
+      <div style="flex:none;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ vm.jobQueue }}" as="q" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1;flex:none;color:{{ q.iconFg }}">{{ q.icon }}</span>
+            <span style="font-size:10px;flex:none;min-width:max-content;color:{{ q.fg }}">{{ q.name }}</span>
+            <span style="flex:1;height:3px;border-radius:2px;background:{{ q.ruleC }}"></span>
+            <span style="font-size:8px;letter-spacing:.14em;flex:none;color:{{ q.metaFg }}">{{ q.meta }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showAbout }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:12px;right:12px;top:28px;bottom:54px;display:flex;flex-direction:column;gap:6px;animation:sUp .3s ease-out">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:22px;line-height:.9;color:{{ vm.fg }}">nudge</span>
+        <span style="font-size:9px;letter-spacing:.16em;color:{{ vm.dim }}">PETERZSTUDIO</span>
+      </div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;column-gap:12px;row-gap:3px;min-height:0">
+        <sc-for list="{{ vm.aboutRows }}" as="r" hint-placeholder-count="10">
+          <div style="display:flex;flex-direction:column;justify-content:center;min-width:0;border-top:1px solid #1c1c23;padding-top:2px">
+            <span style="font-size:7px;letter-spacing:.14em;color:{{ vm.dim }}">{{ r.k }}</span>
+            <span style="font-family:Doto,monospace;font-weight:700;font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ vm.fg }}">{{ r.v }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+
+  <sc-if value="{{ vm.showBright }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:14px;right:14px;top:30px;bottom:54px;display:flex;align-items:flex-end;gap:7px;animation:sUp .3s ease-out">
+      <sc-for list="{{ vm.brightBars }}" as="b" hint-placeholder-count="5">
+        <div style="flex:1;height:{{ b.h }};border-radius:8px;background:{{ b.c }};display:flex;align-items:flex-start;justify-content:center;padding-top:7px;box-sizing:border-box;transition:height .42s cubic-bezier(.22,1,.28,1),background-color .35s ease">
+          <span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1;color:{{ b.icoC }};transition:color .35s">{{ b.ico }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showDisco }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;padding-bottom:26px;box-sizing:border-box">
+      <div style="display:flex;align-items:flex-end;gap:12px;height:110px;padding-bottom:6px">
+        <span style="width:40px;height:40px;flex:none;border-radius:50%;background:#ff4d17;transform-origin:50% 100%;animation:sBob {{ vm.discoBeatS }} cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc({{ vm.discoBeatS }} * -0.0)"></span>
+        <span style="width:34px;height:52px;flex:none;border-radius:10px;background:#f4f3ef;transform-origin:50% 100%;animation:sBob {{ vm.discoBeatS }} cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc({{ vm.discoBeatS }} * -0.2)"></span>
+        <span style="width:44px;height:30px;flex:none;border-radius:15px;background:#ff4d17;transform-origin:50% 100%;animation:sBob {{ vm.discoBeatS }} cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc({{ vm.discoBeatS }} * -0.4)"></span>
+        <span style="width:38px;height:38px;flex:none;border-radius:50% 50% 10px 10px;background:#f4f3ef;transform-origin:50% 100%;animation:sBob {{ vm.discoBeatS }} cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc({{ vm.discoBeatS }} * -0.6)"></span>
+        <span style="width:30px;height:46px;flex:none;border-radius:15px;background:#ff4d17;transform-origin:50% 100%;animation:sBob {{ vm.discoBeatS }} cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc({{ vm.discoBeatS }} * -0.8)"></span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showUpdate }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:23px;line-height:1;color:{{ vm.fg }}">{{ vm.updLine }}</span>
+      <div style="width:172px;height:12px;border-radius:6px;overflow:hidden;background:#1c1c23">
+        <div style="height:12px;border-radius:6px;background:{{ vm.accent }};width:{{ vm.updPct }};transition:width .9s linear"></div>
+      </div>
+      <span style="font-size:8px;letter-spacing:.2em;white-space:nowrap;color:{{ vm.dim }}">{{ vm.updSub }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showDark }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;align-items:flex-end;justify-content:flex-start;padding:0 0 9px 11px;box-sizing:border-box">
+      <span style="width:5px;height:5px;border-radius:50%;background:#2a2a31"></span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showPeek }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;animation:sPeek 6s cubic-bezier(.4,0,.2,1) both">
+      <span style="font-family:Doto,monospace;font-weight:900;font-size:78px;line-height:1;letter-spacing:2px;color:#f4f3ef">{{ vm.peekClock }}</span>
+      <span style="font-size:11px;letter-spacing:.24em;color:#9a9aa3">{{ vm.peekDate }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showSleep }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;animation:sFade .6s ease-out,sOff 3s cubic-bezier(.4,0,.2,1) 25s forwards">
+      <span style="font-family:'Material Symbols Rounded';font-size:22px;line-height:1;color:#6d6d77">bedtime</span>
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:1;color:#8e8e97">{{ vm.sleepLine }}</span>
+      <span style="font-family:Doto,monospace;font-weight:900;font-size:15px;color:#2c2c34">{{ vm.clock }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showDoze }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center">
+      <div style="position:relative;width:44px;height:44px;animation:sFade 1.2s ease-out,sOff 2.4s cubic-bezier(.4,0,.2,1) 40s forwards">
+        <span style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,#ff4d1700 150deg,#ff4d17 360deg);-webkit-mask:radial-gradient(circle,transparent 18.5px,#000 19px);mask:radial-gradient(circle,transparent 18.5px,#000 19px);animation:sSpinSoft 7s linear infinite"></span>
+        <span style="position:absolute;inset:0;animation:sSpinSoft 7s linear infinite">
+          <span style="position:absolute;left:50%;top:-1px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:#f4f3ef"></span>
+        </span>
+      </div>
+    </div>
+  </sc-if>
+
+
+  <sc-if value="{{ vm.showResume }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:28px;bottom:38px;padding:12px 14px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:9px;animation:sUp .3s ease-out">
+      <span style="font-size:8px;letter-spacing:.24em;color:{{ vm.dim }}">{{ vm.rsTag }}</span>
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:29px;line-height:1.04;color:{{ vm.fg }};text-wrap:pretty">{{ vm.rsName }}</span>
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="flex:1;height:7px;border-radius:4px;overflow:hidden;background:#1b1b22">
+          <span style="display:block;height:7px;border-radius:4px;background:{{ vm.accent }};width:{{ vm.rsPct }};transition:width .7s cubic-bezier(.22,1,.28,1)"></span>
+        </span>
+        <span style="font-family:Doto,monospace;font-weight:900;font-size:15px;flex:none;color:{{ vm.accent }}">{{ vm.rsLeft }}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showOffline }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:28px;bottom:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;animation:sFade .3s ease-out">
+      <span style="font-family:'Material Symbols Rounded';font-size:26px;line-height:1;color:{{ vm.mid }}">cloud_off</span>
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:24px;line-height:1;color:{{ vm.fg }}">{{ vm.offLine }}</span>
+      <span style="font-size:9px;letter-spacing:.02em;color:{{ vm.dim }}">{{ vm.offSub }}</span>
+    </div>
+  </sc-if>
+
+
+  <sc-if value="{{ vm.showBoot }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div style="position:relative;height:62px;display:flex;align-items:center">
+        <div style="display:flex;align-items:center;animation:sBootOut .5s ease-in 1.85s both">
+          <sc-for list="{{ vm.bootLetters }}" as="l" hint-placeholder-count="5">
+            <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:62px;line-height:1;letter-spacing:-2px;color:#ff4d17;animation:{{ l.anim }}">{{ l.ch }}</span>
+          </sc-for>
+        </div>
+        <span style="position:absolute;left:0;right:0;text-align:center;font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:62px;line-height:1;letter-spacing:-2px;background-image:linear-gradient(90deg,#ff4d17 50%,#f4f3ef 50%);background-size:200% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sBootIn .01s linear 1.85s both,sWipe 2.6s cubic-bezier(.4,0,.2,1) 2s both">nudge</span>
+      </div>
+      <span style="font-size:8px;letter-spacing:.4em;color:#4a4a54;animation:sFade 1s ease-out 4.9s both">peterzstudio</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showAlarmRing }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:50;border-radius:10px;box-sizing:border-box;border-style:solid;border-color:#ff4d17;pointer-events:none;animation:sAlarmRing 1.5s cubic-bezier(.42,0,.58,1) infinite"></div>
+  </sc-if>
+
+  <sc-if value="{{ vm.slabLine }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:0;z-index:60;display:flex;justify-content:center;pointer-events:none;animation:{{ vm.slabAnim }};transform-origin:50% 0;padding-top:1px;margin-top:-1px">
+      <div style="position:relative;display:flex;align-items:flex-start;max-width:296px">
+        <span style="width:15px;height:16px;flex:none;margin-right:-1px;background:#f4f3ef;mask:radial-gradient(circle at 0 100%,transparent 14.6px,#000 15px);-webkit-mask:radial-gradient(circle at 0 100%,transparent 14.6px,#000 15px)"></span>
+        <div style="flex:1;min-width:0;box-sizing:border-box;padding:{{ vm.slabPad }};border-radius:0 0 {{ vm.slabRadius }} {{ vm.slabRadius }};background:#f4f3ef;color:#111114;overflow:hidden;box-shadow:0 12px 28px #000000a6;transition:padding .6s cubic-bezier(.22,1,.28,1),border-radius .6s cubic-bezier(.22,1,.28,1)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-family:'Material Symbols Rounded';font-size:{{ vm.slabIconSize }};line-height:1;flex:none;color:{{ vm.slabIconFg }};transition:font-size .6s cubic-bezier(.22,1,.28,1)">{{ vm.slabIcon }}</span>
+            <div style="flex:1;display:flex;flex-direction:column;gap:1px;min-width:0">
+              <span style="font-size:{{ vm.slabSize }};line-height:1.25;color:#111114;transition:font-size .6s cubic-bezier(.22,1,.28,1)">{{ vm.slabLine }}</span>
+              <sc-if value="{{ vm.slabSub }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:9px;letter-spacing:.12em;color:#6f6f78">{{ vm.slabSub }}</span>
+              </sc-if>
+            </div>
+            <sc-if value="{{ vm.slabTail }}" hint-placeholder-val="{{ false }}">
+              <span style="font-family:Doto,monospace;font-weight:900;font-size:15px;flex:none;color:#ff4d17">{{ vm.slabTail }}</span>
+            </sc-if>
+          </div>
+          <sc-if value="{{ vm.slabAsk }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:9px;padding-top:8px;border-top:1px solid #dcd8d0">
+              <sc-for list="{{ vm.slabRows }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="font-size:8px;letter-spacing:.16em;width:38px;flex:none;color:#9a9aa2">{{ r.k }}</span>
+                  <span style="font-size:11px;flex:1;min-width:0;color:#111114">{{ r.v }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <span style="width:15px;height:16px;flex:none;margin-left:-1px;background:#f4f3ef;mask:radial-gradient(circle at 100% 100%,transparent 14.6px,#000 15px);-webkit-mask:radial-gradient(circle at 100% 100%,transparent 14.6px,#000 15px)"></span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showBreatheIn }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;animation:sFade .3s ease-out">
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:64px;line-height:1;color:{{ vm.accent }};animation:sCountIn 1s cubic-bezier(.22,1,.28,1) both">{{ vm.bInLine }}</span>
+      <span style="font-size:9px;letter-spacing:.2em;color:{{ vm.dim }}">{{ vm.bInSub }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showBreathe }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 0 0;box-sizing:border-box">
+      <div style="position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center">
+        <span style="position:absolute;width:150px;height:150px;box-sizing:border-box;border:4px solid {{ vm.accent }};background:{{ vm.breatheFill }};will-change:transform,border-radius;backface-visibility:hidden;transform:translateZ(0);animation:sBreath 16s linear infinite"></span>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:19px;line-height:1;white-space:nowrap;color:{{ vm.fg }}">{{ vm.breatheWord }}</span>
+          <span style="font-family:Doto,monospace;font-weight:900;font-size:30px;line-height:1;color:{{ vm.accent }}">{{ vm.bCount }}</span>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:5px">
+        <sc-for list="{{ vm.bCycles }}" as="c" hint-placeholder-count="4">
+          <span style="width:{{ c.w }};height:5px;border-radius:3px;background:{{ c.c }};transition:width .5s cubic-bezier(.4,0,.2,1),background-color .5s cubic-bezier(.4,0,.2,1)"></span>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showBreatheEnd }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px">
+      <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:1;color:{{ vm.fg }}">{{ vm.bEndLine }}</span>
+      <span style="font-family:Doto,monospace;font-weight:900;font-size:62px;line-height:1;color:{{ vm.accent }};animation:sCount .9s ease-out">{{ vm.bEndN }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.fxOn }}" hint-placeholder-val="{{ false }}">
+    <canvas ref="{{ fxRef }}" width="320" height="240" style="position:absolute;left:0;top:0;width:320px;height:240px;pointer-events:none;z-index:40"></canvas>
+  </sc-if>
+
+  <sc-if value="{{ vm.showBar }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:14px;right:14px;bottom:44px;height:12px;display:flex;gap:3px">
+      <sc-for list="{{ vm.phases }}" as="p" hint-placeholder-count="4">
+        <div style="flex:{{ p.flex }};border-radius:{{ p.radius }};overflow:hidden;background:{{ p.track }}">
+          <div style="height:12px;width:{{ p.pct }};background:{{ p.fill }};transition:width 1s linear"></div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ vm.showTabs }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:0;right:0;bottom:0;height:32px">
+      <div style="position:absolute;left:11px;bottom:-8px;width:69px;height:40px;border-radius:{{ vm.k1r }};background:{{ vm.k1bg }};box-shadow:{{ vm.k1ring }};display:flex;justify-content:center;padding-top:6px;box-sizing:border-box;animation:sTab .3s cubic-bezier(.22,1,.28,1);transition:background-color .5s cubic-bezier(.4,0,.2,1),border-radius .5s cubic-bezier(.4,0,.2,1)">
+        <span style="font-family:{{ vm.kFont }};font-size:{{ vm.kSize }};letter-spacing:.1em;line-height:1;color:{{ vm.k1fg }};transition:color .4s cubic-bezier(.4,0,.2,1)">{{ vm.k1 }}</span>
+      </div>
+      <div style="position:absolute;left:89px;bottom:-8px;width:69px;height:40px;border-radius:{{ vm.k2r }};background:{{ vm.k2bg }};box-shadow:{{ vm.k2ring }};display:flex;justify-content:center;padding-top:6px;box-sizing:border-box;animation:sTab .3s cubic-bezier(.22,1,.28,1);transition:background-color .5s cubic-bezier(.4,0,.2,1),border-radius .5s cubic-bezier(.4,0,.2,1)">
+        <span style="font-family:{{ vm.kFont }};font-size:{{ vm.kSize }};letter-spacing:.1em;line-height:1;color:{{ vm.k2fg }};transition:color .4s cubic-bezier(.4,0,.2,1)">{{ vm.k2 }}</span>
+      </div>
+      <div style="position:absolute;left:167px;bottom:-8px;width:69px;height:40px;border-radius:{{ vm.k3r }};background:{{ vm.k3bg }};box-shadow:{{ vm.k3ring }};display:flex;justify-content:center;padding-top:6px;box-sizing:border-box;animation:sTab .3s cubic-bezier(.22,1,.28,1);transition:background-color .5s cubic-bezier(.4,0,.2,1),border-radius .5s cubic-bezier(.4,0,.2,1)">
+        <span style="font-family:{{ vm.kFont }};font-size:{{ vm.kSize }};letter-spacing:.1em;line-height:1;color:{{ vm.k3fg }};transition:color .4s cubic-bezier(.4,0,.2,1)">{{ vm.k3 }}</span>
+      </div>
+      <div style="position:absolute;left:246px;bottom:-8px;width:69px;height:40px;border-radius:{{ vm.k4r }};background:{{ vm.k4bg }};box-shadow:{{ vm.k4ring }};display:flex;justify-content:center;padding-top:6px;box-sizing:border-box;animation:sTab .3s cubic-bezier(.22,1,.28,1);transition:background-color .5s cubic-bezier(.4,0,.2,1),border-radius .5s cubic-bezier(.4,0,.2,1)">
+        <span style="font-family:{{ vm.kFont }};font-size:{{ vm.kSize }};letter-spacing:.1em;line-height:1;color:{{ vm.k4fg }};transition:color .4s cubic-bezier(.4,0,.2,1)">{{ vm.k4 }}</span>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:320,&quot;height&quot;:240},&quot;vm&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}">
+class Component extends DCLogic {
+  fx = React.createRef();
+  rowsRef = React.createRef();
+  bagRef = React.createRef();
+  componentDidUpdate() { this.maybeFire(); this.slide(); }
+  slide() {
+    const vm = this.props.vm || {};
+    const g = window.gsap;
+    const go = (ref, to, key) => {
+      const el = ref.current;
+      if (!el || to == null) return;
+      const y = parseFloat(to) || 0;
+      if (this[key] === y) return;
+      const first = this[key] === undefined;
+      this[key] = y;
+      if (!g) { el.style.transform = "translateY(" + y + "px)"; return; }
+      const jump = Math.abs(y - (this[key + "_p"] ?? y));
+      this[key + "_p"] = y;
+      if (first) { g.set(el, { y }); return; }
+      if (!this[key + "_q"]) this[key + "_q"] = g.quickTo(el, "y", { duration: 0.5, ease: "power3.out" });
+      this[key + "_q"](y);
+    };
+    go(this.rowsRef, vm.rowsY, "_ry");
+    go(this.bagRef, vm.bagY, "_by");
+  }
+  componentDidMount() { this.maybeFire(); }
+  maybeFire() {
+    const vm = this.props.vm || {};
+    const key = vm.fxKey || "";
+    if (!key || key === this.lastKey) return;
+    const cv = this.fx.current;
+    if (!cv || !window.confetti) return;
+    this.lastKey = key;
+    if (this.shootCv !== cv) {
+      this.shoot = window.confetti.create(cv, { resize: false });
+      this.shootCv = cv;
+    }
+    const big = vm.fxKind === "unlock";
+    this.shoot({
+      particleCount: big ? 90 : 45,
+      spread: big ? 100 : 70,
+      startVelocity: big ? 34 : 24,
+      gravity: 0.85,
+      decay: 0.9,
+      scalar: big ? 0.62 : 0.5,
+      ticks: big ? 130 : 95,
+      origin: { x: 0.5, y: big ? 0.62 : 0.56 },
+      colors: ["#f4f3ef", "#ffffff", "#dedad2"],
+      disableForReducedMotion: true,
+    });
+  }
+  renderVals() { return { vm: this.props.vm || {}, fxRef: this.fx, rowsRef: this.rowsRef, bagRef: this.bagRef }; }
+}
+</script>
+</body>
+</html> 

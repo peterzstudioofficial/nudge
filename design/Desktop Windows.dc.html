@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Doto:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=block" rel="stylesheet" />
+<style>
+html,body{margin:0;padding:0;background:#0d0d10}
+a{color:#ff4d17;text-decoration:none}
+a:hover{color:#ff7a4d}
+@keyframes wIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes wRow{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes wDoneFlash{0%{box-shadow:inset 0 0 0 2px #ff4d1700}22%{box-shadow:inset 0 0 0 2px #ff4d17}68%{box-shadow:inset 0 0 0 2px #ff4d17}100%{box-shadow:inset 0 0 0 2px #ff4d1700}}
+@keyframes wNudgeOut{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(9px) scale(.97)}}
+@keyframes wStrokeHidden{from,to{stroke-dashoffset:-100}}
+@keyframes wStrokeIn{from{stroke-dashoffset:-100}to{stroke-dashoffset:0}}
+@keyframes wStrokeOut{from{stroke-dashoffset:0}to{stroke-dashoffset:100}}
+@keyframes wDrop{0%{transform:scaleY(.06) scaleX(.94);opacity:.4}54%{transform:scaleY(1.06) scaleX(1.02);opacity:1}78%{transform:scaleY(.98) scaleX(.995)}100%{transform:scaleY(1) scaleX(1);opacity:1}}
+@keyframes wBlob{0%,100%{border-radius:50%;transform:rotate(0) scale(1)}33%{border-radius:42% 58% 50% 50%;transform:rotate(40deg) scale(1.06)}66%{border-radius:55% 45% 40% 60%;transform:rotate(-20deg) scale(.96)}}
+@keyframes wSignIn{from{transform:translateY(100%)}to{transform:none}}
+@keyframes wSignOut{from{transform:none}to{transform:translateY(100%)}}
+@keyframes wRiseIn{from{transform:translateY(calc(100% + 14px))}to{transform:none}}
+@keyframes wPulse{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes wSpin{to{transform:rotate(360deg)}}
+@keyframes wCaret{0%,100%{opacity:0}50%{opacity:1}}
+@keyframes wStep{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes wDropIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes wCount{0%{opacity:0;transform:scale(1.5)}30%{opacity:1;transform:scale(1)}100%{opacity:1;transform:scale(1)}}
+@keyframes wFade{from{opacity:0}to{opacity:1}}
+@keyframes wDoneRow{0%{box-shadow:inset 0 0 0 2px #ff4d17}100%{box-shadow:inset 0 0 0 2px transparent}}
+@keyframes wShut{0%{opacity:1;transform:none;border-radius:16px}42%{opacity:1;transform:scale(.97) rotate(-1.5deg);border-radius:34px}100%{opacity:0;transform:translateY(-18px) scale(.7) rotate(3deg);border-radius:60px}}
+@keyframes wRelax{0%{opacity:0;transform:scale(.4) rotate(-14deg)}56%{opacity:1;transform:scale(1.14) rotate(5deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes wSway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes wBreath{
+0%{transform:scale(.7) rotate(0deg);border-radius:50%;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+25%{transform:scale(1.16) rotate(0deg);border-radius:30px;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+50%{transform:scale(1.16) rotate(90deg);border-radius:30px;animation-timing-function:cubic-bezier(.42,0,.58,1)}
+75%{transform:scale(.7) rotate(90deg);border-radius:50%;animation-timing-function:linear}
+100%{transform:scale(.7) rotate(90deg);border-radius:50%}
+}
+@keyframes wDots{0%,100%{opacity:.25}50%{opacity:1}}
+</style>
+</helmet>
+<div style="min-height:100vh;box-sizing:border-box;padding:44px 44px 72px;display:flex;flex-direction:column;gap:32px;align-items:flex-start;font-family:'DM Mono',ui-monospace,monospace;color:#f4f3ef;background:radial-gradient(120% 80% at 20% 0%,#17171d,#0b0b0e 70%)">
+
+  <div style="display:flex;align-items:baseline;gap:12px">
+    <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:26px;line-height:1">nudge for desktop</span>
+    <span style="font-size:9px;letter-spacing:.2em;color:#9a9aa3">TWO WINDOWS</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <span style="font-size:9px;letter-spacing:.2em;color:#9a9aa3">ON TASK</span>
+      <sc-if value="{{ hudShut }}" hint-placeholder-val="{{ false }}">
+        <div style="width:268px;height:242px;border-radius:16px;box-sizing:border-box;border:1px dashed #22222a;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer" onClick="{{ reopen }}">
+          <span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1;color:#5f5f67">desktop_windows</span>
+          <span style="font-size:9px;letter-spacing:.14em;color:#5f5f67">{{ shutLine }}</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hudOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="position:relative;width:268px;height:242px;box-sizing:border-box;border-radius:16px;background:#0e0e13;box-shadow:0 30px 60px -24px #000000e6,inset 0 0 0 1px #ffffff17;animation:{{ hudAnim }}">
+        <svg viewBox="0 0 268 242" width="268" height="242" fill="none" style="position:absolute;left:0;top:0;pointer-events:none;z-index:{{ strokeZ }}">
+          <path d="M134 1.5 H250.5 A16 16 0 0 1 266.5 17.5 V224.5 A16 16 0 0 1 250.5 240.5 H134" pathLength="100" stroke="#ff4d17" stroke-width="5" stroke-linecap="round" stroke-dasharray="100 100" style="animation:{{ strokeAnim }}"></path>
+          <path d="M134 1.5 H17.5 A16 16 0 0 0 1.5 17.5 V224.5 A16 16 0 0 0 17.5 240.5 H134" pathLength="100" stroke="#ff4d17" stroke-width="5" stroke-linecap="round" stroke-dasharray="100 100" style="animation:{{ strokeAnim }}"></path>
+        </svg>
+
+        <sc-if value="{{ hudBreathe }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative;height:242px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;animation:wFade .34s ease-out">
+            <sc-if value="{{ bReady }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute;font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:52px;line-height:1;color:#ff4d17;animation:wCount 1s cubic-bezier(.2,.9,.25,1) infinite">{{ bReadyN }}</span>
+            </sc-if>
+            <sc-if value="{{ bRun }}" hint-placeholder-val="{{ true }}">
+              <div style="position:relative;width:132px;height:132px;display:flex;align-items:center;justify-content:center;animation:wFade .4s ease-out">
+                <span style="position:absolute;width:132px;height:132px;box-sizing:border-box;border:4px solid #ff4d17;background:{{ bFill }};will-change:transform,border-radius;backface-visibility:hidden;transform:translateZ(0);animation:wBreath 16s linear infinite;transition:background-color .8s ease"></span>
+                <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:1px">
+                  <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:17px;line-height:1;white-space:nowrap;color:#f4f3ef">{{ bWord }}</span>
+                  <span style="font-family:Doto,monospace;font-weight:900;font-size:27px;line-height:1;color:#ff4d17">{{ bCount }}</span>
+                </div>
+              </div>
+            </sc-if>
+            <div style="position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:5px">
+              <sc-for list="{{ bCycles }}" as="c" hint-placeholder-count="4">
+                <span style="width:{{ c.w }};height:5px;border-radius:3px;background:{{ c.c }};transition:width .5s cubic-bezier(.4,0,.2,1),background-color .5s cubic-bezier(.4,0,.2,1)"></span>
+              </sc-for>
+            </div>
+            <span style="position:absolute;right:11px;top:11px;font-family:'Material Symbols Rounded';font-size:15px;line-height:1;cursor:pointer;color:#5f5f67" style-hover="color:#f4f3ef" onClick="{{ exitBreathe }}">close</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hudList }}" hint-placeholder-val="{{ true }}">
+          <div style="position:relative;height:242px;box-sizing:border-box;padding:11px 12px 12px;display:flex;flex-direction:column;gap:4px;animation:wFade .3s ease-out">
+            <div style="display:flex;align-items:center;gap:7px;padding:0 1px 4px">
+              <div style="width:19px;height:19px;flex:none;border-radius:6px;background:#17171d;display:flex;align-items:center;justify-content:center">
+                <span style="width:13px;height:13px;border-radius:50%;background:conic-gradient(#ff4d17 0deg {{ pieDeg }},#2a2a33 {{ pieDeg }} 360deg)">
+                  <span style="display:block;margin:3.5px;width:6px;height:6px;border-radius:50%;background:#17171d"></span>
+                </span>
+              </div>
+              <div style="width:19px;height:19px;flex:none;border-radius:6px;background:#17171d;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .25s" style-hover="background:#22222a" onClick="{{ startBreathe }}">
+                <span style="width:11px;height:11px;border-radius:3px;box-sizing:border-box;border:2px solid #ff4d17"></span>
+              </div>
+            </div>
+            <sc-for list="{{ hudRows }}" as="r" hint-placeholder-count="5">
+              <div style="align-self:flex-end;width:{{ r.w }};box-sizing:border-box;border-radius:{{ r.radius }};overflow:hidden;background:{{ r.bg }};box-shadow:{{ r.ring }};animation:{{ r.anim }};transition:width .55s cubic-bezier(.22,1,.28,1),background-color .45s ease,box-shadow .5s ease">
+                <div style="display:flex;align-items:center;gap:10px;height:{{ r.h }};padding:0 12px">
+                  <span style="width:4px;height:{{ r.spine }};border-radius:2px;flex:none;background:{{ r.tint }};transition:height .45s cubic-bezier(.22,1,.28,1)"></span>
+                  <span style="font-size:{{ r.size }};flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ r.fg }};text-decoration:{{ r.strike }};transition:font-size .45s cubic-bezier(.22,1,.28,1)">{{ r.name }}</span>
+
+                  <sc-if value="{{ r.mark }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1;flex:none;color:{{ r.markFg }}">{{ r.mark }}</span>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ r.live }}" hint-placeholder-val="{{ false }}">
+                  <div style="height:5px;background:#1b1b22">
+                    <div style="height:5px;border-radius:0 4px 4px 0;background:#ff4d17;width:{{ r.pct }};transition:width .8s cubic-bezier(.4,0,.2,1)"></div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hudSleep }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative;height:242px;box-sizing:border-box;padding:20px 18px;display:flex;flex-direction:column;justify-content:center;gap:11px;animation:wFade .5s ease-out">
+            <span style="font-family:'Material Symbols Rounded';font-size:28px;line-height:1;color:#ff4d17;animation:wRelax .7s cubic-bezier(.2,1.1,.3,1) both">bedtime</span>
+            <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:29px;line-height:1;color:#f4f3ef;animation:wStep .5s cubic-bezier(.2,.9,.25,1) .12s both">time to sleep</span>
+            <div style="display:flex;gap:7px">
+              <div style="flex:1;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#ff4d17" onClick="{{ reopen }}">
+                <span style="font-size:10px;color:#0b0b0d">ok</span>
+              </div>
+              <div style="flex:1;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#17171d" onClick="{{ reopen }}">
+                <span style="font-size:10px;color:#c9c8c2">ten more minutes</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hudDone }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative;height:242px;box-sizing:border-box;padding:20px 16px;display:flex;align-items:center;gap:13px;animation:wFade .34s ease-out">
+            <span style="font-family:'Material Symbols Rounded';font-size:30px;line-height:1;flex:none;color:#ff4d17;animation:{{ doneIconAnim }}">{{ doneIcon }}</span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+              <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:25px;line-height:1;color:#f4f3ef;animation:wStep .5s cubic-bezier(.2,.9,.25,1) .1s both">{{ doneLine }}</span>
+              <sc-if value="{{ doneSub }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:10px;line-height:1.3;color:#9a9aa3;text-wrap:pretty">{{ doneSub }}</span>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ signOn }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;z-index:5;border-radius:inherit;overflow:hidden;background:#f4f3ef;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;animation:{{ signAnim }}">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:9px;letter-spacing:.2em;color:#5f5f67">{{ signSub }}</span>
+              <sc-if value="{{ signAsk }}" hint-placeholder-val="{{ true }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;cursor:pointer;color:#5f5f67" style-hover="color:#111114" onClick="{{ signLater }}">close</span>
+              </sc-if>
+            </div>
+            <div style="flex:1;display:flex;align-items:center">
+              <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:38px;line-height:.95;letter-spacing:-.5px;color:#111114;text-wrap:balance;animation:wStep .45s cubic-bezier(.32,.72,0,1) both">{{ signLine }}</span>
+            </div>
+            <sc-if value="{{ signAsk }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="height:58px;border-radius:16px;background:#ff4d17;display:flex;align-items:center;justify-content:space-between;padding:0 18px;cursor:pointer;transition:transform .12s" style-active="transform:scale(.97)" onClick="{{ signGo }}">
+                  <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:24px;line-height:1;color:#0b0b0d">sign in</span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:24px;color:#0b0b0d">north_east</span>
+                </div>
+                <div style="height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer" onClick="{{ signLater }}">
+                  <span style="font-size:11px;color:#5f5f67">after this session</span>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ nudgeLine }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;left:12px;right:12px;bottom:12px;z-index:4;display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:12px;background:#ff4d17;cursor:pointer;transform-origin:50% 0;animation:{{ nudgeAnim }}" onClick="{{ clearNudge }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1;flex:none;color:#0b0b0d">{{ nudgeIcon }}</span>
+            <span style="font-size:10px;line-height:1.25;flex:1;min-width:0;color:#0b0b0d;text-wrap:pretty">{{ nudgeLine }}</span>
+          </div>
+        </sc-if>
+      </div>
+      </sc-if>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;width:268px">
+        <sc-for list="{{ hudDemo }}" as="b" hint-placeholder-count="5">
+          <div style="padding:7px 11px;border-radius:8px;font-size:9px;letter-spacing:.08em;white-space:nowrap;cursor:pointer;color:#c9c8c2;background:#15151b" style-hover="background:#1d1d25" onClick="{{ b.go }}">{{ b.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <span style="font-size:10px;letter-spacing:.2em;color:#9a9aa3">NUDGE AGENT</span>
+      <div style="width:720px;height:500px;border-radius:12px;overflow:hidden;background:#0c0c0c;box-shadow:0 44px 90px -34px #000000e6,inset 0 0 0 1px #ffffff14;display:flex;animation:wIn .42s ease-out">
+
+        <div style="width:172px;flex:none;background:#080808;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;padding:12px 10px;box-sizing:border-box;gap:2px">
+          <span style="font-family:Doto,monospace;font-weight:900;font-size:13px;letter-spacing:2px;color:#f4f3ef;padding:4px 8px 12px">NUDGE</span>
+          <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:9px;cursor:pointer;background:#ff4d17;transition:transform .12s" style-active="transform:scale(.97)" onClick="{{ newTask }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#0b0b0d">add</span>
+            <span style="font-size:12px;color:#0b0b0d">new task</span>
+          </div>
+          <span style="font-size:10px;letter-spacing:.14em;color:#8e8e97;padding:16px 10px 6px">RECENT</span>
+          <sc-for list="{{ recents }}" as="c" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:9px;cursor:pointer;background:{{ c.bg }};transition:background-color .2s" style-hover="background:#161616" onClick="{{ c.go }}">
+              <span style="width:6px;height:6px;flex:none;border-radius:50%;background:{{ c.dot }}"></span>
+              <span style="font-size:12px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ c.fg }}">{{ c.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+          <div style="flex:none;height:40px;display:flex;align-items:center;padding-left:20px;border-bottom:1px solid #1a1a1a">
+            <span style="font-size:12px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#c9c8c2">{{ threadTitle }}</span>
+            <sc-for list="{{ winBtns }}" as="w" hint-placeholder-count="3">
+              <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .2s" style-hover="background:{{ w.hover }}" onClick="{{ w.go }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#8e8e97">{{ w.icon }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;padding:20px 24px;box-sizing:border-box">
+            <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="height:100%;display:flex;flex-direction:column;justify-content:center;gap:18px;animation:wStep .35s ease-out">
+                <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:44px;line-height:1;color:#f4f3ef">what's next?</span>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <sc-for list="{{ suggestions }}" as="g" hint-placeholder-count="3">
+                    <div style="display:flex;flex-direction:column;gap:18px;padding:14px;border-radius:12px;background:#151515;cursor:pointer;transition:background-color .2s,transform .12s" style-hover="background:#1c1c1c" style-active="transform:scale(.98)" onClick="{{ g.go }}">
+                      <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#ff4d17">{{ g.icon }}</span>
+                      <span style="font-size:12px;line-height:1.35;color:#e6e5e0">{{ g.label }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ hasThread }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="align-self:flex-end;max-width:78%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:#222;font-size:13px;line-height:1.45;color:#f4f3ef">{{ jobTitle }}</div>
+
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;color:{{ jobStateFg }};animation:{{ statusSpin }}">{{ statusIcon }}</span>
+                  <span style="font-size:12px;flex:1;color:{{ jobStateFg }}">{{ statusLine }}</span>
+                  <sc-if value="{{ busy }}" hint-placeholder-val="{{ false }}">
+                    <div style="height:26px;display:flex;align-items:center;gap:5px;padding:0 10px;border-radius:13px;cursor:pointer;box-shadow:inset 0 0 0 1px #2e2e2e;transition:background-color .2s" style-hover="background:#1a1a1a" onClick="{{ stopRun }}">
+                      <span style="width:7px;height:7px;border-radius:2px;background:#f4f3ef"></span>
+                      <span style="font-size:11px;color:#f4f3ef">stop</span>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:6px;padding-left:4px;border-left:2px solid #1c1c1c">
+                  <sc-for list="{{ steps }}" as="t" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:9px;padding-left:10px">
+                      <span style="font-family:'Material Symbols Rounded';font-size:15px;color:{{ t.pillIc }}">{{ t.pillIcon }}</span>
+                      <span style="font-size:12px;flex:1;min-width:0;color:{{ t.pillFg }}">{{ t.text }}</span>
+                      <span style="font-size:10px;letter-spacing:.1em;color:#8e8e97">{{ t.meta }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <sc-for list="{{ log }}" as="l" hint-placeholder-count="2">
+                  <div style="display:flex;flex-direction:column;gap:8px;animation:wStep .3s ease-out both;animation-delay:{{ l.d }}">
+                    <span style="font-size:13px;line-height:1.55;color:#e6e5e0;text-wrap:pretty">{{ l.text }}</span>
+                    <sc-if value="{{ l.code }}" hint-placeholder-val="{{ false }}">
+                      <div style="position:relative;padding:12px 14px 12px;border-radius:10px;background:#151515;box-shadow:inset 0 0 0 1px #1f1f1f">
+                        <span style="display:block;font-size:12px;line-height:1.55;color:#f4f3ef;padding-right:60px">{{ l.code }}</span>
+                        <div style="position:absolute;right:8px;top:8px;height:24px;display:flex;align-items:center;gap:4px;padding:0 8px;border-radius:7px;cursor:pointer;background:#222" onClick="{{ copyDraft }}">
+                          <span style="font-family:'Material Symbols Rounded';font-size:13px;color:#c9c8c2">{{ copyIcon }}</span>
+                          <span style="font-size:10px;color:#c9c8c2">{{ copyLabel }}</span>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+
+                <sc-if value="{{ askLine }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;border-radius:12px;background:#f4f3ef;animation:wDrop .45s cubic-bezier(.32,.72,0,1)">
+                    <span style="font-size:13px;flex:1;min-width:0;line-height:1.35;color:#111114">{{ askLine }}</span>
+                    <sc-for list="{{ askBtns }}" as="b" hint-placeholder-count="2">
+                      <div style="height:32px;display:flex;align-items:center;gap:5px;padding:0 12px;border-radius:9px;cursor:pointer;background:{{ b.bg }};transition:background-color .2s" style-hover="background:{{ b.hover }}" onClick="{{ b.go }}">
+                        <span style="font-family:'Material Symbols Rounded';font-size:15px;color:{{ b.fg }}">{{ b.icon }}</span>
+                        <span style="font-size:12px;color:{{ b.fg }}">{{ b.label }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ outFile }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-radius:12px;box-shadow:inset 0 0 0 1px #242424;animation:wIn .34s ease-out">
+                    <span style="font-family:'Material Symbols Rounded';font-size:18px;color:#ff4d17">{{ outIcon }}</span>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                      <span style="font-size:12px;color:#f4f3ef">{{ outFile }}</span>
+                      <span style="font-size:10px;letter-spacing:.1em;color:#8e8e97">{{ outMeta }}</span>
+                    </div>
+                    <sc-for list="{{ outActs }}" as="o" hint-placeholder-count="2">
+                      <div style="height:28px;display:flex;align-items:center;gap:4px;padding:0 10px;border-radius:8px;cursor:pointer;background:#1a1a1a;transition:background-color .2s" style-hover="background:#242424" onClick="{{ o.go }}">
+                        <span style="font-family:'Material Symbols Rounded';font-size:14px;color:#c9c8c2">{{ o.icon }}</span>
+                        <span style="font-size:11px;color:#c9c8c2">{{ o.label }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="flex:none;padding:0 16px 14px">
+            <div style="border-radius:16px;background:#161616;box-shadow:inset 0 0 0 1px {{ inputRing }};padding:6px 6px 6px 16px;display:flex;align-items:center;gap:8px;transition:box-shadow .2s">
+              <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onKey }}" onFocus="{{ onFocus }}" onBlur="{{ onBlur }}" placeholder="what should nudge do?" style="flex:1;min-width:0;height:40px;border:0;outline:0;background:transparent;font-family:'DM Mono',monospace;font-size:13px;color:#f4f3ef" />
+              <div style="display:flex;padding:2px;border-radius:10px;background:#0c0c0c">
+                <sc-for list="{{ modes2 }}" as="m" hint-placeholder-count="2">
+                  <div title="{{ m.tip }}" style="height:30px;display:flex;align-items:center;gap:4px;padding:0 10px;border-radius:8px;cursor:pointer;background:{{ m.bg }};transition:background-color .25s" onClick="{{ m.go }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:14px;color:{{ m.fg }}">{{ m.icon }}</span>
+                    <span style="font-size:11px;color:{{ m.fg }}">{{ m.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="width:40px;height:40px;flex:none;border-radius:12px;background:{{ sendBg }};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .2s,transform .12s" style-active="transform:scale(.92)" onClick="{{ sendOrStop }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:20px;color:{{ sendFg }}">{{ sendIcon }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const TINT = { chem: "#2f6d8a", maths: "#7a4ea8", eng: "#a8632f", study: "#2f8a5c", own: "#8a2f5c" };
+
+const SCENARIOS = {
+  hale: {
+    prompt: "reply to mr hale about the chemistry deadline",
+    steps: [
+      { text: "read the thread", meta: "2 EMAILS" },
+      { text: "check what friday holds", meta: "MOCK" },
+      { text: "draft the reply", meta: "" },
+    ],
+    log: [
+      { icon: "mail", text: "Two emails from Mr Hale. The write-up is due Monday, not Friday as you had it." },
+      { icon: "calendar_month", text: "Friday is the chemistry mock, so Monday leaves you one clear evening." },
+      { icon: "draft", text: "Drafted a reply asking for Tuesday:", code: "Hi Mr Hale, could I have until Tuesday for the write-up? I have the chemistry mock on Friday and want to give it proper time after. Thanks, Peter." },
+    ],
+    askHead: "NEEDS YOUR OK BEFORE SENDING",
+    ask: "Send this to mr.hale@school.uk?",
+    file: "reply to mr hale.txt",
+    icon: "send",
+    meta: "SENT",
+  },
+  chem: {
+    prompt: "explain le chatelier for my mock, three lines",
+    steps: [
+      { text: "gather sources", meta: "RSC · BBC" },
+      { text: "cross-check", meta: "" },
+      { text: "cut to three lines", meta: "" },
+    ],
+    log: [
+      { icon: "travel_explore", text: "Three sources agree on the core statement, so I have used their common wording." },
+      { icon: "notes", text: "Change the conditions on a balanced reaction and it shifts to undo the change. Raise the pressure and it moves to the side with fewer gas molecules. Heat an exothermic reaction and it shifts back towards the reactants." },
+      { icon: "school", text: "Your syllabus also wants the two worked examples, so I kept those in the note." },
+    ],
+    askHead: "",
+    ask: "",
+    file: "le chatelier.md",
+    icon: "bookmark_added",
+    meta: "IN NOTES",
+  },
+  week: {
+    prompt: "plan next week around the mock",
+    steps: [
+      { text: "pull the timetable", meta: "8 PERIODS" },
+      { text: "find free evenings", meta: "4 FREE" },
+      { text: "spread the sessions", meta: "" },
+    ],
+    log: [
+      { icon: "event_note", text: "Next week is eight periods a day with double chemistry Tuesday." },
+      { icon: "schedule", text: "Monday to Thursday evenings are free. Friday is the mock, so I left it clear." },
+      { icon: "checklist", text: "Six sessions, two a night, heaviest on the subjects you skipped this week." },
+    ],
+    askHead: "CHANGES YOUR WEEK",
+    ask: "Add these six sessions to your wall?",
+    file: "next week",
+    icon: "event_available",
+    meta: "ON THE WALL",
+  },
+};
+
+class Component extends DCLogic {
+  state = {
+    tasks: [
+      { name: "chemistry", subj: "chem", done: true },
+      { name: "quadratics", subj: "maths", done: true },
+      { name: "revision one", subj: "study", done: false },
+      { name: "english essay", subj: "eng", done: false },
+      { name: "guitar", subj: "own", done: false },
+    ],
+    sel: 2,
+    pct: 46,
+    nudge: null,
+    leaving: false,
+    hud: "list",
+    justDone: -1,
+    school: true,
+    shutting: false,
+    bT: 0,
+    rem: 13 * 60 + 24,
+    scene: "hale",
+    history: ["hale", "week", "chem"],
+    prompts: {},
+    stopped: {},
+    draft: "",
+    focus: false,
+    copied: false,
+    shown: 5,
+    mode: "act",
+    settled: {},
+  };
+
+  componentDidMount() {
+    this.iv = setInterval(() => {
+      this.setState((s) => {
+        const n = {};
+        if (s.hud === "breathe") n.bT = s.bT + 1;
+        if (s.hud === "list" && s.rem > 0) n.rem = s.rem - 1;
+        return n;
+      });
+    }, 1100);
+  }
+  componentWillUnmount() { clearTimeout(this.sgTo); clearInterval(this.iv); clearTimeout(this.runTo); clearTimeout(this.cpTo); [this.to, this.seq1, this.seq2, this.seq3, this.doneTo].forEach(clearTimeout); }
+
+  bedtime = () => {
+    [this.seq1, this.seq2, this.seq3].forEach(clearTimeout);
+    this.setState({ hud: "sleep", nudge: null, leaving: false, shutting: false });
+  };
+  completeCurrent = () => {
+    const s = this.state;
+    const i = s.sel;
+    if (i < 0 || i >= s.tasks.length) return;
+    clearTimeout(this.doneTo);
+    this.setState({ justDone: i, pct: 100 });
+    this.doneTo = setTimeout(() => {
+      this.setState((q) => {
+        const tasks = q.tasks.map((t, k) => (k === i ? { ...t, done: true } : t));
+        const next = tasks.findIndex((t) => !t.done);
+        return { tasks, justDone: -1, sel: next, pct: 0 };
+      });
+    }, 900);
+  };
+  finish = () => {
+    const s = this.state;
+    clearTimeout(this.seq1); clearTimeout(this.seq2); clearTimeout(this.seq3);
+    if (s.school) {
+      this.setState({ hud: "pack", nudge: null, shutting: false });
+      this.seq1 = setTimeout(() => this.setState({ hud: "relax" }), 3600);
+      this.seq2 = setTimeout(() => this.setState({ shutting: true }), 8200);
+      this.seq3 = setTimeout(() => this.setState({ hud: "shut", shutting: false }), 9000);
+    } else {
+      this.setState({ hud: "relax", nudge: null, shutting: false });
+      this.seq2 = setTimeout(() => this.setState({ shutting: true }), 4600);
+      this.seq3 = setTimeout(() => this.setState({ hud: "shut", shutting: false }), 5400);
+    }
+  };
+  reopen = () => {
+    clearTimeout(this.seq1); clearTimeout(this.seq2); clearTimeout(this.seq3);
+    this.setState({ hud: "list", shutting: false });
+  };
+  startBreathe = () => this.setState({ hud: "breathe", bT: -3 });
+  exitBreathe = () => this.setState({ hud: "list" });
+  step = () => {
+    clearTimeout(this.runTo);
+    const s = this.state, sc2 = SCENARIOS[s.scene];
+    if (!sc2 || (s.stopped || {})[s.scene] || s.settled[s.scene]) return;
+    if (s.shown < sc2.steps.length) {
+      this.setState({ shown: s.shown + 1 });
+      this.runTo = setTimeout(this.step, 1100);
+    } else if (!sc2.ask) {
+      this.setState((q) => ({ settled: { ...q.settled, [q.scene]: true } }));
+    }
+  };
+  run = (id, text) => { this._run(id, text); clearTimeout(this.runTo); this.runTo = setTimeout(this.step, 700); };
+  _run = (id, text) => this.setState((q) => ({
+    scene: id, shown: 0, copied: false,
+    settled: { ...q.settled, [id]: false },
+    stopped: { ...q.stopped, [id]: false },
+    prompts: text ? { ...q.prompts, [id]: text } : q.prompts,
+    history: [id, ...q.history.filter((h) => h !== id)],
+  }));
+  view = (id) => this.setState({ scene: id, copied: false });
+  send = () => {
+    const t = this.state.draft.trim();
+    if (!t) return;
+    const id = /mail|email|hale|reply|teacher/i.test(t) ? "hale" : /plan|week|schedule|revis/i.test(t) ? "week" : "chem";
+    this.setState({ draft: "" });
+    this.run(id, t);
+  };
+  stopRun = () => this.setState((q) => ({ stopped: { ...q.stopped, [q.scene]: true } }));
+  settle = () => this.setState((q) => ({ settled: { ...q.settled, [q.scene]: true } }));
+
+  sleepAlert = () => {
+    clearTimeout(this.seq1); clearTimeout(this.seq2); clearTimeout(this.seq3);
+    this.setState({ hud: "sleep", nudge: null, leaving: false, shutting: false });
+  };
+  say = (line, icon) => {
+    if (this.state.hud !== "list") return;
+    clearTimeout(this.to);
+    this.setState({ nudge: line, nudgeIcon: icon, leaving: false });
+  };
+  signClose = () => { this.setState({ signLeaving: true }); clearTimeout(this.sgTo); this.sgTo = setTimeout(() => this.setState({ sign: null, signLeaving: false }), 420); };
+  clearNudge = () => {
+    this.setState({ leaving: true });
+    clearTimeout(this.to);
+    this.to = setTimeout(() => this.setState({ nudge: null, leaving: false }), 420);
+  };
+
+  renderVals() {
+    const s = this.state;
+    const isEmpty = !s.scene;
+    const sc0 = SCENARIOS[s.scene || "hale"];
+    const sc = { ...sc0, prompt: (s.prompts || {})[s.scene] || sc0.prompt };
+    const stopped = !!(s.stopped || {})[s.scene];
+    const settled = !!s.settled[s.scene];
+    const shown = Math.min(s.shown, sc.steps.length);
+    const busy = shown < sc.steps.length && !settled && !stopped && !isEmpty;
+    const asking = !busy && !settled && !stopped && !!sc.ask && !isEmpty;
+    if (!busy && !settled && !sc.ask && !this.autoSettled) { this.autoSettled = s.scene; }
+    const openN = s.tasks.filter((t) => !t.done).length;
+    const doneN = s.tasks.filter((t) => t.done).length;
+
+    const mode = (id, label) => ({
+      label,
+      bg: s.mode === id ? "#ff4d17" : "#131318",
+      fg: s.mode === id ? "#0b0b0d" : "#c9c8c2",
+      key: label.toUpperCase(),
+      fg2: s.mode === id ? "#ff4d17" : "#9a9aa3",
+      go: () => this.setState({ mode: id }),
+    });
+
+    return {
+      hudList: s.hud === "list",
+      hudBreathe: s.hud === "breathe",
+      hudDone: s.hud === "pack" || s.hud === "relax",
+      hudShut: s.hud === "shut",
+      hudOpen: s.hud !== "shut",
+      hudSleep: s.hud === "sleep",
+      hudAnim: s.shutting ? "wShut .8s cubic-bezier(.36,0,.66,-.28) both" : "wIn .4s ease-out",
+      doneIcon: s.hud === "pack" ? "backpack" : "self_improvement",
+      doneIconAnim: s.hud === "pack" ? "wRelax .6s cubic-bezier(.2,1.1,.3,1) both" : "wRelax .7s cubic-bezier(.2,1.1,.3,1) both, wSway 4.4s ease-in-out 1s infinite",
+      doneLine: s.hud === "pack" ? "pack your bag" : "time to relax",
+      doneSub: s.hud === "pack" ? "four books for tomorrow, list is on the wall" : "",
+      shutLine: "REOPENS WHEN WORK STARTS",
+      reopen: this.reopen,
+      pieDeg: Math.round((24 / 40) * 360) + "deg",
+      startBreathe: this.startBreathe,
+      exitBreathe: this.exitBreathe,
+      bBoxOpacity: s.bT < 0 ? 0 : 1,
+      bReady: s.bT < 0,
+      bReadyN: String(Math.max(1, -s.bT)),
+      bRun: s.bT >= 0,
+      bFill: [1, 2].includes(Math.floor((Math.max(0, s.bT) % 16) / 4)) ? "#ff4d1714" : "transparent",
+      bWord: ["breathe in", "hold", "breathe out", "hold"][Math.floor((Math.max(0, s.bT) % 16) / 4)],
+      bCount: 4 - (Math.max(0, s.bT) % 4),
+      bCycles: Array.from({ length: 4 }, (_, k) => {
+        const cyc = Math.floor(Math.max(0, s.bT) / 16);
+        return { w: k < cyc ? "26px" : k === cyc ? "16px" : "10px", c: k < cyc ? "#ff4d17" : k === cyc ? "#4a4a54" : "#23232b" };
+      }),
+      hudRows: s.tasks.map((t, i) => {
+        const live = i === s.sel;
+        return {
+          name: t.name,
+          w: live ? "100%" : t.done ? "70%" : "84%",
+          h: live ? "46px" : "32px",
+          radius: live ? "13px" : "9px",
+          bg: live ? "#191921" : t.done ? "transparent" : "#131318",
+          tint: t.done ? "#2a2a33" : TINT[t.subj],
+          spine: live ? "24px" : "14px",
+          size: live ? "13px" : "11px",
+          fg: live ? "#ffffff" : t.done ? "#8e8e97" : "#c9c8c2",
+          strike: t.done ? "line-through" : "none",
+          live,
+          pct: s.pct + "%",
+          clock: String(Math.floor(s.rem / 60)).padStart(2, "0") + ":" + String(s.rem % 60).padStart(2, "0"),
+          mark: t.done ? "check" : "",
+          markFg: i === s.justDone ? "#ff4d17" : "#8e8e97",
+          ring: "inset 0 0 0 2px #ff4d1700",
+          anim: i === s.justDone ? "wDoneFlash .9s cubic-bezier(.3,0,.3,1) both" : "none",
+          d: (i * 0.05).toFixed(2) + "s",
+        };
+      }),
+      dayPips: s.tasks.map((t, i) => ({ r: i < doneN ? "50%" : "2px", c: i < doneN ? "#ff4d17" : "#2a2a33" })),
+      leftN: openN,
+      footIcon: "self_improvement",
+      footLine: "hold the dial to breathe",
+      eq: [{ h: "5px" }, { h: "9px" }, { h: "4px" }, { h: "11px" }],
+      nudgeLine: s.nudge,
+      nudgeIcon: s.nudgeIcon || "visibility",
+      nudgeAnim: s.leaving ? "wNudgeOut .42s cubic-bezier(.5,0,.75,0) both" : "wRiseIn .55s cubic-bezier(.32,.72,0,1) both",
+      strokeAnim: s.leaving || s.signLeaving
+        ? "wStrokeOut .62s cubic-bezier(.5,0,.5,1) both"
+        : s.nudge || s.sign
+        ? "wStrokeIn .62s cubic-bezier(.32,.8,.3,1) both"
+        : "wStrokeHidden 0s linear both",
+      clearNudge: this.clearNudge,
+      signOn: !!s.sign,
+      strokeZ: s.sign ? 6 : 3,
+      signAnim: s.signLeaving ? "wSignOut .45s cubic-bezier(.5,0,.75,0) both" : "wSignIn .6s cubic-bezier(.32,.72,0,1) both",
+      signAsk: s.sign === "ask",
+      signIcon: s.sign === "done" ? "check_circle" : s.sign === "open" ? "progress_activity" : "school",
+      signIconAnim: s.sign === "open" ? "wSpin 1s linear infinite" : s.sign === "ask" ? "wPulse 1.8s ease-in-out infinite" : "none",
+      signLine: s.sign === "done" ? "you're in. syncing" : s.sign === "open" ? "finish in your browser" : "sign in to school again",
+      signSub: s.sign === "done" ? "ALL SET" : "SCHOOL ACCOUNT",
+      signGo: () => { this.setState({ sign: "open" }); clearTimeout(this.sgTo); this.sgTo = setTimeout(() => { this.setState({ sign: "done" }); this.sgTo = setTimeout(this.signClose, 1600); }, 2200); },
+      signLater: () => this.signClose(),
+      hudDemo: [
+        { label: "off task", go: () => this.say("instagram twice in a minute. back to revision?", "visibility") },
+        { label: "idle", go: () => this.say("nothing typed for six minutes.", "hourglass_top") },
+        { label: "on task", go: this.clearNudge },
+        { label: "sign in", go: () => this.setState({ sign: "ask", signLeaving: false }) },
+        { label: "task done", go: this.completeCurrent },
+        { label: "11pm", go: this.bedtime },
+        { label: "all done", go: this.finish },
+      ],
+
+      jobTitle: sc.prompt,
+      jobState: settled ? "DONE" : asking ? "YOUR CALL" : "WORKING",
+      jobStateFg: settled ? "#9a9aa3" : "#ff4d17",
+      busy,
+      steps: sc.steps.map((t, i) => {
+        const doneStep = settled || i < shown - (busy ? 1 : 0);
+        const current = !settled && busy && i === shown - 1;
+        return {
+          n: String(i + 1).padStart(2, "0"),
+          pillBg: current ? "#ff4d17" : doneStep ? "#1e1e1e" : "transparent",
+          pillRing: current || doneStep ? "none" : "inset 0 0 0 1.5px #2e2e2e",
+          pillIcon: current ? "progress_activity" : doneStep ? "check" : "radio_button_unchecked",
+          pillIc: current ? "#0b0b0d" : doneStep ? "#ff4d17" : "#8e8e97",
+          pillFg: current ? "#0b0b0d" : doneStep ? "#f4f3ef" : "#9a9aa3",
+          text: t.text,
+          meta: doneStep || current ? t.meta : "",
+          dotC: current ? "#ff4d17" : doneStep ? "#f4f3ef" : "#3a3a3a",
+          dotFill: doneStep ? "#f4f3ef" : current ? "#ff4d17" : "transparent",
+          dotR: current ? "50%" : "2px",
+          fg: current ? "#f4f3ef" : doneStep ? "#b6b5af" : "#8e8e97",
+        };
+      }),
+      log: (sc.log || []).slice(0, settled ? sc.log.length : shown).map((l, i) => ({
+        icon: l.icon,
+        iconFg: "#ff4d17",
+        text: stopped && i >= shown ? "" : l.text,
+        code: l.code || "",
+        fg: "#c9c8c2",
+        d: (i * 0.06).toFixed(2) + "s",
+      })),
+      busyLine: "WORKING",
+      isEmpty,
+      hasThread: !isEmpty,
+      threadTitle: isEmpty ? "new task" : sc.prompt,
+      statusIcon: stopped ? "stop_circle" : settled ? "check_circle" : asking ? "front_hand" : "progress_activity",
+      statusSpin: busy ? "wSpin 1s linear infinite" : "none",
+      statusLine: stopped ? "stopped" : settled ? "done" : asking ? "needs your ok" : "working · " + ((sc.steps[Math.max(0, shown - 1)] || {}).text || "starting"),
+      newTask: () => this.setState({ scene: null }),
+      suggestions: [
+        { icon: "mail", label: "reply to mr hale about the deadline", go: () => this.run("hale") },
+        { icon: "event_note", label: "plan next week around the mock", go: () => this.run("week") },
+        { icon: "school", label: "explain le chatelier in three lines", go: () => this.run("chem") },
+      ],
+      draft: s.draft,
+      onDraft: (e) => this.setState({ draft: e.target.value }),
+      onKey: (e) => { if (e.key === "Enter") { e.preventDefault(); this.send(); } },
+      onFocus: () => this.setState({ focus: true }),
+      onBlur: () => this.setState({ focus: false }),
+      inputRing: s.focus ? "#ff4d17" : "#262626",
+      sendOrStop: busy ? this.stopRun : this.send,
+      stopRun: this.stopRun,
+      sendIcon: busy ? "stop" : "arrow_upward",
+      sendBg: busy ? "#f4f3ef" : s.draft.trim() ? "#ff4d17" : "#262626",
+      sendFg: busy || s.draft.trim() ? "#0b0b0d" : "#8e8e97",
+      modes2: [["ask", "ask", "chat_bubble", "answers only"], ["act", "act", "bolt", "can do things, asks before sending"]].map(([id, label, icon, tip]) => ({
+        label, icon, tip,
+        bg: s.mode === id ? "#262626" : "transparent",
+        fg: s.mode === id ? "#f4f3ef" : "#9a9aa3",
+        go: () => this.setState({ mode: id }),
+      })),
+      copyIcon: s.copied ? "check" : "content_copy",
+      copyLabel: s.copied ? "copied" : "copy",
+      copyDraft: () => { this.setState({ copied: true }); clearTimeout(this.cpTo); this.cpTo = setTimeout(() => this.setState({ copied: false }), 1600); },
+      outActs: [
+        { icon: "open_in_new", label: "open", go: () => {} },
+        { icon: "undo", label: "undo", go: () => this.setState((q) => ({ settled: { ...q.settled, [q.scene]: false }, shown: sc.steps.length })) },
+      ],
+      nowLine: settled ? "all done" : asking ? "your call" : ((sc.steps[Math.max(0, shown - 1)] || {}).text || "starting"),
+      nowR: settled ? "2px" : "50%",
+      blobR: settled ? "14px" : asking ? "50% 50% 14px 14px" : "50%",
+      blobAnim: busy ? "wBlob 2.4s ease-in-out infinite" : "none",
+      modeLabel: s.mode === "act" ? "can act" : s.mode === "watch" ? "just watch" : "just ask",
+      modeIcon: s.mode === "act" ? "bolt" : s.mode === "watch" ? "visibility" : "chat_bubble",
+      cycleMode: () => this.setState((q) => ({ mode: q.mode === "ask" ? "act" : q.mode === "act" ? "watch" : "ask" })),
+      field: Array.from({ length: 64 }, (_, k) => {
+        const total = sc.steps.length;
+        const prog = settled ? 1 : Math.max(0, (shown - (busy ? 0.5 : 0)) / total);
+        const order = ((k % 8) + Math.floor(k / 8)) / 14;
+        const lit = order <= prog - 0.001;
+        const head = !settled && Math.abs(order - prog) < 0.075;
+        return {
+          c: head ? "#ff4d17" : lit ? "#f4f3ef" : "#1f1f1f",
+          r: lit || head ? "3px" : "50%",
+          anim: head && busy ? "wPulse 1.6s ease-in-out infinite" : "none",
+          d: (order * 0.4).toFixed(2) + "s",
+        };
+      }),
+      stepNow: String(settled ? sc.steps.length : Math.max(1, shown)),
+      stepTotal: String(sc.steps.length),
+      stepPips: sc.steps.map((_, k) => ({ c: settled || k < shown - (busy ? 1 : 0) ? "#f4f3ef" : k === shown - 1 && busy ? "#ff4d17" : "#262626" })),
+      stepsHead: settled ? "Worked through " + sc.steps.length + " steps" : asking ? "Paused for your ok" : (sc.steps[Math.max(0, shown - 1)] || {}).text || "Starting",
+      stepsOpen: s.stepsOpen !== false,
+      stepsRot: s.stepsOpen !== false ? "180deg" : "0deg",
+      toggleSteps: () => this.setState((q) => ({ stepsOpen: q.stepsOpen === false })),
+      agentReply: settled ? (sc.done || "Done. It's saved below.") : asking ? "Here's what I'm about to do. Check it before anything leaves this machine." : "On it. You can keep working, I'll only stop you if I need an answer.",
+      recents: (s.history || []).map((id) => {
+        const p = (s.prompts || {})[id] || SCENARIOS[id].prompt;
+        const done = !!s.settled[id], st = !!(s.stopped || {})[id];
+        return { label: p, go: () => this.view(id), bg: s.scene === id ? "#161616" : "transparent", fg: s.scene === id ? "#f4f3ef" : "#b6b5af", dot: st ? "#8e8e97" : done ? "#f4f3ef" : "#ff4d17" };
+      }),
+      busyPulse: busy ? "wPulse 1.6s ease-in-out infinite" : "none",
+      hasLog: (sc.log || []).length > 0 && shown > 0,
+      askHead: asking ? sc.askHead : "",
+      askLine: asking ? sc.ask : "",
+      askBtns: [
+        { label: "send", icon: "check", key: "OK", flex: 1.5, bg: "#111114", hover: "#ff4d17", fg: "#f4f3ef", go: this.settle },
+        { label: "edit", icon: "edit", key: "EDIT", flex: 1, bg: "#dcd8d0", hover: "#cfcbc3", fg: "#111114", go: () => this.setState({ draft: "change the reply: " }) },
+      ],
+      outFile: settled ? sc.file : "",
+      outIcon: sc.icon,
+      outMeta: sc.meta,
+      chips: [
+        { label: "reply to mr hale", go: () => this.run("hale") },
+        { label: "explain le chatelier", go: () => this.run("chem") },
+        { label: "plan next week", go: () => this.run("week") },
+      ],
+      composer: "what should nudge do?",
+      modes: [mode("ask", "ask"), mode("act", "act"), mode("watch", "watch")],
+      modeNote: s.mode === "act" ? "asks before anything is sent" : s.mode === "watch" ? "tells you, does nothing" : "answers only",
+      winBtns: [
+        { icon: "remove", hover: "#1d1d25", go: () => {} },
+        { icon: "crop_square", hover: "#1d1d25", go: () => {} },
+        { icon: "close", hover: "#c42b1c", go: () => {} },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

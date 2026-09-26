@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&amp;family=Doto:wght@400;700;900&amp;family=DM+Mono:wght@300;400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0&amp;display=block" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#0d0d10}
+a{color:#ff4d17;text-decoration:none}
+a:hover{color:#ff8355}
+@keyframes aUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes aFade{from{opacity:0}to{opacity:1}}
+@keyframes aDrop{0%{transform:translateY(-101%)}100%{transform:translateY(0)}}
+@keyframes aLift{0%{transform:translateY(0)}100%{transform:translateY(-101%)}}
+@keyframes aPulse{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes aSwap{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+@keyframes aBreath{0%,100%{opacity:.2}50%{opacity:.7}}
+@keyframes aLock{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes aSlide{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@keyframes aGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes aCell{0%{opacity:0;transform:scale(.6)}64%{opacity:1;transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+@keyframes aWave{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;box-sizing:border-box;padding:56px 60px 100px;display:flex;flex-direction:column;gap:40px;background:radial-gradient(130% 90% at 50% 0%,#1e1e23,#0a0a0d 74%);font-family:'DM Mono',ui-monospace,monospace;color:#f4f3ef">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#5f5f67">
+    <span>peterzstudio nudge · companion apps</span>
+    <span>tap the rails · notes live in the second app</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:44px;align-items:flex-start">
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:19px;line-height:1">my app</span>
+        <span style="font-size:9px;letter-spacing:.16em;color:#5f5f67">PLAN AND LOOK, NOTHING ELSE</span>
+      </div>
+      <div style="position:relative;width:322px;height:658px;border-radius:40px;padding:11px;box-sizing:border-box;background:linear-gradient(166deg,#f1efEa,#dcd8d0);box-shadow:0 60px 110px -50px #000000d9,inset 0 2px 0 #ffffff99">
+        <div style="position:relative;width:300px;height:636px;border-radius:30px;overflow:hidden;background:#0a0a0c">
+
+          <div style="display:flex;align-items:center;gap:9px;height:34px;padding:0 18px">
+            <span style="font-family:Doto,monospace;font-weight:900;font-size:13px;letter-spacing:.5px;color:#f4f3ef">9:41</span>
+            <span style="flex:1"></span>
+            <div style="display:flex;align-items:center;gap:7px;padding:3px 9px;border-radius:9px;background:#101017">
+              <span style="width:5px;height:5px;border-radius:50%;background:#ff4d17"></span>
+              <span style="font-size:8px;letter-spacing:.14em;color:#8e8e97">{{ wallState }}</span>
+            </div>
+            <span style="font-family:'Material Symbols Rounded';font-size:13px;color:#5f5f67">wifi</span>
+          </div>
+
+          <div style="position:relative;padding:2px 14px 12px">
+            <div style="position:relative;height:34px;border-radius:12px;background:#101017;padding:3px;box-sizing:border-box">
+              <span style="position:absolute;top:3px;height:28px;border-radius:9px;background:#ff4d17;left:{{ pillL }};right:{{ pillR }};transition:left {{ pillLt }} cubic-bezier(.32,.72,0,1),right {{ pillRt }} cubic-bezier(.32,.72,0,1)"></span>
+              <div style="position:relative;display:flex;height:100%">
+                <sc-for list="{{ teenTabs }}" as="t" hint-placeholder-count="4">
+                  <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;z-index:1" onClick="{{ t.go }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:15px;color:{{ t.fg }};transition:color .4s">{{ t.icon }}</span>
+                    <sc-if value="{{ t.on }}" hint-placeholder-val="{{ true }}">
+                      <span style="font-size:9px;letter-spacing:.06em;white-space:nowrap;color:{{ t.fg }};animation:aFade .4s ease-out .12s both">{{ t.label }}</span>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <sc-if value="{{ teenToday }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:15px">
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:58px;line-height:.8;letter-spacing:-2px">fri</span>
+                  <span style="font-size:8px;letter-spacing:.22em;color:#8e8e97">4 SEP</span>
+                </div>
+                <span style="flex:1"></span>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                  <span style="font-family:Doto,monospace;font-weight:900;font-size:34px;line-height:.9;color:#ff4d17">{{ doneStr }}</span>
+                  <div style="display:flex;gap:3px">
+                    <sc-for list="{{ dayPips }}" as="p" hint-placeholder-count="8">
+                      <span style="width:7px;height:7px;border-radius:{{ p.r }};background:{{ p.c }};transition:border-radius .4s cubic-bezier(.4,0,.2,1),background-color .4s ease"></span>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:16px">
+                <sc-for list="{{ timeline }}" as="t" hint-placeholder-count="6">
+                  <div style="position:relative;display:flex;align-items:center;gap:11px;height:{{ t.h }};padding:0 13px;border-radius:{{ t.radius }};overflow:hidden;background:{{ t.bg }};transition:background-color .4s ease">
+                    <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:{{ t.tint }}"></span>
+                    <span style="font-family:Doto,monospace;font-weight:700;font-size:10px;flex:none;width:32px;padding-left:5px;color:{{ t.timeFg }}">{{ t.time }}</span>
+                    <span style="font-size:11px;flex:none;min-width:max-content;color:{{ t.fg }};text-decoration:{{ t.strike }}">{{ t.name }}</span>
+                    <span style="flex:1"></span>
+                    <sc-if value="{{ t.mark }}" hint-placeholder-val="{{ true }}">
+                      <span style="font-family:'Material Symbols Rounded';font-size:15px;flex:none;color:{{ t.markFg }}">{{ t.mark }}</span>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ teenPlan }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:.9;letter-spacing:-1px">{{ calMonth }}</span>
+                <span style="flex:1"></span>
+                <span style="font-family:'Material Symbols Rounded';font-size:19px;cursor:pointer;color:#8e8e97" style-hover="color:#ff4d17" onClick="{{ calPrev }}">chevron_left</span>
+                <span style="font-family:'Material Symbols Rounded';font-size:19px;cursor:pointer;color:#8e8e97" style-hover="color:#ff4d17" onClick="{{ calNext }}">chevron_right</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">
+                <sc-for list="{{ calHead }}" as="h" hint-placeholder-count="7">
+                  <span style="font-size:7px;letter-spacing:.1em;text-align:center;color:#5c5c66">{{ h }}</span>
+                </sc-for>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px">
+                <sc-for list="{{ calDays }}" as="d" hint-placeholder-count="35">
+                  <div style="position:relative;aspect-ratio:1;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:{{ d.cursor }};background:{{ d.bg }};transition:background-color .3s" onClick="{{ d.go }}">
+                    <span style="font-size:10px;color:{{ d.fg }}">{{ d.n }}</span>
+                    <sc-if value="{{ d.dot }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:{{ d.dotC }}"></span>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+                <span style="font-size:11px;color:#f4f3ef">{{ calSelLabel }}</span>
+                <span style="flex:1;height:1px;background:#1c1c23"></span>
+                <span style="font-size:8px;letter-spacing:.14em;color:{{ calSelFg }}">{{ calSelKind }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">
+                <sc-for list="{{ calSelRows }}" as="r" hint-placeholder-count="3">
+                  <div style="position:relative;display:flex;align-items:center;gap:11px;height:42px;padding:0 14px;border-radius:12px;overflow:hidden;background:#13131a;animation:aSlide .26s ease-out">
+                    <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:{{ r.tint }}"></span>
+                    <span style="font-size:11px;padding-left:4px;min-width:0;color:#f4f3ef">{{ r.name }}</span>
+                    <span style="flex:1"></span>
+                    <span style="font-size:9px;color:#8e8e97">{{ r.meta }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:8px">
+                <sc-for list="{{ calMarks }}" as="m" hint-placeholder-count="2">
+                  <div style="flex:1;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;background:{{ m.bg }};transition:background-color .3s" onClick="{{ m.go }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:15px;color:{{ m.fg }}">{{ m.icon }}</span>
+                    <span style="font-size:9px;color:{{ m.fg }}">{{ m.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ teenSick }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <div style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:34px;line-height:1.02;margin-bottom:8px">not well<br>today?</div>
+              <div style="font-size:9px;line-height:1.5;color:#8e8e97;margin-bottom:22px">Tasks pause. Nothing counts against you. Dad is told straight away.</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:22px">
+                <sc-for list="{{ sickOpts }}" as="o" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;height:48px;padding:0 15px;border-radius:13px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.ring }};transition:background-color .3s" onClick="{{ o.go }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:18px;color:{{ o.iconFg }}">{{ o.icon }}</span>
+                    <span style="font-size:11px;color:{{ o.fg }}">{{ o.name }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ sickBtnBg }};transition:background-color .3s" onClick="{{ sendSick }}">
+                <span style="font-size:11px;letter-spacing:.06em;color:{{ sickBtnFg }}">{{ sickBtn }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ teenSettings }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <sc-for list="{{ settingGroups }}" as="grp" hint-placeholder-count="3">
+                <div style="margin-bottom:20px">
+                  <div style="font-size:8px;letter-spacing:.24em;color:#6d6d77;padding-bottom:4px">{{ grp.head }}</div>
+                  <sc-for list="{{ grp.rows }}" as="g" hint-placeholder-count="2">
+                    <div style="display:flex;align-items:center;gap:12px;height:44px;box-shadow:inset 0 -1px 0 #17171d;cursor:{{ g.cursor }}" onClick="{{ g.go }}">
+                      <span style="font-size:12px;flex:1;min-width:0;color:{{ g.fg }};transition:color .3s">{{ g.name }}</span>
+                      <span style="font-size:9px;letter-spacing:.1em;flex:none;color:{{ g.metaFg }};transition:color .3s">{{ g.meta }}</span>
+                      <span style="width:30px;height:4px;border-radius:2px;flex:none;overflow:hidden;background:#22222a">
+                        <span style="display:block;width:15px;height:4px;border-radius:2px;background:{{ g.knob }};transform:translateX({{ g.knobX }});transition:transform .42s cubic-bezier(.22,1,.28,1),background-color .35s"></span>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ toastLine }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:0;right:0;top:0;display:flex;justify-content:center;pointer-events:none">
+              <div style="position:relative;animation:{{ toastAnim }};transform-origin:50% 0;filter:drop-shadow(0 8px 18px #00000099)">
+                <div style="position:relative;display:flex;align-items:center;gap:10px;max-width:236px;padding:11px 16px 13px;border-radius:0 0 21px 21px;background:#f4f3ef;color:#111114">
+                  <span style="position:absolute;left:-15px;top:0;width:15px;height:16px;background:#f4f3ef;mask:radial-gradient(circle at 0 100%,transparent 14.6px,#000 15px);-webkit-mask:radial-gradient(circle at 0 100%,transparent 14.6px,#000 15px)"></span>
+                  <span style="position:absolute;right:-15px;top:0;width:15px;height:16px;background:#f4f3ef;mask:radial-gradient(circle at 100% 100%,transparent 14.6px,#000 15px);-webkit-mask:radial-gradient(circle at 100% 100%,transparent 14.6px,#000 15px)"></span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;flex:none;color:#ff4d17;animation:aSwap .3s ease-out">{{ toastIcon }}</span>
+                  <span style="font-size:10px;line-height:1.3;flex:none;min-width:max-content;animation:aSwap .3s ease-out">{{ toastLine }}</span>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:19px;line-height:1">parent app</span>
+        <span style="font-size:9px;letter-spacing:.16em;color:#5f5f67">REWARDS AND PROGRESS</span>
+      </div>
+      <div style="position:relative;width:322px;height:658px;border-radius:40px;padding:11px;box-sizing:border-box;background:linear-gradient(166deg,#f1efEa,#dcd8d0);box-shadow:0 60px 110px -50px #000000d9,inset 0 2px 0 #ffffff99">
+        <div style="position:relative;width:300px;height:636px;border-radius:30px;overflow:hidden;background:#f4f3ef;color:#111114">
+
+          <div style="display:flex;align-items:center;justify-content:space-between;height:26px;padding:0 18px;font-size:8px;letter-spacing:.1em;color:#b2ada3">
+            <span>9:41</span>
+            <span style="font-family:'Material Symbols Rounded';font-size:11px">wifi</span>
+          </div>
+
+          <div style="padding:4px 18px 14px;display:flex;align-items:flex-end;gap:10px">
+            <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:30px;line-height:.9;letter-spacing:-1px">{{ parentTitle }}</span>
+            <span style="flex:1"></span>
+            <sc-for list="{{ parentTabs }}" as="t" hint-placeholder-count="3">
+              <div style="width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ t.bg }};transition:background-color .35s cubic-bezier(.4,0,.2,1)" onClick="{{ t.go }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:17px;color:{{ t.fg }};transition:color .35s">{{ t.icon }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ parentTasks }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <div style="display:flex;gap:5px;margin-bottom:18px">
+                <sc-for list="{{ whenTabs }}" as="t" hint-placeholder-count="3">
+                  <div style="flex:1;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ t.bg }};transition:background-color .3s" onClick="{{ t.go }}">
+                    <span style="font-size:10px;color:{{ t.fg }}">{{ t.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px">
+                <sc-for list="{{ parentList }}" as="r" hint-placeholder-count="3">
+                  <div style="position:relative;display:flex;align-items:center;gap:12px;height:52px;padding:0 16px;border-radius:15px;overflow:hidden;background:#eae7e1;animation:aSlide .28s ease-out">
+                    <span style="position:absolute;left:0;top:0;bottom:0;width:5px;background:{{ r.tint }}"></span>
+                    <span style="font-size:12px;padding-left:5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#111114">{{ r.name }}</span>
+                    <span style="flex:1"></span>
+                    <span style="font-size:9px;letter-spacing:.06em;flex:none;color:#8a8a92">{{ r.meta }}</span>
+                    <span style="font-family:'Material Symbols Rounded';font-size:17px;flex:none;cursor:pointer;color:#a5a5ad" style-hover="color:#ff4d17" onClick="{{ r.remove }}">close</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;background:{{ addBg }};color:{{ addFg }};transition:background-color .3s" onClick="{{ addTask }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:17px">{{ addIcon }}</span>
+                <span style="font-size:10px;letter-spacing:.06em">{{ addLabel }}</span>
+              </div>
+
+              <div style="display:flex;align-items:flex-start;gap:9px;margin-top:18px">
+                <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1.3;flex:none;color:#a5a5ad">info</span>
+                <span style="font-size:9px;line-height:1.45;color:#8a8a92">{{ capNote }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ parentReward }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <div style="padding:18px;border-radius:18px;background:#111114;color:#f4f3ef;margin-bottom:16px">
+                <div style="display:flex;align-items:flex-end;gap:9px;margin-bottom:15px">
+                  <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:52px;line-height:.82;color:#ff4d17">34</span>
+                  <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:4px">
+                    <span style="font-size:9px;color:#6d6d77">of 60</span>
+                    <span style="font-size:7px;letter-spacing:.16em;color:#43434c">26 TO GO</span>
+                  </div>
+                  <span style="flex:1"></span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#3a3a42">redeem</span>
+                </div>
+                <div style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:25px;line-height:1;margin-bottom:14px">cinema trip</div>
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">
+                  <sc-for list="{{ rewardBlocks }}" as="b" hint-placeholder-count="12">
+                    <span style="height:17px;border-radius:{{ b.radius }};background:{{ b.c }};animation:aCell .4s cubic-bezier(.2,.9,.25,1) both;animation-delay:{{ b.d }};transition:background-color .5s ease"></span>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:7px;margin-bottom:16px">
+                <sc-for list="{{ weekStats }}" as="w" hint-placeholder-count="3">
+                  <div style="flex:1;padding:13px 12px;border-radius:14px;background:#eae7e1;display:flex;flex-direction:column;gap:4px">
+                    <span style="font-family:Doto,monospace;font-weight:900;font-size:21px;line-height:1;color:#111114">{{ w.v }}</span>
+                    <span style="font-size:7px;letter-spacing:.14em;color:#8a8a92">{{ w.k }}</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="font-size:8px;letter-spacing:.22em;color:#a5a5ad;margin-bottom:9px">POINTS PER TASK</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+                <sc-for list="{{ pointRules }}" as="r" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;height:42px;padding:0 15px;border-radius:13px;background:#eae7e1">
+                    <span style="font-size:10px;color:#111114">{{ r.k }}</span>
+                    <span style="flex:1"></span>
+                    <span style="font-family:Doto,monospace;font-weight:900;font-size:15px;color:#111114">{{ r.v }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:9px">
+                <span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1.3;flex:none;color:#a5a5ad">lock</span>
+                <span style="font-size:9px;line-height:1.45;color:#8a8a92">Banked points cannot be taken away, and the start point is only given once per task.</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ parentFeed }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 18px;animation:aUp .3s ease-out">
+              <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:20px">
+                <sc-for list="{{ history }}" as="h" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 15px;border-radius:14px;background:#eae7e1">
+                    <span style="width:5px;height:22px;border-radius:3px;flex:none;background:{{ h.tint }}"></span>
+                    <span style="font-size:11px;flex:1;min-width:0;color:#111114">{{ h.day }}</span>
+                    <span style="font-size:10px;flex:none;color:{{ h.fg }}">{{ h.done }}</span>
+                    <span style="font-family:Doto,monospace;font-weight:900;font-size:14px;flex:none;color:#ff4d17">{{ h.pts }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:0">
+                <sc-for list="{{ feed }}" as="f" hint-placeholder-count="6">
+                  <div style="display:flex;gap:13px;animation:aSlide .3s ease-out both;animation-delay:{{ f.d }}">
+                    <div style="display:flex;flex-direction:column;align-items:center;width:11px;flex:none">
+                      <span style="width:9px;height:9px;border-radius:50%;margin-top:5px;flex:none;background:{{ f.dot }}"></span>
+                      <span style="width:1px;flex:1;background:#dcd8d0"></span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:19px;min-width:0">
+                      <span style="font-size:10px;line-height:1.35;color:#111114">{{ f.text }}</span>
+                      <span style="font-size:8px;letter-spacing:.1em;color:#a5a5ad">{{ f.time }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:19px;line-height:1">desktop</span>
+        <span style="font-size:10px;letter-spacing:.16em;color:#9a9aa3">BLOCKS DURING A SESSION</span>
+      </div>
+
+      <div style="width:700px;border-radius:14px;overflow:hidden;background:#0a0a0c;box-shadow:0 60px 110px -50px #000000d9,inset 0 0 0 1px #ffffff14">
+        <div style="height:38px;display:flex;align-items:center;gap:8px;padding:0 15px;background:#13131a">
+          <span style="width:10px;height:10px;border-radius:50%;background:#3a3a42"></span>
+          <span style="width:10px;height:10px;border-radius:50%;background:#3a3a42"></span>
+          <span style="width:10px;height:10px;border-radius:50%;background:#3a3a42"></span>
+          <div style="flex:1;height:22px;margin-left:11px;border-radius:11px;background:#0a0a0c;display:flex;align-items:center;gap:8px;padding:0 11px">
+            <span style="font-family:'Material Symbols Rounded';font-size:12px;color:#8e8e97">lock</span>
+            <span style="font-size:10px;color:#8e8e97">{{ blockedUrl }}</span>
+          </div>
+        </div>
+        <div style="position:relative;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px">
+          <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:72px;line-height:.9;letter-spacing:-1px;color:#f4f3ef">{{ blockLine }}</span>
+          <div style="width:300px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="width:4px;height:18px;border-radius:2px;flex:none;background:{{ blockTint }}"></span>
+              <span style="font-size:13px;flex:1;color:#f4f3ef">{{ blockTask }}</span>
+              <span style="font-family:'Material Symbols Rounded';font-size:16px;color:#8e8e97">sensors</span>
+            </div>
+            <div style="height:6px;border-radius:3px;overflow:hidden;background:#1b1b22">
+              <div style="height:6px;width:{{ blockPct }};border-radius:3px;background:#ff4d17"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:22px;align-items:flex-start">
+        <div style="width:288px;border-radius:16px;overflow:hidden;background:#0a0a0c;box-shadow:0 30px 70px -40px #000000d9,inset 0 0 0 1px #ffffff14">
+          <div style="display:flex;align-items:center;gap:9px;height:44px;padding:0 15px;border-bottom:1px solid #16161c">
+            <span style="font-family:'ZCOOL QingKe HuangYou',sans-serif;font-size:15px">nudge</span>
+            <span style="flex:1"></span>
+            <span style="font-size:8px;letter-spacing:.14em;color:#ff4d17">{{ extState }}</span>
+          </div>
+          <div style="padding:15px">
+            <div style="font-size:8px;letter-spacing:.2em;color:#43434c;margin-bottom:11px">BLOCKED NOW</div>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:17px">
+              <sc-for list="{{ blockList }}" as="b" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-radius:9px;background:#13131a">
+                  <span style="font-family:'Material Symbols Rounded';font-size:14px;color:{{ b.iconFg }}">{{ b.icon }}</span>
+                  <span style="font-size:10px;color:{{ b.fg }}">{{ b.name }}</span>
+                  <span style="flex:1"></span>
+                  <span style="font-size:7px;letter-spacing:.12em;color:{{ b.stateFg }}">{{ b.state }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1.3;flex:none;color:#43434c">smart_display</span>
+              <span style="font-size:9px;line-height:1.45;color:#8e8e97">YouTube stays open for videos the AI matches to today's tasks. Everything else waits.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="width:288px;border-radius:16px;overflow:hidden;background:#0a0a0c;box-shadow:0 30px 70px -40px #000000d9,inset 0 0 0 1px #ffffff14">
+          <div style="display:flex;align-items:center;gap:9px;height:44px;padding:0 15px;border-bottom:1px solid #16161c">
+            <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#8e8e97">smartphone</span>
+            <span style="font-size:10px">phone lock</span>
+            <span style="flex:1"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:#ff4d17;animation:aBreath 3s ease-in-out infinite"></span>
+          </div>
+          <div style="padding:15px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:17px">
+              <sc-for list="{{ appIcons }}" as="a" hint-placeholder-count="12">
+                <div style="aspect-ratio:1;border-radius:11px;background:{{ a.bg }};display:flex;align-items:center;justify-content:center;opacity:{{ a.o }}">
+                  <span style="font-family:'Material Symbols Rounded';font-size:15px;color:{{ a.fg }}">{{ a.icon }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <span style="font-family:'Material Symbols Rounded';font-size:13px;line-height:1.3;flex:none;color:#43434c">call</span>
+              <span style="font-size:9px;line-height:1.45;color:#8e8e97">Calls, messages and maps never lock. Nothing here can be turned off from the phone during a session.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600}}">
+const TINT = { maths: "#2f5fa8", chem: "#1f7a4d", eng: "#8a2f5c", study: "#a8761f", mine: "#8d8d97" };
+
+const CAL_MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+class Component extends DCLogic {
+  state = {
+    teen: "today", parent: "reward", when: "tomorrow",
+    calM: 8, calSel: 4, calAway: false, calHol: false,
+    toast: null,
+    sick: "",
+    keep: true, wake: true, quiet: true, notify: false, dim: true, iconKeys: false, ai: true,
+    plist: [
+      { name: "chemistry q1-8", meta: "25 MIN", tint: TINT.chem, when: "tomorrow" },
+      { name: "revision, one hour", meta: "MON TO THU", tint: TINT.study, when: "weekly" },
+      { name: "tidy room", meta: "SAT 12 SEP", tint: TINT.mine, when: "later" },
+    ],
+  };
+
+  toast(icon, line, ms) {
+    this.setState({ toast: { icon, line } });
+    clearTimeout(this.tIn); clearTimeout(this.tOut);
+    this.tIn = setTimeout(() => {
+      this.setState((p) => (p.toast ? { toast: { ...p.toast, leaving: true } } : {}));
+      this.tOut = setTimeout(() => this.setState({ toast: null }), 460);
+    }, ms || 3000);
+  }
+  componentWillUnmount() { [this.tIn, this.tOut, this.dOut].forEach(clearTimeout); }
+
+  renderVals() {
+    const s = this.state;
+    const cap = 5;
+    const TINTS = TINT;
+
+    const teenTab = (icon, label, id) => ({
+      icon, label, on: s.teen === id,
+      go: () => this.setState((p) => (p.teen === id ? {} : { teenPrev: p.teen, teen: id })),
+      fg: s.teen === id ? "#0b0b0d" : "#7a7a84",
+    });
+    const parentTab = (icon, id) => ({
+      icon, go: () => this.setState({ parent: id }),
+      bg: s.parent === id ? "#111114" : "#eae7e1",
+      fg: s.parent === id ? "#f4f3ef" : "#8a8a92",
+    });
+    const whenTab = (label, id) => ({
+      label, go: () => this.setState({ when: id }),
+      bg: s.when === id ? "#111114" : "#eae7e1",
+      fg: s.when === id ? "#f4f3ef" : "#8a8a92",
+    });
+    const sickOpt = (icon, name, id) => ({
+      icon, name, go: () => this.setState({ sick: id }),
+      bg: s.sick === id ? "#1e1e26" : "#13131a",
+      ring: s.sick === id ? "inset 0 0 0 1px #ff4d17" : "none",
+      iconFg: s.sick === id ? "#ff4d17" : "#5c5c66",
+      fg: s.sick === id ? "#f4f3ef" : "#8e8e97",
+    });
+    const grow = (icon, name, meta, key, i) => {
+      const locked = key === "wake" && !s.ai;
+      const on = s[key] && !locked;
+      return {
+        icon, name, meta,
+        rule: i === 0 ? "transparent" : "#1c1c23",
+        cursor: locked ? "default" : "pointer",
+        go: () => { if (!locked) this.setState((p) => ({ [key]: !p[key], ...(key === "ai" && p.ai ? { wake: false } : {}) })); },
+        iconFg: on ? "#ff4d17" : locked ? "#2a2a33" : "#6d6d77",
+        fg: on ? "#f4f3ef" : locked ? "#4a4a54" : "#b6b5af",
+        metaFg: on ? "#8e8e97" : "#5c5c66",
+        knobX: on ? "15px" : "0px",
+        justify: on ? "flex-end" : "flex-start",
+        trackBg: on ? "#ff4d17" : "#23232b",
+        knob: on ? "#0b0b0d" : locked ? "#33333c" : "#8e8e97",
+      };
+    };
+    const toggle = (icon, name, meta, key) => {
+      const needsAi = key === "wake";
+      const locked = needsAi && !s.ai;
+      const on = s[key] && !locked;
+      return {
+        icon, name, meta, cursor: locked ? "default" : "pointer",
+        go: () => { if (!locked) this.setState((p) => ({ [key]: !p[key], ...(key === "ai" && p.ai ? { wake: false } : {}) })); },
+        iconFg: on ? "#ff4d17" : locked ? "#2a2a33" : "#5c5c66",
+        fg: on ? "#f4f3ef" : locked ? "#4a4a54" : "#b6b5af",
+        knobX: on ? "15px" : "0px",
+        justify: on ? "flex-end" : "flex-start",
+        trackBg: on ? "#ff4d17" : "#23232b",
+        knob: on ? "#0b0b0d" : locked ? "#33333c" : "#8e8e97",
+      };
+    };
+
+    const bars = (sd, n) => Array.from({ length: n || 6 }, (_, i) => ({
+      d: (0.5 + ((Math.sin((i + 1) * sd) + 1) / 2) * 0.6).toFixed(2) + "s",
+      o: (i * 0.07).toFixed(2) + "s",
+    }));
+
+
+    const CAL_DAY_TASKS = {
+      4: { kind: "school", rows: [
+        { name: "chemistry", tint: TINTS.chem, meta: "25m" },
+        { name: "quadratics", tint: TINTS.maths, meta: "25m" },
+        { name: "revision", tint: TINTS.study, meta: "1h" },
+      ] },
+      5: { kind: "school", rows: [
+        { name: "english essay", tint: TINTS.eng, meta: "40m" },
+        { name: "revision", tint: TINTS.study, meta: "1h" },
+      ] },
+      8: { kind: "weekend", rows: [{ name: "guitar", tint: TINTS.own, meta: "20m" }] },
+      13: { kind: "off", rows: [] },
+      24: { kind: "off", rows: [] },
+    };
+    const calGrid = Array.from({ length: 35 }, (_, i) => {
+      const n = i - 1;
+      const real = n >= 1 && n <= 30;
+      const info = CAL_DAY_TASKS[n];
+      const off = info && info.kind === "off";
+      const sel = s.calSel === n;
+      return {
+        n: real ? n : "",
+        cursor: real ? "pointer" : "default",
+        go: real ? () => this.setState({ calSel: n }) : () => {},
+        bg: sel ? "#ff4d17" : off ? "#2a1420" : real ? "#13131a" : "transparent",
+        fg: sel ? "#0b0b0d" : off ? "#c98aa8" : real ? "#c9c8c2" : "#33333c",
+        dot: !!(info && info.rows.length && !sel),
+        dotC: "#ff4d17",
+      };
+    });
+    const calInfo = CAL_DAY_TASKS[s.calSel];
+    const calSel = s.calSel
+      ? {
+          n: s.calSel,
+          kind: calInfo ? calInfo.kind : "free",
+          kindLabel: calInfo ? (calInfo.kind === "off" ? "AWAY, NOTHING SET" : calInfo.kind === "weekend" ? "WEEKEND" : "SCHOOL DAY") : "NOTHING SET",
+          rows: calInfo ? calInfo.rows : [],
+        }
+      : null;
+
+    const shown = s.plist.filter((r) => r.when === s.when);
+
+    const tl = [
+      { time: "16:10", name: "chemistry", tint: TINTS.chem, done: true },
+      { time: "16:40", name: "quadratics", tint: TINTS.maths, done: true },
+      { time: "17:10", name: "revision", tint: TINTS.study, now: true },
+      { time: "17:40", name: "revision", tint: TINTS.study },
+      { time: "18:10", name: "guitar", tint: TINTS.mine },
+      { time: "18:35", name: "pack bag", tint: "#c9c6cf" },
+    ];
+
+    return {
+      teenToday: s.teen === "today", teenPlan: s.teen === "plan", teenSick: s.teen === "sick", teenSettings: s.teen === "settings",
+      parentTasks: s.parent === "tasks", parentReward: s.parent === "reward", parentFeed: s.parent === "feed",
+      parentTitle: s.parent === "tasks" ? "tasks" : s.parent === "reward" ? "reward" : "today",
+
+      doneStr: "5/8",
+      dayPips: Array.from({ length: 8 }, (_, i) => ({ r: i < 5 ? "50%" : "2px", c: i < 5 ? "#ff4d17" : "#f4f3ef" })),
+      timeline: tl.map((t, i) => ({
+        time: t.time, name: t.name, tint: t.tint,
+        h: t.now ? "50px" : "40px",
+        radius: t.now ? "13px" : i === 0 ? "12px 12px 5px 5px" : i === tl.length - 1 ? "5px 5px 12px 12px" : "5px",
+        bg: t.now ? "#1e1e26" : "#13131a",
+        fg: t.done ? "#7a7a84" : t.now ? "#ffffff" : "#dedad4",
+        timeFg: t.now ? "#ff4d17" : "#8e8e97",
+        strike: t.done ? "line-through" : "none",
+        mark: t.done ? "check" : t.now ? "play_arrow" : "",
+        markFg: t.done ? "#6d6d77" : "#ff4d17",
+      })),
+
+      calMonth: CAL_MONTHS[s.calM % 12],
+      calHead: ["M", "T", "W", "T", "F", "S", "S"],
+      calPrev: () => this.setState((q) => ({ calM: (q.calM + 11) % 12 })),
+      calNext: () => this.setState((q) => ({ calM: (q.calM + 1) % 12 })),
+      calDays: calGrid,
+      calSelLabel: calSel ? CAL_MONTHS[s.calM % 12] + " " + calSel.n : "pick a day",
+      calSelKind: calSel ? calSel.kindLabel : "",
+      calSelFg: calSel && calSel.kind === "off" ? "#8a2f5c" : "#8e8e97",
+      calSelRows: calSel ? calSel.rows : [],
+      calMarks: [
+        { icon: "event_busy", label: "away", bg: s.calAway ? "#ff4d17" : "#13131a", fg: s.calAway ? "#0b0b0d" : "#c9c8c2", go: () => this.setState((q) => ({ calAway: !q.calAway })) },
+        { icon: "beach_access", label: "holiday", bg: s.calHol ? "#ff4d17" : "#13131a", fg: s.calHol ? "#0b0b0d" : "#c9c8c2", go: () => this.setState((q) => ({ calHol: !q.calHol })) },
+      ],
+
+      sickOpts: [sickOpt("sick", "unwell, staying home", "ill"), sickOpt("healing", "injured", "hurt"), sickOpt("psychology", "bad day, need a pause", "flat")],
+      sickBtn: s.sick ? "tell dad and pause today" : "pick one first",
+      sickBtnBg: s.sick ? "#ff4d17" : "#13131a",
+      sickBtnFg: s.sick ? "#0b0b0d" : "#5c5c66",
+      sendSick: () => { if (s.sick) this.toast("check_circle", "dad has been told", 3200); },
+
+      toastLine: s.toast ? s.toast.line : "",
+      toastIcon: s.toast ? s.toast.icon : "",
+      toastAnim: s.toast && s.toast.leaving ? "aLift .4s cubic-bezier(.5,0,.75,0) both" : "aDrop .52s cubic-bezier(.32,.72,0,1)",
+
+      settingGroups: [
+        { head: "ASSISTANT", rows: [
+          grow("smart_toy", "assistant", s.ai ? "ON" : "OFF", "ai", 0),
+          grow("graphic_eq", "wake word", s.ai ? "NUDGE" : "OFF", "wake", 1),
+        ] },
+        { head: "THE WALL", rows: [
+          grow("interpreter_mode", "icon keys", s.iconKeys ? "SYMBOLS" : "WORDS", "iconKeys", 0),
+          grow("brightness_low", "dim at night", s.dim ? "AUTO" : "OFF", "dim", 1),
+        ] },
+        { head: "THIS PHONE", rows: [
+          grow("cloud_sync", "google keep", s.keep ? "SYNCED" : "LOCAL", "keep", 0),
+          grow("notifications", "reminders", s.notify ? "ON" : "OFF", "notify", 1),
+          grow("bedtime", "quiet after 11", s.quiet ? "ON" : "OFF", "quiet", 2),
+        ] },
+      ],
+      wallState: "WALL ON",
+      ...(() => {
+        const order = ["today", "plan", "sick", "settings"];
+        const i = Math.max(0, order.indexOf(s.teen)), j = Math.max(0, order.indexOf(s.teenPrev || s.teen));
+        const fwd = i >= j;
+        return {
+          pillL: "calc(3px + (100% - 6px) * " + (i / 4) + ")",
+          pillR: "calc(3px + (100% - 6px) * " + ((3 - i) / 4) + ")",
+          pillLt: fwd ? ".56s" : ".32s",
+          pillRt: fwd ? ".32s" : ".56s",
+        };
+      })(),
+      teenTabs: [teenTab("checklist", "tasks", "today"), teenTab("calendar_month", "plan", "plan"), teenTab("sick", "unwell", "sick"), teenTab("settings", "settings", "settings")],
+
+      whenTabs: [whenTab("tomorrow", "tomorrow"), whenTab("weekly", "weekly"), whenTab("later", "later")],
+      capLabel: s.when === "weekly" ? "REPEATS EACH WEEK" : s.when === "later" ? "SCHEDULED AHEAD" : "FOR TOMORROW",
+      history: [
+        { day: "yesterday", done: "5/5", pts: "+11", full: true },
+        { day: "wednesday", done: "4/5", pts: "+8", full: false },
+        { day: "tuesday", done: "5/5", pts: "+12", full: true },
+        { day: "monday", done: "3/5", pts: "+6", full: false },
+      ].map((h) => ({ ...h, tint: h.full ? "#111114" : "#c9c5bd", fg: h.full ? "#111114" : "#8a8a92" })),
+      capPips: Array.from({ length: cap }, (_, i) => ({ c: i < shown.length ? "#111114" : "#dcd8d0" })),
+      parentList: shown.map((r) => ({ ...r, remove: () => this.setState((p) => ({ plist: p.plist.filter((x) => x !== r) })) })),
+      addBg: shown.length >= cap ? "#eae7e1" : "#111114",
+      addFg: shown.length >= cap ? "#a5a5ad" : "#f4f3ef",
+      addIcon: shown.length >= cap ? "block" : "add",
+      addLabel: shown.length >= cap ? "that is enough for one day" : "add a task",
+      addTask: () => this.setState((p) => {
+        const n = p.plist.filter((r) => r.when === p.when).length;
+        if (n >= cap) return {};
+        return { plist: [...p.plist, { name: "new task", meta: p.when === "weekly" ? "MON TO THU" : "25 MIN", tint: TINTS.mine, when: p.when }] };
+      }),
+      capNote: s.when === "weekly"
+        ? "Weekly tasks repeat on the days you pick."
+        : "Short lists get finished. Long ones get abandoned, so the day has a limit.",
+
+      rewardBlocks: Array.from({ length: 12 }, (_, i) => ({
+        c: i < 7 ? "#ff4d17" : "#2a2a33",
+        radius: i === 0 ? "8px 4px 4px 8px" : i === 5 ? "4px 8px 8px 4px" : i === 6 ? "8px 4px 4px 8px" : i === 11 ? "4px 8px 8px 4px" : "4px",
+        d: (i * 0.035).toFixed(2) + "s",
+      })),
+      weekStats: [{ v: "12", k: "CLAIMED" }, { v: "4h", k: "FOCUSED" }, { v: "2", k: "SWITCHED" }],
+      pointRules: [{ k: "starting a session", v: "+1" }, { k: "finishing and claiming", v: "+3" }],
+
+      feed: [
+        { text: "Claimed chemistry q1-8", time: "17:20", dot: "#ff4d17", d: "0s" },
+        { text: "Took a break, walked about", time: "16:55", dot: "#c2beb6", d: ".06s" },
+        { text: "Switched task, kept at 08:14", time: "16:30", dot: "#c2beb6", d: ".12s" },
+        { text: "Home, welcomed back", time: "16:08", dot: "#c2beb6", d: ".18s" },
+        { text: "Packed bag for tomorrow", time: "yesterday", dot: "#c2beb6", d: ".24s" },
+        { text: "Asked the agent for a deadline", time: "yesterday", dot: "#c2beb6", d: ".3s" },
+      ],
+
+      blockedUrl: "instagram.com",
+      blockLine: "not now :)",
+      blockTask: "revision one", blockWhere: "RUNNING ON THE WALL", blockTint: "#2f6d8a", blockPct: "46%",
+      extState: "SESSION ACTIVE",
+      blockList: [
+        { icon: "block", name: "instagram", state: "BLOCKED", iconFg: "#ff4d17", fg: "#f4f3ef", stateFg: "#ff4d17" },
+        { icon: "block", name: "tiktok", state: "BLOCKED", iconFg: "#ff4d17", fg: "#f4f3ef", stateFg: "#ff4d17" },
+        { icon: "smart_display", name: "youtube", state: "STUDY ONLY", iconFg: "#8e8e97", fg: "#c9c8c2", stateFg: "#8e8e97" },
+        { icon: "school", name: "school portal", state: "OPEN", iconFg: "#5c5c66", fg: "#8e8e97", stateFg: "#43434c" },
+      ],
+      appIcons: [
+        { icon: "call", bg: "#13131a", fg: "#c9c8c2", o: "1" },
+        { icon: "chat", bg: "#13131a", fg: "#c9c8c2", o: "1" },
+        { icon: "map", bg: "#13131a", fg: "#c9c8c2", o: "1" },
+        { icon: "school", bg: "#13131a", fg: "#c9c8c2", o: "1" },
+        ...Array.from({ length: 8 }, () => ({ icon: "lock", bg: "#13131a", fg: "#ff4d17", o: ".45" })),
+      ],
+      parentTabs: [parentTab("redeem", "reward"), parentTab("checklist", "tasks"), parentTab("timeline", "feed")],
+    };
+  }
+}
+</script>
+</body>
+</html>

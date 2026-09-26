@@ -1,0 +1,25 @@
+{
+  "name": "@nudge/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.1.0",
+    "@fontsource/dm-mono": "^5.2.0",
+    "@fontsource/doto": "^5.2.0",
+    "@fontsource/zcool-qingke-huangyou": "^5.2.0",
+    "material-symbols": "^0.33.0"
+  }
+}
