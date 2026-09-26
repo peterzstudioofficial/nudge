@@ -19,7 +19,7 @@ beforeAll(async () => {
   hub = new Hub(db);
   auth = new Auth(db);
   const ctx: Ctx = {
-    cfg: { dev: false, dataDir: dir, port: 0, host: "127.0.0.1", tlsCert: null, tlsKey: null, screenDir: null, appsDir: null, chromium: null, allowLan: false, anthropicKey: null },
+    cfg: { dev: false, dataDir: dir, port: 0, localPort: 0, host: "127.0.0.1", tlsCert: null, tlsKey: null, screenDir: null, appsDir: null, chromium: null, allowLan: false, anthropicKey: null },
     hub,
     auth,
     weather: { current: () => null, refresh: async () => {} },

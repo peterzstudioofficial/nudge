@@ -1,0 +1,15 @@
+#!/bin/sh
+# Get / renew an HTTPS certificate for this Pi's Tailscale name (needs HTTPS turned on in the
+# Tailscale admin console → DNS → HTTPS Certificates). Harmless if it isn't.
+set -e
+NAME=$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true)
+[ -n "$NAME" ] || exit 0
+mkdir -p /var/lib/nudge/tls
+if tailscale cert --cert-file /var/lib/nudge/tls/cert.pem --key-file /var/lib/nudge/tls/key.pem "$NAME" >/dev/null 2>&1; then
+  chown -R nudge:nudge /var/lib/nudge/tls && chmod 600 /var/lib/nudge/tls/*.pem
+  if ! grep -q '^NUDGE_TLS_CERT=' /etc/nudge/hub.env; then
+    sed -i 's#^\#NUDGE_TLS_CERT=.*#NUDGE_TLS_CERT=/var/lib/nudge/tls/cert.pem#; s#^\#NUDGE_TLS_KEY=.*#NUDGE_TLS_KEY=/var/lib/nudge/tls/key.pem#' /etc/nudge/hub.env
+    systemctl restart nudge-hub
+  fi
+  echo "https://$NAME:8787"
+fi

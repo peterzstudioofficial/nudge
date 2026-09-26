@@ -45,13 +45,31 @@ function need(req: FastifyRequest, cap: Cap): Caller {
   return c;
 }
 
-export async function buildServer(ctx: Ctx): Promise<FastifyInstance> {
+/** The built apps are fully self-contained: no inline scripts, no outside hosts. */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' ws: wss:",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
+export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promise<FastifyInstance> {
   const { cfg, hub, auth } = ctx;
-  const https = cfg.tlsCert && cfg.tlsKey && fs.existsSync(cfg.tlsCert) && fs.existsSync(cfg.tlsKey)
+  const https = opts.tls !== false && cfg.tlsCert && cfg.tlsKey && fs.existsSync(cfg.tlsCert) && fs.existsSync(cfg.tlsKey)
     ? { cert: fs.readFileSync(cfg.tlsCert), key: fs.readFileSync(cfg.tlsKey) }
     : null;
   const app = Fastify({
-    logger: process.env.VITEST ? false : cfg.dev ? { level: "warn" } : { level: "info" },
+    // Production logs only problems (every-request logs would wear out the Pi's SD card).
+    logger: process.env.VITEST ? false : { level: process.env.NUDGE_LOG_LEVEL || "warn" },
     bodyLimit: 12 * 1024 * 1024,
     trustProxy: false,
     ...(https ? { https } : {}),
@@ -88,6 +106,7 @@ export async function buildServer(ctx: Ctx): Promise<FastifyInstance> {
     reply.header("referrer-policy", "no-referrer");
     reply.header("x-frame-options", "DENY");
     if (req.url.startsWith("/api/")) reply.header("cache-control", "no-store");
+    else reply.header("content-security-policy", CSP);
   });
 
   /* ------------------------------ idempotency ------------------------------ */

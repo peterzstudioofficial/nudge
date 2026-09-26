@@ -61,6 +61,9 @@ async function main() {
   const app = await buildServer(ctx);
   await app.listen({ port: cfg.port, host: cfg.host });
   log(`hub up on ${cfg.tlsCert ? "https" : "http"}://${cfg.host}:${cfg.port}  (data: ${cfg.dataDir}${cfg.dev ? ", DEV MODE" : ""})`);
+  // Plain-HTTP twin on loopback only, for the wall's own kiosk browser and the hardware daemon.
+  const local = await buildServer(ctx, { tls: false });
+  await local.listen({ port: cfg.localPort, host: "127.0.0.1" }).catch((e) => log(`local port ${cfg.localPort} unavailable: ${e.message}`));
   if (!auth.listDevices().length) {
     const { code } = auth.createCode("owner", "first-run");
     log(`no devices paired yet — first pairing code (owner): ${code}`);
@@ -105,6 +108,7 @@ async function main() {
     log("shutting down");
     hub.heartbeat();
     await app.close();
+    await local.close().catch(() => {});
     db.close();
     process.exit(0);
   };

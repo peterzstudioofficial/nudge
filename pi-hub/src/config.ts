@@ -5,6 +5,8 @@ export interface Config {
   dev: boolean;
   dataDir: string;
   port: number;
+  /** loopback-only plain HTTP port for the kiosk + GPIO daemon */
+  localPort: number;
   host: string;
   /** optional TLS (Tailscale cert) */
   tlsCert: string | null;
@@ -40,6 +42,7 @@ export function loadConfig(): Config {
     dev,
     dataDir,
     port: Number(arg("port") || process.env.NUDGE_PORT || 8787),
+    localPort: Number(process.env.NUDGE_LOCAL_PORT || Number(arg("port") || process.env.NUDGE_PORT || 8787) + 1),
     host: arg("host") || process.env.NUDGE_HOST || "0.0.0.0",
     tlsCert: process.env.NUDGE_TLS_CERT || null,
     tlsKey: process.env.NUDGE_TLS_KEY || null,

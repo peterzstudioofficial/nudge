@@ -1,0 +1,46 @@
+#!/bin/sh
+# Reads nudge.txt from the boot partition once (Wi-Fi, SSH key, Tailscale auth key), applies it,
+# then wipes the file so no passwords stay on the SD card's FAT partition.
+set -u
+F=""
+for p in /boot/firmware/nudge.txt /boot/nudge.txt; do [ -f "$p" ] && F="$p" && break; done
+[ -n "$F" ] || exit 0
+
+val() { sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$F" | tr -d '\r' | head -1; }
+
+COUNTRY=$(val wifi_country)
+SSID=$(val wifi_ssid)
+PASS=$(val wifi_password)
+KEY=$(val ssh_pubkey)
+TSKEY=$(val tailscale_authkey)
+ADMIN=$(val admin_user)
+
+[ -n "$COUNTRY" ] && raspi-config nonint do_wifi_country "$COUNTRY" 2>/dev/null
+if [ -n "$SSID" ]; then
+  rfkill unblock wifi 2>/dev/null
+  for i in $(seq 1 20); do nmcli -t dev 2>/dev/null | grep -q '^wlan0:wifi' && break; sleep 1; done
+  if [ -n "$PASS" ]; then nmcli dev wifi connect "$SSID" password "$PASS" ifname wlan0 \
+    || nmcli con add type wifi ifname wlan0 con-name nudge-wifi ssid "$SSID" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$PASS"
+  else nmcli con add type wifi ifname wlan0 con-name nudge-wifi ssid "$SSID"; fi
+fi
+if [ -n "$KEY" ]; then
+  U=${ADMIN:-$(getent passwd 1000 | cut -d: -f1)}
+  H=$(getent passwd "$U" | cut -d: -f6)
+  if [ -n "$H" ]; then
+    install -d -m 700 -o "$U" -g "$U" "$H/.ssh"
+    echo "$KEY" >> "$H/.ssh/authorized_keys"
+    chown "$U:$U" "$H/.ssh/authorized_keys"; chmod 600 "$H/.ssh/authorized_keys"
+    # A key is in, so passwords can go.
+    printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/20-nudge-keys-only.conf
+    systemctl reload ssh 2>/dev/null || true
+  fi
+fi
+if [ -n "$TSKEY" ] && command -v tailscale >/dev/null; then
+  for i in $(seq 1 60); do ping -c1 -W2 login.tailscale.com >/dev/null 2>&1 && break; sleep 2; done
+  tailscale up --auth-key="$TSKEY" --hostname="$(hostname)" && /opt/nudge/bin/nudge-cert || true
+fi
+
+# Forget the secrets: overwrite, then leave a note so it's obvious it worked.
+dd if=/dev/zero of="$F" bs=1 count="$(wc -c < "$F")" conv=notrunc 2>/dev/null
+echo "# applied by nudge on $(date -R) — secrets removed. Edit and reboot to apply again." > "$F"
+sync

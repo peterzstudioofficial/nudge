@@ -1,0 +1,20 @@
+[Unit]
+Description=Nudge hardware (keys, dial, touch pad, LEDs, NFC, voice)
+After=nudge-hub.service
+Wants=nudge-hub.service
+
+[Service]
+Type=simple
+User=nudge
+Group=nudge
+SupplementaryGroups=gpio spi input audio
+EnvironmentFile=-/etc/nudge/gpio.env
+ExecStart=/opt/nudge/venv/bin/python /opt/nudge/gpio/nudge_gpio.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

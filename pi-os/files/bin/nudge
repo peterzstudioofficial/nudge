@@ -1,0 +1,63 @@
+#!/bin/sh
+# Nudge device helper. Run with sudo.
+#   nudge status              what's running, addresses, disk + memory
+#   nudge pair [owner|parent|desktop]
+#                             print a one-time pairing code (10 minutes)
+#   nudge key                 set / change the Anthropic API key
+#   nudge logs [hub|kiosk|gpio]
+#   nudge restart             restart hub, screen and hardware daemon
+#   nudge update FILE.tar.gz  install a newer nudge-pi bundle (keeps all data)
+#   nudge backup [DIR]        copy the database + secrets to DIR (default: ~)
+set -e
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+
+hub() {
+  set -a; . /etc/nudge/hub.env; set +a
+  cd /opt/nudge/hub
+  exec runuser -u nudge -- /opt/nudge/node/bin/node --no-warnings=ExperimentalWarning hub.mjs "$@"
+}
+
+case "$1" in
+  status)
+    systemctl --no-pager --lines=0 status nudge-hub nudge-kiosk nudge-gpio | grep -E '●|Active:' || true
+    echo; echo "addresses:"
+    hostname -I | tr ' ' '\n' | sed '/^$/d; s#^#  http://#; s#$#:8787#'
+    command -v tailscale >/dev/null && tailscale ip -4 2>/dev/null | sed 's#^#  tailscale http://#; s#$#:8787#' || true
+    echo; df -h / | tail -1 | awk '{print "disk: " $3 " used of " $2}'
+    free -m | awk '/Mem:/ {print "memory: " $3 " MB used of " $2 " MB"}'
+    ;;
+  pair)
+    hub pair --role "${2:-owner}"
+    ;;
+  key)
+    printf "Paste your Anthropic API key (input hidden): "
+    stty -echo; read -r KEY; stty echo; echo
+    case "$KEY" in sk-ant-*) ;; *) echo "that doesn't look like an Anthropic key (sk-ant-…)"; exit 1 ;; esac
+    TMP=$(mktemp); grep -v '^ANTHROPIC_API_KEY=' /etc/nudge/hub.env > "$TMP"
+    echo "ANTHROPIC_API_KEY=$KEY" >> "$TMP"
+    install -m 600 -o root -g root "$TMP" /etc/nudge/hub.env; rm -f "$TMP"
+    systemctl restart nudge-hub; echo "saved — the assistant is on"
+    ;;
+  logs)
+    exec journalctl -u "nudge-${2:-hub}" -n 200 -f
+    ;;
+  restart)
+    systemctl restart nudge-hub nudge-gpio nudge-kiosk
+    ;;
+  update)
+    [ -f "$2" ] || { echo "usage: nudge update nudge-pi.tar.gz"; exit 1; }
+    D=$(mktemp -d); tar -xzf "$2" -C "$D"
+    SRC=$(dirname "$(find "$D" -maxdepth 2 -name install.sh | head -1)")
+    bash "$SRC/install.sh" --update; rm -rf "$D"
+    ;;
+  backup)
+    OUT="${2:-$HOME}/nudge-backup-$(date +%Y%m%d-%H%M).tar.gz"
+    systemctl stop nudge-hub
+    tar -czf "$OUT" -C /var/lib nudge -C /etc nudge
+    systemctl start nudge-hub
+    chmod 600 "$OUT"; echo "saved $OUT (keep it private — it holds your school sign-in)"
+    ;;
+  *)
+    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+esac

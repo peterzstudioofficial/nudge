@@ -1,0 +1,7 @@
+[Unit]
+Description=Renew the Tailscale HTTPS certificate for the Nudge hub
+After=tailscaled.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nudge/bin/nudge-cert

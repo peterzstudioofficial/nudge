@@ -1,0 +1,9 @@
+# Nudge first-boot settings. Put this file on the SD card's boot partition (the one you can see
+# on Windows), fill in what you need, and boot. It's applied once and then wiped.
+wifi_country = GB
+wifi_ssid =
+wifi_password =
+# Your SSH public key (turns off password login). From Windows: type %USERPROFILE%\.ssh\id_ed25519.pub
+ssh_pubkey =
+# Optional: a Tailscale auth key (admin console → Settings → Keys) so it joins your tailnet itself.
+tailscale_authkey =

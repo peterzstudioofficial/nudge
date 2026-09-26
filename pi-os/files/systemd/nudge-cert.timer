@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew the Nudge HTTPS certificate weekly
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=7d
+Persistent=true
+
+[Install]
+WantedBy=timers.target

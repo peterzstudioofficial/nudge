@@ -9,8 +9,7 @@
     "start": "node --no-warnings=ExperimentalWarning dist/hub.mjs",
     "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "school:login": "tsx src/school/login-cli.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

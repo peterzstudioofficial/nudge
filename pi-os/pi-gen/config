@@ -1,0 +1,14 @@
+# pi-gen settings for the Nudge OS image (Raspberry Pi OS Lite 64-bit + Nudge).
+IMG_NAME=nudge-os
+DEPLOY_COMPRESSION=xz
+LOCALE_DEFAULT=en_GB.UTF-8
+KEYBOARD_KEYMAP=gb
+KEYBOARD_LAYOUT="English (UK)"
+TIMEZONE_DEFAULT=Europe/London
+WPA_COUNTRY=GB
+TARGET_HOSTNAME=nudge
+FIRST_USER_NAME=admin
+ENABLE_SSH=1
+DISABLE_FIRST_BOOT_USER_RENAME=1
+STAGE_LIST="stage0 stage1 stage2 stage-nudge"
+# FIRST_USER_PASS and PUBKEY_SSH_FIRST_USER are added by build-image.sh

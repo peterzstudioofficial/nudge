@@ -1,0 +1,14 @@
+[Unit]
+Description=Apply nudge.txt from the boot partition (Wi-Fi, SSH key, Tailscale)
+After=NetworkManager.service tailscaled.service
+Before=nudge-hub.service
+ConditionPathExistsGlob=|/boot/firmware/nudge.txt
+ConditionPathExistsGlob=|/boot/nudge.txt
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nudge/bin/nudge-firstboot
+TimeoutStartSec=5min
+
+[Install]
+WantedBy=multi-user.target

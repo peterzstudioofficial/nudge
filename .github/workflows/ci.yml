@@ -1,0 +1,133 @@
+name: build
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Also build the flashable Pi OS image (~1 hour)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+jobs:
+  check:
+    name: test + typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  pi:
+    name: Pi bundle
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run bundle:pi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nudge-pi
+          path: pi-os/deploy/nudge-pi.tar.gz
+
+  windows:
+    name: Windows installer
+    needs: check
+    runs-on: windows-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build -w shared
+      - run: npm run dist -w windows-desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nudge-windows
+          path: windows-desktop/release/*.exe
+
+  android:
+    name: Android (${{ matrix.app }})
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [my, notes, parent]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: gradle }
+      - run: npm ci
+      - run: npm run build -w shared && npm run build -w apps
+      - run: node build-app.mjs ${{ matrix.app }}
+        working-directory: android
+      - run: ./gradlew --no-daemon assembleDebug
+        working-directory: android/native
+      - run: cp app/build/outputs/apk/debug/app-debug.apk ../../nudge-${{ matrix.app }}.apk
+        working-directory: android/native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nudge-android-${{ matrix.app }}
+          path: nudge-${{ matrix.app }}.apk
+
+  image:
+    name: Pi OS image
+    if: github.event_name == 'workflow_dispatch' && inputs.image
+    needs: pi
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: nudge-pi, path: pi-os/deploy }
+      - uses: docker/setup-qemu-action@v3
+        with: { platforms: arm64 }
+      - name: build image
+        env:
+          NUDGE_ADMIN_PASS: ${{ secrets.NUDGE_ADMIN_PASS }}
+          NUDGE_SSH_PUBKEY: ${{ secrets.NUDGE_SSH_PUBKEY }}
+        run: |
+          [ -n "$NUDGE_ADMIN_PASS" ] || echo "::warning::NUDGE_ADMIN_PASS secret not set — use ssh_pubkey in nudge.txt to log in"
+          pi-os/pi-gen/build-image.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nudge-os-image
+          path: pi-os/deploy/*.img.xz
+          compression-level: 0
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [pi, windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/nudge-pi.tar.gz
+            out/*.exe
+            out/*.apk

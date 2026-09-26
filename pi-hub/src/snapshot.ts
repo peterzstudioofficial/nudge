@@ -34,7 +34,8 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
     birthday: nextBirthday(hub.birthdays(), todayKey),
     heads: hub.heads(),
     reminders: hub.dueReminders(),
-    asks: hub.pendingAsks(),
+    // Asks are Peter's own questions + drafts: a parent never sees them.
+    asks: role === "parent" ? [] : hub.pendingAsks(),
     school: ctx.school.status(),
     termLabel: hub.termLabel(todayKey),
     sync: { lastSync: hub.now() },

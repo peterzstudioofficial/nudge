@@ -31,3 +31,4 @@ pi-os/deploy/
 coverage/
 dist-renderer/
 dist-extension/
+__pycache__/
