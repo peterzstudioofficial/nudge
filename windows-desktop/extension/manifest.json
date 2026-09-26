@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Nudge blocker",
+  "version": "0.1.0",
+  "description": "Blocks distracting sites while a Nudge focus session is running. Talks only to the Nudge app on this computer.",
+  "permissions": ["declarativeNetRequest", "storage", "alarms", "tabs"],
+  "host_permissions": ["http://127.0.0.1:47823/*", "<all_urls>"],
+  "background": { "service_worker": "bg.js" },
+  "content_scripts": [{ "matches": ["https://www.youtube.com/*"], "js": ["youtube.js"], "run_at": "document_idle" }],
+  "web_accessible_resources": [{ "resources": ["block.html", "block.js", "block.css"], "matches": ["<all_urls>"] }],
+  "icons": { "128": "icon.png" }
+}

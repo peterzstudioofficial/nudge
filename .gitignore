@@ -22,3 +22,5 @@ pi-os/build/
 pi-os/deploy/
 .vite/
 coverage/
+dist-renderer/
+dist-extension/

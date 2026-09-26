@@ -85,7 +85,7 @@ export class Hub {
   }
 
   updateSettings(role: Role, patch: Partial<Settings>): Settings {
-    const allowed: (keyof Settings)[] = role === "parent" ? PARENT_SETTINGS : role === "owner" || role === "screen" ? OWNER_SETTINGS : [];
+    const allowed: (keyof Settings)[] = role === "parent" ? PARENT_SETTINGS : OWNER_SETTINGS;
     const bad = Object.keys(patch).filter((k) => !allowed.includes(k as keyof Settings));
     if (bad.length) throw new HttpError(403, `can't change: ${bad.join(", ")}`, { icon: "lock", line: "ask a parent in their app" });
     const next = { ...this.settings(), ...patch };

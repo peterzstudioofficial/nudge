@@ -5,7 +5,7 @@ import type { Role } from "./model";
  *
  *  owner   — Peter's own devices (phone app, desktop). Plans and looks; runs the school sign-in.
  *  screen  — the wall itself (loopback only). Runs sessions, packs the bag, answers asks.
- *  desktop — the Windows app. Like owner, plus the compose hand-off queue.
+ *  desktop — the Windows app. Same as owner, plus the compose hand-off queue.
  *  parent  — the parent app. Sets tasks, rules and rewards; the only role that can end a session.
  */
 export type Cap =
@@ -35,9 +35,10 @@ const TABLE: Record<Role, Cap[]> = {
     "read", "day.mark", "notes", "school.read", "school.act", "school.session", "agent", "asks.answer",
     "settings.owner", "devices.manage", "tasks.skip", "bag", "session", "day.arrive",
   ],
+  // Peter's computer: everything his phone can do, plus finishing email drafts by hand.
   desktop: [
-    "read", "notes", "school.read", "school.act", "school.session", "agent", "asks.answer", "handoff",
-    "session", "day.arrive",
+    "read", "day.mark", "notes", "school.read", "school.act", "school.session", "agent", "asks.answer",
+    "settings.owner", "devices.manage", "tasks.skip", "bag", "session", "day.arrive", "handoff",
   ],
   screen: [
     "read", "session", "tasks.skip", "bag", "day.arrive", "notes", "school.read", "school.act", "agent",

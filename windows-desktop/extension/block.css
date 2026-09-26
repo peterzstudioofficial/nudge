@@ -1,0 +1,12 @@
+html, body { margin: 0; height: 100%; background: #0a0a0c; color: #f4f3ef; font-family: "DM Mono", ui-monospace, Consolas, monospace; }
+.bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 15px; background: #13131a; color: #8e8e97; font-size: 11px; }
+main { height: calc(100% - 38px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+h1 { margin: 0; font-size: 72px; font-weight: 400; letter-spacing: -1px; font-family: "ZCOOL QingKe HuangYou", "DM Mono", sans-serif; }
+.task { width: 300px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.tint { width: 4px; height: 18px; border-radius: 2px; background: #2f6d8a; }
+#task { flex: 1; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #ff4d17; animation: b 3s ease-in-out infinite; }
+.track { width: 300px; height: 6px; border-radius: 3px; overflow: hidden; background: #1b1b22; }
+#pct { height: 6px; border-radius: 3px; background: #ff4d17; width: 0; transition: width .8s; }
+p { font-size: 10px; letter-spacing: .12em; color: #5f5f67; }
+@keyframes b { 0%, 100% { opacity: .2 } 50% { opacity: .9 } }
