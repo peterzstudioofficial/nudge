@@ -5,8 +5,17 @@
 @import "@fontsource/doto/400.css";
 @import "@fontsource/doto/700.css";
 @import "@fontsource/doto/900.css";
-@import "@fontsource/zcool-qingke-huangyou/400.css";
-@import "material-symbols/rounded.css";
+/* Latin only: the full font ships 100+ Chinese subsets we never show. */
+@import "@fontsource/zcool-qingke-huangyou/latin-400.css";
+/* Icons: a subset of Material Symbols Rounded with only the icons Nudge uses (61 KB, not 4.8 MB).
+   Rebuild with: python3 scripts/subset-icons.py */
+@font-face {
+  font-family: "Material Symbols Rounded";
+  font-style: normal;
+  font-weight: 300 400;
+  font-display: block;
+  src: url("./fonts/icons.woff2") format("woff2");
+}
 
 :root {
   --accent: #ff4d17;

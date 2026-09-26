@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
-import type { Snapshot } from "@nudge/shared";
+import { tint, type Snapshot } from "@nudge/shared";
 
 /**
  * A tiny local endpoint for the Nudge browser extension (Chrome / Edge). The extension asks
@@ -44,7 +44,8 @@ export function startBlocker(get: () => Snapshot | null): http.Server {
       active: !!sess && sess.state !== "break",
       blockList: s?.settings.blockList ?? [],
       studyOnly: s?.settings.studyOnlySites ?? [],
-      task: task ? { name: task.name, subject: task.subject } : null,
+      open: (s?.settings.schoolPages ?? []).map((x) => { try { return new URL(x.url).hostname; } catch { return ""; } }).filter(Boolean),
+      task: task ? { name: task.name, subject: task.subject, tint: tint(task.subject) } : null,
       pct: sess ? Math.min(100, Math.round((worked / sess.totalSec) * 100)) : 0,
       keywords: (s?.tasks ?? []).filter((t) => !t.done).flatMap((t) => [t.name, t.subject]).join(" ").toLowerCase(),
     };

@@ -47,4 +47,10 @@ await vite({
 // The browser blocker ships next to the app.
 fs.mkdirSync("dist-extension", { recursive: true });
 for (const f of fs.readdirSync("extension")) fs.copyFileSync(`extension/${f}`, `dist-extension/${f}`);
+// Nudge's own fonts (Latin display + mono, and the icon subset) so the blocker matches the app offline.
+const font = (from, to) => fs.copyFileSync(new URL(from, import.meta.url), `dist-extension/fonts/${to}`);
+fs.mkdirSync("dist-extension/fonts", { recursive: true });
+font("../node_modules/@fontsource/dm-mono/files/dm-mono-latin-400-normal.woff2", "dm-mono-400.woff2");
+font("../node_modules/@fontsource/zcool-qingke-huangyou/files/zcool-qingke-huangyou-latin-400-normal.woff2", "zcool-400.woff2");
+font("../shared/src/fonts/icons.woff2", "icons.woff2");
 console.log("built nudge desktop");

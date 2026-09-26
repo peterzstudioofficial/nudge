@@ -3,15 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <title>not now :)</title>
+    <link rel="stylesheet" href="nudge.css" />
     <link rel="stylesheet" href="block.css" />
   </head>
   <body>
-    <div class="bar"><span class="lock">&#128274;</span><span id="site"></span></div>
+    <div class="bar"><div class="url"><span class="ms">lock</span><span id="site"></span></div></div>
     <main>
       <h1>not now :)</h1>
-      <div class="task"><span class="tint"></span><span id="task">focus session</span><span class="dot"></span></div>
-      <div class="track"><div id="pct"></div></div>
-      <p>running on the wall · blocked until the session ends</p>
+      <div class="now">
+        <div class="task"><span class="tint" id="tint"></span><span id="task">focus session</span><span class="ms sensors">sensors</span></div>
+        <div class="track"><div id="pct"></div></div>
+      </div>
     </main>
     <script src="block.js"></script>
   </body>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { dateKey, formatNoteBody, hhmm, relativeDay, searchNotes, uid, type Note, type Snapshot } from "@nudge/shared";
 import { getClient, loadPairing, useHubGet, useSnapshot } from "../lib/hub";
 import { D, DOTO, Ms, toast, toastError } from "../lib/ui";
+import { sendToKeep } from "../lib/native";
 
 /**
  * "nudge notes — second app, capture only." From "Nudge Notes App.dc.html".
@@ -147,6 +148,7 @@ export function NotesApp() {
                   onToggle={() => setOpen(open === n.id ? "" : n.id)}
                   onEdit={() => setEdit(n)}
                   onWall={() => setWall(n)}
+                  onKeep={snap?.settings.googleKeep ? () => void sendToKeep(n.label, n.body).then((r) => toast("cloud_sync", r === "copied" ? "copied — paste it into Keep" : "sent to Keep")).catch(() => {}) : undefined}
                   onDelete={() => del(n)}
                 />
               ))}
@@ -195,7 +197,7 @@ function DayTab({ label }: { label: string }) {
   );
 }
 
-function Folder({ n, z, last, open, fresh, onToggle, onEdit, onWall, onDelete }: { n: Note; z: number; last: boolean; open: boolean; fresh: boolean; onToggle: () => void; onEdit: () => void; onWall: () => void; onDelete: () => void }) {
+function Folder({ n, z, last, open, fresh, onToggle, onEdit, onWall, onDelete, onKeep }: { n: Note; z: number; last: boolean; open: boolean; fresh: boolean; onToggle: () => void; onEdit: () => void; onWall: () => void; onDelete: () => void; onKeep?: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(390);
   useEffect(() => {
@@ -240,6 +242,7 @@ function Folder({ n, z, last, open, fresh, onToggle, onEdit, onWall, onDelete }:
               <div style={{ display: "flex", gap: 6 }}>
                 <div className="tap" onClick={onEdit} style={{ flex: 1.6, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: "#efeee9" }}><Ms style={{ fontSize: 16 }}>edit</Ms><span style={{ fontSize: 11 }}>edit</span></div>
                 <div className="tap" onClick={onWall} style={{ flex: 1.4, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: "#17171b", color: "#f4f3ef" }}><Ms style={{ fontSize: 16 }}>north_east</Ms><span style={{ fontSize: 11 }}>{n.wall ? "on wall" : "to wall"}</span></div>
+                {onKeep && <div className="tap" title="send to Google Keep" onClick={onKeep} style={{ flex: 0.6, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: "#efeee9", color: "#5a5852" }}><Ms style={{ fontSize: 16 }}>cloud_sync</Ms></div>}
                 <div className="tap" onClick={onDelete} style={{ flex: 0.6, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: "#efeee9", color: "#5a5852" }}><Ms style={{ fontSize: 16 }}>delete</Ms></div>
               </div>
             </div>

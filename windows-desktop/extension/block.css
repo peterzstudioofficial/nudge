@@ -1,12 +1,15 @@
+/* "not now :)" — from Nudge Apps › desktop, blocks during a session. */
 html, body { margin: 0; height: 100%; background: #0a0a0c; color: #f4f3ef; font-family: "DM Mono", ui-monospace, Consolas, monospace; }
-.bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 15px; background: #13131a; color: #8e8e97; font-size: 11px; }
+.bar { height: 38px; display: flex; align-items: center; padding: 0 15px; background: #13131a; }
+.url { flex: 1; max-width: 520px; height: 22px; border-radius: 11px; background: #0a0a0c; display: flex; align-items: center; gap: 8px; padding: 0 11px; font-size: 10px; color: #8e8e97; }
+.url .ms { font-size: 12px; }
 main { height: calc(100% - 38px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
-h1 { margin: 0; font-size: 72px; font-weight: 400; letter-spacing: -1px; font-family: "ZCOOL QingKe HuangYou", "DM Mono", sans-serif; }
-.task { width: 300px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
-.tint { width: 4px; height: 18px; border-radius: 2px; background: #2f6d8a; }
+h1 { margin: 0; font-family: "ZCOOL QingKe HuangYou", sans-serif; font-size: 72px; line-height: .9; font-weight: 400; letter-spacing: -1px; }
+.now { width: 300px; display: flex; flex-direction: column; gap: 10px; }
+.task { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.tint { width: 4px; height: 18px; border-radius: 2px; flex: none; background: #2f6d8a; }
 #task { flex: 1; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #ff4d17; animation: b 3s ease-in-out infinite; }
-.track { width: 300px; height: 6px; border-radius: 3px; overflow: hidden; background: #1b1b22; }
-#pct { height: 6px; border-radius: 3px; background: #ff4d17; width: 0; transition: width .8s; }
-p { font-size: 10px; letter-spacing: .12em; color: #5f5f67; }
-@keyframes b { 0%, 100% { opacity: .2 } 50% { opacity: .9 } }
+.sensors { font-size: 16px; color: #8e8e97; animation: b 3s ease-in-out infinite; }
+.track { height: 6px; border-radius: 3px; overflow: hidden; background: #1b1b22; }
+#pct { height: 6px; border-radius: 3px; background: #ff4d17; width: 0; transition: width .8s cubic-bezier(.22,1,.28,1); }
+@keyframes b { 0%, 100% { opacity: .35 } 50% { opacity: 1 } }

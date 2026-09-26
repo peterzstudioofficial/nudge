@@ -255,6 +255,25 @@ export class Device {
 
   /* ------------------------------ the clock ------------------------------ */
 
+  /** Once-a-day pop-ups: the birthday on the morning of the day, and the reward being within reach. */
+  private shown = new Set<string>();
+  private gentleNudges(snap: NonNullable<typeof this.snap>, mode: string) {
+    const day = snap.today.date;
+    const once = (key: string) => (this.shown.has(`${day}:${key}`) ? false : (this.shown.add(`${day}:${key}`), true));
+    const b = snap.birthday;
+    if (b && b.inDays === 0 && this.minsOfDay() < 12 * 60 && once("bday")) {
+      const who = b.name.trim();
+      const whose = /^(mum|dad|mom|nan|gran|grandma|grandad)$/i.test(who) ? `your ${who.toLowerCase()}'s` : `${who}'s`;
+      return this.say({ icon: "cake", line: `it's ${whose} birthday` }, 4000);
+    }
+    const left = snap.reward.goal - snap.bank;
+    const oneTask = snap.settings.pointsStart + snap.settings.pointsClaim;
+    if (mode === "standby" && left > 0 && left <= oneTask && once(`reward:${snap.bank}`)) {
+      const words = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+      return this.say({ icon: "savings", line: `${words[left] ?? left} more point${left === 1 ? "" : "s"}` }, 3600);
+    }
+  }
+
   private beat() {
     const s = this.s;
     const n: Partial<DeviceState> = { tick: s.tick + 1 };
@@ -293,6 +312,8 @@ export class Device {
       const m = this.minsOfDay();
       if (this.isSchool() && !snap.today.wokeAt && m >= alarm && m < alarm + 45 && !this.dismissedToday()) n.mode = "alarm";
     }
+    // Pop-ups that come to you (Nudge Popups: "reward and progress", "time of day"). Never during a session.
+    if (snap && s.power && !s.slab && !BUSY.includes(mode) && ["standby", "brief", "welcome", "select"].includes(mode)) this.gentleNudges(snap, mode);
     // Offline for 30s while idle: say so, once.
     if (this.offlineSince && Date.now() - this.offlineSince > 30_000 && mode === "standby") n.mode = "offline";
     this.set(n);
@@ -356,6 +377,7 @@ export class Device {
     const open = this.open();
     if (open.length < 2) {
       this.set({ dial, mode: open.length ? "select" : mode });
+      if (open.length === 1) this.say({ icon: "block", line: "last one left" }, 1800);
       return;
     }
     const at = Math.max(0, open.findIndex((t) => t.id === this.cur()?.id));
@@ -572,7 +594,8 @@ export class Device {
     if (BUSY.includes(mode)) {
       const t = this.tasks().find((x) => x.id === this.session()?.taskId);
       const v = this.view();
-      return this.say({ icon: "home", line: `${action} — ${t?.name ?? ""} ${mmss(v?.remaining ?? 0)} left` }, 1800);
+      void t;
+      return this.say({ icon: "timer", line: `still running, ${mmss(v?.remaining ?? 0)} left` }, 3000);
     }
     if (action === "home") return this.arrive();
     if (action === "desk") return this.begin();

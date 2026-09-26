@@ -215,6 +215,13 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     need(req, "tasks.skip");
     return hub.skipTask((req.params as { id: string }).id);
   });
+  // Phone lock polls this: tiny, so it's cheap to ask every few seconds.
+  app.get("/api/session/lock", async (req) => {
+    need(req, "read");
+    const s = hub.session();
+    const t = s ? hub.tasks.get(s.taskId) : null;
+    return { active: !!s && s.state !== "paused", task: t?.name ?? null };
+  });
   app.post("/api/tasks/:id/notset", async (req) => {
     need(req, "tasks.skip");
     hub.homeworkNotSet((req.params as { id: string }).id);

@@ -1,6 +1,7 @@
 // Nudge blocker — asks the Nudge app on this computer whether a focus session is running and,
 // if so, sends the listed sites to a "not now :)" page. Nothing leaves this computer.
-let state = { active: false, blockList: [], studyOnly: [], task: null, pct: 0, keywords: "" };
+let state = { active: false, blockList: [], studyOnly: [], open: [], task: null, pct: 0, keywords: "" };
+let connected = false;
 let conf = null;
 
 async function config() {
@@ -29,8 +30,10 @@ async function poll() {
     const r = await fetch(`http://127.0.0.1:${c.port}/state`, { headers: { "x-nudge-key": c.key }, cache: "no-store" });
     if (!r.ok) return;
     state = await r.json();
+    connected = true;
   } catch {
     state = { ...state, active: false }; // app not running → don't block
+    connected = false;
   }
   await apply();
 }
@@ -40,7 +43,7 @@ async function apply() {
   await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existing.map((r) => r.id) });
   if (!state.active) return;
   const page = (site) =>
-    chrome.runtime.getURL(`block.html?site=${encodeURIComponent(site)}&task=${encodeURIComponent(state.task?.name || "")}&pct=${state.pct}`);
+    chrome.runtime.getURL(`block.html?site=${encodeURIComponent(site)}&task=${encodeURIComponent(state.task?.name || "")}&pct=${state.pct}&tint=${encodeURIComponent(state.task?.tint || "")}`);
   const rules = state.blockList.slice(0, 100).map((site, i) => ({
     id: i + 1,
     priority: 1,
@@ -57,7 +60,7 @@ async function apply() {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
-  if (msg === "state") reply(state);
+  if (msg === "state") reply({ ...state, connected });
 });
 chrome.alarms.create("poll", { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener(poll);

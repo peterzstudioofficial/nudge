@@ -391,6 +391,8 @@ export const Settings = z.object({
   house: z.string().max(20),
   /** a few lines about the student, given to the assistant */
   profile: z.string().max(800),
+  /** offer "send to Google Keep" on notes */
+  googleKeep: z.boolean(),
 });
 export type Settings = z.infer<typeof Settings>;
 
@@ -402,7 +404,7 @@ export const PARENT_SETTINGS: (keyof Settings)[] = [
 export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
-  "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile",
+  "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep",
 ];
 
 export const Device = z.object({

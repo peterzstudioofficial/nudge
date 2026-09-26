@@ -47,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   yearGroup: "",
   house: "",
   profile: "",
+  googleKeep: false,
 };
 
 /** Work seconds on the clock right now for a session. */

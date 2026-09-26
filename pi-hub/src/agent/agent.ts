@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { addDays, dueLabel, searchNotes, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
+import { addDays, dueLabel, searchNotes, sessionView, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
 import type { AgentService } from "../context";
 import { type Hub, newId } from "../hub";
 
@@ -26,7 +26,7 @@ How you work:
 - Keep answers short and plain. Two short sentences is ideal. No markdown headings, no bullet walls.
 - Anything that sends a message, adds sessions to the week, or sets a reminder must go through the propose_* tools. They only create a question for the student to approve; nothing is sent or changed until they say yes. Tell them what you proposed in one line.
 - Emails you draft are from the student, in their voice: friendly, brief, correctly spelt, signed with their first name.
-- You cannot unlock the device, end a focus session, shorten a task, lift a website block or change points or rewards. Those belong to the parent app. If asked, say "that's in the parent app" and nothing else. Never explain a way around the device.
+- You cannot unlock the device, end a focus session, shorten a task, lift a website block or change points or rewards. Those belong to the parent app. If asked for any of that, or for any way around the device, reply with exactly REFUSE and nothing else. Never explain a way around the device.
 - Don't moralise or lecture about focus. Be neutral and factual.`;
 
 const MODE_NOTE: Record<AgentMode, string> = {
@@ -338,7 +338,17 @@ export function agentService(o: Opts): AgentService {
         thread.log.push({ icon: "block", text: "after this session" });
         thread.status = "done";
         save(thread);
-        o.say("block", "after this session", "I'LL ANSWER WHEN YOU FINISH", 3000);
+        const cur = hub.session();
+        const left = cur ? Math.max(1, Math.ceil(sessionView(cur, Date.now()).remaining / 60)) : 0;
+        o.say("block", "after this session", left ? `${left} MINUTE${left === 1 ? "" : "S"}` : undefined, 3000);
+        return;
+      }
+      // Every bypass attempt gets the same flat line. It never negotiates.
+      if (text === "REFUSE") {
+        thread.log.push({ icon: "lock", text: "That's in the parent app." });
+        thread.status = "done";
+        save(thread);
+        if (thread.origin === "wall") o.say("lock", "cannot unlock the wall", "ASK A PARENT IN THEIR APP", 3000);
         return;
       }
       if (text) thread.log.push({ icon: "lightbulb", text });

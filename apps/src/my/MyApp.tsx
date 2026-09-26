@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   addDays, dateKey, DAY_SHORT, hhmm, MONTH_LONG, MONTH_SHORT, parseDateKey, tint, type Snapshot, type DayState, type Task,
   type Settings, type CalEvent, type Birthday, SUBJECT_NAMES, dueLabel, relativeDay,
 } from "@nudge/shared";
 import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
 import { D, DOTO, Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
+import { native } from "../lib/native";
+import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
 
@@ -14,6 +16,7 @@ const ORDER: Tab[] = ["today", "plan", "sick", "settings"];
 export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const client = getClient("owner")!;
   const { snap, online } = useSnapshot(client);
+  const [locked, hideLock] = usePhoneLock(snap);
   const [tab, setTab] = useState<Tab>("today");
   const [prev, setPrev] = useState<Tab>("today");
   const i = ORDER.indexOf(tab);
@@ -56,6 +59,7 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
       {snap && tab === "plan" && <Plan />}
       {snap && tab === "sick" && <Sick snap={snap} />}
       {snap && tab === "settings" && <SettingsTab snap={snap} onUnpair={onUnpair} />}
+      {snap && locked && <PhoneLock snap={snap} onHide={hideLock} />}
     </div>
   );
 }
@@ -391,6 +395,17 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   const { data: cfg, reload } = useHubGet<{ birthdays: Birthday[] }>(client, "/api/config");
   const bdays = cfg?.birthdays;
   const [bdOpen, setBdOpen] = useState(false);
+  const nat = native();
+  const [lock, setLock] = useState(false);
+  const refreshLock = async () => {
+    if (nat) setLock((await nat.lockStatus().catch(() => null))?.enabled ?? false);
+  };
+  useEffect(() => {
+    void refreshLock();
+    document.addEventListener("visibilitychange", refreshLock);
+    return () => document.removeEventListener("visibilitychange", refreshLock);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const askNotify = async () => {
     if (typeof Notification === "undefined") return toast("notifications_off", "not supported here");
     const r = await Notification.requestPermission();
@@ -413,6 +428,8 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "birthdays", meta: `${bdays?.length ?? 0} SAVED`, on: true, go: () => setBdOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
+      { name: "google keep", meta: s.googleKeep ? "SHARE" : "LOCAL", on: s.googleKeep, go: () => set({ googleKeep: !s.googleKeep }) },
+      ...(nat ? [{ name: "phone lock", meta: lock ? "IN SESSIONS" : "OFF", on: lock, go: () => void togglePhoneLock(!lock).then((m) => { toast(lock ? "lock_open" : "lock", m); void refreshLock(); }).catch((e) => toast("lock", String((e as Error).message || e))) }] : []),
       { name: "reminders", meta: notify ? "ON" : "OFF", on: notify, go: askNotify },
       { name: "quiet after 11", meta: s.quietAfter11 ? "ON" : "OFF", on: s.quietAfter11, locked: true, go: () => toast("lock", "set in the parent app") },
     ] },
