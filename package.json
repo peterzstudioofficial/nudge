@@ -2,13 +2,14 @@
   "name": "nudge",
   "private": true,
   "version": "0.1.0",
-  "description": "Nudge — the ND-1 wall device, its hub, and the apps that sync with it.",
+  "description": "Nudge \u2014 the ND-1 wall device, its hub, and the apps that sync with it.",
   "workspaces": [
     "shared",
     "pi-hub",
     "pi-screen",
     "apps",
-    "windows-desktop"
+    "windows-desktop",
+    "android"
   ],
   "scripts": {
     "dev": "node scripts/dev.mjs",

@@ -1,0 +1,17 @@
+{
+  "name": "@nudge/android",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Android builds of the Nudge apps (Capacitor). One native project, three apps: nudge, nudge notes, nudge parent.",
+  "scripts": {
+    "stage": "node build-app.mjs",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/core": "^7.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.0"
+  }
+}

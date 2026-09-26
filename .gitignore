@@ -13,10 +13,17 @@ pi-hub/data/
 *.sqlite
 *.sqlite-*
 secret.key
-# android build output
-android/app/build/
-android/.gradle/
-android/app/src/main/assets/public/
+# android build output (the native project itself is committed)
+android/www/
+android/native/app/build/
+android/native/build/
+android/native/.gradle/
+android/native/app/src/main/assets/public/
+android/native/app/src/main/assets/capacitor.config.json
+android/native/app/src/main/assets/capacitor.plugins.json
+android/native/capacitor-cordova-android-plugins/build/
+*.keystore
+*.jks
 # pi image build output
 pi-os/build/
 pi-os/deploy/
