@@ -44,6 +44,8 @@ export const DEFAULT_SETTINGS: Settings = {
   schoolMail: true,
   schoolMailSenders: [],
   aiModel: "deepseek/deepseek-v4.1-flash",
+  webSearch: true,
+  aiAdvisorModel: "deepseek/deepseek-v4-pro",
   voiceModel: "gemini-3.8-live",
   voiceReplies: false,
   yearGroup: "",

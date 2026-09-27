@@ -2,24 +2,31 @@ import { describe, expect, it } from "vitest";
 import { Db } from "../db";
 import { Hub } from "../hub";
 import { agentService } from "./agent";
-import { openRouter, type Llm, type Message } from "./llm";
+import { openRouter, serverToolsFor, type ChatOptions, type Llm, type Message } from "./llm";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function scripted(steps: ((m: Message[]) => { content?: string; tool?: { name: string; args: unknown } })[]): Llm & { seen: Message[][] } {
+function scripted(steps: ((m: Message[]) => { content?: string; tool?: { name: string; args: unknown }; tools?: { name: string; args: unknown }[]; citations?: { url: string; title: string }[] })[]): Llm & { seen: Message[][]; opts: ChatOptions[] } {
   const seen: Message[][] = [];
+  const opts: ChatOptions[] = [];
   let i = 0;
   return {
     seen,
-    async chat({ messages }) {
+    opts,
+    async chat(o) {
+      const { messages } = o;
       seen.push(structuredClone(messages));
+      opts.push(o);
       const s = steps[Math.min(i++, steps.length - 1)](messages);
+      const calls = s.tools ?? (s.tool ? [s.tool] : []);
       return {
         content: s.content ?? "",
-        toolCalls: s.tool ? [{ id: `c${i}`, type: "function", function: { name: s.tool.name, arguments: JSON.stringify(s.tool.args) } }] : [],
-        finish: s.tool ? "tool_calls" : "stop",
+        toolCalls: calls.map((c, k) => ({ id: `c${i}-${k}`, type: "function" as const, function: { name: c.name, arguments: JSON.stringify(c.args) } })),
+        finish: calls.length ? "tool_calls" : "stop",
         model: "test",
         cost: 0.0001,
+        citations: s.citations ?? [],
+        serverToolCalls: s.citations?.length ? 1 : 0,
       };
     },
   };
@@ -55,7 +62,7 @@ describe("assistant (OpenRouter)", () => {
   it("in ask mode the model can't even see the propose tools", async () => {
     const hub = new Hub(new Db(":memory:"));
     let names: string[] = [];
-    const llm: Llm = { async chat(o) { names = (o.tools ?? []).map((t) => t.function.name); return { content: "ok", toolCalls: [], finish: "stop", model: "t", cost: 0 }; } };
+    const llm: Llm = { async chat(o) { names = (o.tools ?? []).map((t) => t.function.name); return { content: "ok", toolCalls: [], finish: "stop", model: "t", cost: 0, citations: [], serverToolCalls: 0 }; } };
     agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "hi", mode: "ask", origin: "app" });
     await wait(20);
     expect(names).toContain("get_today");
@@ -93,4 +100,100 @@ describe("assistant (OpenRouter)", () => {
     await wait(10);
     expect(ran).toEqual([{ connector: "GOOGLECALENDAR_CREATE_EVENT", args: { summary: "rehearsal" } }]);
   });
+
+  it("uses OpenRouter's server tools and free extras, with spend caps", async () => {
+    let body: Record<string, any> = {};
+    const fetchImpl = (async (_u: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(
+        JSON.stringify({
+          model: "x",
+          choices: [{
+            message: {
+              content: "The show opens on 4 Dec.",
+              tool_calls: [{ id: "s1", type: "function", function: { name: "openrouter:web_search", arguments: "{}" } }],
+              annotations: [
+                { type: "url_citation", url_citation: { url: "https://example.org/show", title: "The show" } },
+                { type: "url_citation", url_citation: { url: "https://example.org/show", title: "dupe" } },
+                { type: "url_citation", url_citation: { url: "javascript:alert(1)", title: "bad" } },
+              ],
+            },
+            finish_reason: "stop",
+          }],
+          usage: { cost: 0.002, server_tool_use_details: { tool_calls_executed: 1 } },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+    const tools = serverToolsFor({ webSearch: true, aiAdvisorModel: "deepseek/deepseek-v4-pro", blockList: ["https://www.youtube.com/", "tiktok.com"] }, { wall: false });
+    const r = await openRouter("k", { fetchImpl }).chat({ messages: [{ role: "user", content: "when is the show" }], serverTools: tools, sessionId: "thread-1", effort: "low" });
+    expect(r.toolCalls).toEqual([]); // server tools already ran on OpenRouter
+    expect(r.citations).toEqual([{ url: "https://example.org/show", title: "The show" }]);
+    expect(r.serverToolCalls).toBe(1);
+    expect(body.session_id).toBe("thread-1");
+    expect(body.reasoning).toEqual({ effort: "low" });
+    expect(body.plugins).toContainEqual({ id: "context-compression", engine: "middle-out" });
+    expect(body.provider.max_price).toBeTruthy();
+    expect(body.stop_server_tools_when).toContainEqual({ type: "max_cost", max_cost_in_dollars: 0.03 });
+    const types = body.tools.map((t: { type: string }) => t.type);
+    expect(types).toEqual(["openrouter:datetime", "openrouter:web_search", "openrouter:web_fetch", "openrouter:advisor"]);
+    const search = body.tools.find((t: { type: string }) => t.type === "openrouter:web_search");
+    expect(search.parameters.excluded_domains).toEqual(["www.youtube.com", "tiktok.com"]);
+    expect(body.tools.find((t: { type: string }) => t.type === "openrouter:advisor").parameters.forward_transcript).toBe(false);
+  });
+
+  it("keeps the wall lean: no advisor, fewer searches; web search can be switched off", () => {
+    const wall = serverToolsFor({ webSearch: true, aiAdvisorModel: "m", blockList: [] }, { wall: true });
+    expect(wall.map((t) => t.type)).toEqual(["openrouter:datetime", "openrouter:web_search", "openrouter:web_fetch"]);
+    expect(wall[1].parameters?.max_uses).toBe(1);
+    expect(serverToolsFor({ webSearch: false, aiAdvisorModel: "", blockList: [] }, { wall: false }).map((t) => t.type)).toEqual(["openrouter:datetime"]);
+  });
+
+  it("runs several read tools at once and lists the web sources it used", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const llm = scripted([
+      () => ({ tools: [{ name: "get_today", args: {} }, { name: "get_week", args: {} }] }),
+      () => ({ content: "Rehearsal is at 4.", citations: [{ url: "https://example.org/a", title: "A" }] }),
+    ]);
+    const agent = agentService({ hub, llm, say: () => {}, log: () => {} });
+    const id = agent.run({ prompt: "when's rehearsal", mode: "ask", origin: "app" });
+    await wait(60);
+    const t = hub.threads.get(id)!;
+    expect(llm.seen[1].filter((m) => m.role === "tool")).toHaveLength(2);
+    expect(llm.opts[0].sessionId).toBe(id);
+    expect(llm.opts[0].serverTools?.some((x) => x.type === "openrouter:web_search")).toBe(true);
+    expect(t.log.some((l) => l.text.includes("https://example.org/a"))).toBe(true);
+    expect(t.log.at(-1)?.text).toBe("Rehearsal is at 4.");
+  });
+
+  it("titles voice notes with a structured answer (response healing on)", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    hub.updateSettings("owner", { ai: true });
+    let body: Record<string, any> = {};
+    const fetchImpl = (async (_u: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"title":"chorus idea for act two","tags":["Music","idea!"]}' } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const agent = agentService({ hub, llm: openRouter("k", { fetchImpl }), say: () => {}, log: () => {} });
+    const t = await agent.tidyNote!("so for act two I think the chorus should come in earlier");
+    expect(t).toEqual({ label: "chorus idea for act two", tags: ["music", "idea"] });
+    expect(body.response_format.type).toBe("json_schema");
+    expect(body.plugins).toContainEqual({ id: "response-healing" });
+    expect(body.tools).toBeUndefined();
+  });
+
+  it("asks again without the reasoning hint if no zero-retention endpoint takes it", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetchImpl = (async (_u: string, init: RequestInit) => {
+      const b = JSON.parse(String(init.body));
+      bodies.push(b);
+      if (b.reasoning) return new Response(JSON.stringify({ error: { message: "No endpoints found that can handle the requested parameters." } }), { status: 404 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await openRouter("k", { fetchImpl }).chat({ messages: [{ role: "user", content: "hi" }], effort: "low" });
+    expect(r.content).toBe("ok");
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1].reasoning).toBeUndefined();
+  });
 });
+

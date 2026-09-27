@@ -363,8 +363,21 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const note = hub.listNotes().find((n) => n.id === id);
     if (!note) throw new HttpError(404, "no such note");
     if (!text) return { text, note };
-    const label = note.label === "new recording" ? text.split(/\s+/).slice(0, 6).join(" ").replace(/[.,!?]+$/, "").slice(0, 60) : undefined;
-    return { text, note: hub.patchNote(id, { body: note.body ? `${note.body}\n\n${text}` : text, ...(label ? { label } : {}) }) };
+    const fresh = note.label === "new recording";
+    const label = fresh ? text.split(/\s+/).slice(0, 6).join(" ").replace(/[.,!?]+$/, "").slice(0, 60) : undefined;
+    const saved = hub.patchNote(id, { body: note.body ? `${note.body}\n\n${text}` : text, ...(label ? { label } : {}) });
+    // Then a proper title and tags from the assistant, if it's on (doesn't hold up the reply).
+    if (fresh && ctx.agent.tidyNote) {
+      void ctx.agent
+        .tidyNote(text)
+        .then((t) => {
+          if (!t) return;
+          const cur = hub.listNotes().find((n) => n.id === id);
+          if (cur && cur.label === label) hub.patchNote(id, { label: t.label, tags: [...new Set([...cur.tags, ...t.tags])].slice(0, 10) });
+        })
+        .catch(() => {});
+    }
+    return { text, note: saved };
   });
   app.get("/api/notes/:id/audio", async (req, reply) => {
     need(req, "notes");

@@ -63,7 +63,16 @@ The steps are `vault` → `reader` → `extract` → `classify` → `actions`:
 
 - `llm.ts` talks to OpenRouter (OpenAI-style chat + tools). Default model is a fast, cheap one
   (`deepseek/deepseek-v4.1-flash`, falling back to `z-ai/glm-5.3-flash`), always on
-  zero-data-retention providers, sorted by speed. Cost per month is tracked in `spend.ts`.
+  zero-data-retention providers, sorted by speed, under a price ceiling. Cost per month is
+  tracked in `spend.ts`. Each question uses its thread id as `session_id`, so every turn hits the
+  same provider's prompt cache; `context-compression` keeps long threads from failing; read tools
+  the model asks for together run in parallel.
+- OpenRouter server tools run inside the request: `datetime`, `web_search` (Parallel turbo, the
+  cheapest engine) + `web_fetch`, and `advisor` (a stronger "tutor" model the cheap one consults
+  on hard questions, desktop/app only). `stop_server_tools_when` caps steps and spend. Answers list
+  the web pages they used.
+- Voice notes get a title and tags from a structured (JSON Schema) answer with the free
+  `response-healing` plugin.
 - `tools.ts` defines each tool once (zod schema → JSON Schema). The same tools serve the text
   assistant and Gemini Live. Read tools see tasks, notes, school items, calendar and timetable;
   `propose_*` tools create asks, which Peter approves.

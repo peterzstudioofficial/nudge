@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type Llm, type Message, DEFAULT_MODEL, LlmError } from "./llm";
+import { type Llm, type Message, DEFAULT_MODEL, LlmError, serverToolsFor, type Citation } from "./llm";
 import { type Tool, tool, parseArgs } from "./tools";
 import { addDays, dueLabel, searchNotes, sessionView, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
 import type { AgentService } from "../context";
@@ -29,7 +29,9 @@ How you work:
 - Anything that sends a message, adds sessions to the week, or sets a reminder must go through the propose_* tools. They only create a question for the student to approve; nothing is sent or changed until they say yes. Tell them what you proposed in one line.
 - Emails you draft are from the student, in their voice: friendly, brief, correctly spelt, signed with their first name.
 - You cannot unlock the device, end a focus session, shorten a task, lift a website block or change points or rewards. Those belong to the parent app. If asked for any of that, or for any way around the device, reply with exactly REFUSE and nothing else. Never explain a way around the device.
-- Don't moralise or lecture about focus. Be neutral and factual.`;
+- Don't moralise or lecture about focus. Be neutral and factual.
+- Web search (if you have it) is for public facts only: topics, exam boards, events, opening times. Never put the student's name, school, teachers, friends or anything from their notes or emails into a search query or a URL.
+- If you have the tutor tool, use it only for genuinely hard explanations or plans; answer simple things yourself. Give it the question, never personal details.`;
 
 const MODE_NOTE: Record<AgentMode, string> = {
   ask: "Mode: ASK. Answer only. Do not use any propose_* tool.",
@@ -411,14 +413,29 @@ export function agentService(o: Opts): AgentService {
         { role: "user", content: `${context}\n\n${thread.prompt}` },
       ];
       let text = "";
+      const s = hub.settings();
+      const wall = thread.origin === "wall";
+      const serverTools = serverToolsFor(s, { wall });
+      const specs = list.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
+      const cites = new Map<string, Citation>();
       for (let turn = 0; turn < 10 && !ac.signal.aborted; turn++) {
         const r = await client.chat({
           messages,
-          tools: list.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })),
-          maxTokens: thread.origin === "wall" ? 500 : 2000,
-          model: hub.settings().aiModel || DEFAULT_MODEL,
+          tools: specs,
+          serverTools,
+          maxTokens: wall ? 500 : 2000,
+          model: s.aiModel || DEFAULT_MODEL,
+          effort: wall ? "low" : "medium",
+          sessionId: thread.id,
+          maxToolCostUsd: wall ? 0.01 : 0.03,
           signal: ac.signal,
         });
+        for (const c of r.citations) cites.set(c.url, c);
+        if (r.serverToolCalls && !thread.steps.some((x) => x.text === "looked it up")) {
+          thread.steps.forEach((x) => (x.done = true));
+          thread.steps.push({ text: "looked it up", meta: r.citations.length ? `${r.citations.length} SOURCES` : "", done: false });
+          save(thread);
+        }
         messages.push({ role: "assistant", content: r.content || null, ...(r.toolCalls.length ? { tool_calls: r.toolCalls } : {}) });
         if (!r.toolCalls.length) {
           text = r.content;
@@ -428,16 +445,20 @@ export function agentService(o: Opts): AgentService {
           thread.log.push({ icon: "notes", text: r.content });
           save(thread);
         }
-        for (const call of r.toolCalls) {
+        // Read tools run side by side; anything that makes an ask runs one at a time, in order.
+        const runOne = async (call: (typeof r.toolCalls)[number]) => {
           const t = byName.get(call.function.name);
-          let out: string;
           try {
-            out = t ? await t.run(parseArgs(call.function.arguments)) : `error: no tool called ${call.function.name}`;
+            return t ? await t.run(parseArgs(call.function.arguments)) : `error: no tool called ${call.function.name}`;
           } catch (e) {
-            out = `error: ${(e as Error).message}`.slice(0, 300);
+            return `error: ${(e as Error).message}`.slice(0, 300);
           }
-          messages.push({ role: "tool", tool_call_id: call.id, content: out.slice(0, 12_000) });
-        }
+        };
+        const results = new Map<string, string>();
+        const reads = r.toolCalls.filter((c) => byName.get(c.function.name)?.kind === "read");
+        await Promise.all(reads.map(async (c) => results.set(c.id, await runOne(c))));
+        for (const c of r.toolCalls) if (!results.has(c.id)) results.set(c.id, await runOne(c));
+        for (const c of r.toolCalls) messages.push({ role: "tool", tool_call_id: c.id, content: results.get(c.id)!.slice(0, 12_000) });
         if (thread.status === "asking") {
           // An ask is waiting for a yes: stop here, the student answers on the wall or the app.
           text = "";
@@ -445,6 +466,9 @@ export function agentService(o: Opts): AgentService {
         }
       }
       if (ac.signal.aborted) return;
+      if (cites.size && text && text !== "DEFER" && text !== "REFUSE") {
+        thread.log.push({ icon: "public", text: [...cites.values()].slice(0, 5).map((c) => `${c.title} — ${c.url}`).join("\n") });
+      }
       finish(thread, text);
     } catch (e) {
       if (ac.signal.aborted) return;
@@ -474,6 +498,35 @@ export function agentService(o: Opts): AgentService {
       const t = newThread(prompt, mode, origin);
       void execute(t);
       return t.id;
+    },
+    async tidyNote(text) {
+      if (!client || !hub.settings().ai || !text.trim()) return null;
+      const r = await client.chat({
+        messages: [
+          { role: "system", content: "Give a short title (max 6 words, lower case, no full stop) and up to 3 one-word lower-case tags for this voice note by a UK school student. Tags from: school, homework, revision, music, drama, film, idea, todo, personal, or a subject name." },
+          { role: "user", content: text.slice(0, 4000) },
+        ],
+        json: {
+          name: "note",
+          schema: {
+            type: "object",
+            properties: { title: { type: "string" }, tags: { type: "array", items: { type: "string" } } },
+            required: ["title", "tags"],
+            additionalProperties: false,
+          },
+        },
+        maxTokens: 120,
+        effort: "none",
+        model: hub.settings().aiModel || DEFAULT_MODEL,
+      });
+      try {
+        const j = JSON.parse(r.content) as { title?: unknown; tags?: unknown };
+        const label = typeof j.title === "string" ? j.title.trim().slice(0, 60) : "";
+        const tags = Array.isArray(j.tags) ? j.tags.filter((t): t is string => typeof t === "string").map((t) => t.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 20)).filter(Boolean).slice(0, 3) : [];
+        return label ? { label, tags } : null;
+      } catch {
+        return null;
+      }
     },
     /** For the voice assistant: same tools, same rules, same finish — a different model drives it. */
     async voiceTurn() {

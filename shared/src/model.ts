@@ -399,6 +399,10 @@ export const Settings = z.object({
   schoolMail: z.boolean(),
   schoolMailSenders: z.array(z.string().max(120)).max(50),
   aiModel: z.string().max(60),
+  /** let the assistant search and read the web (OpenRouter server tools) */
+  webSearch: z.boolean(),
+  /** stronger model the assistant may consult on hard questions ("" = off) */
+  aiAdvisorModel: z.string().max(60),
   /** Gemini Live model for the voice assistant */
   voiceModel: z.string().max(60),
   /** speak voice replies out loud (needs a speaker on the Pi) */
@@ -425,7 +429,7 @@ export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
   "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
-  "voiceModel", "voiceReplies",
+  "voiceModel", "voiceReplies", "webSearch", "aiAdvisorModel",
 ];
 
 export const Device = z.object({

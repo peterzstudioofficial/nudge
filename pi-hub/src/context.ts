@@ -36,6 +36,8 @@ export interface AgentService {
     finish(heard: string, text: string): void;
     fail(msg: string): void;
   }>;
+  /** A short title and tags for a transcribed voice note (structured output). */
+  tidyNote?(text: string): Promise<{ label: string; tags: string[] } | null>;
 }
 export interface HwBridge {
   /** input from the GPIO daemon → the wall screen */
