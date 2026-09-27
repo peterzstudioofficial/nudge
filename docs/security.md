@@ -55,10 +55,26 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 - Connected apps run in a Composio session with its code sandbox switched off. Only actions from
   apps switched on in setup can run.
 
+### Built tools
+
+- Building is a big job: it always shows where it runs, when, and the estimated cost, and only a
+  yes starts it. A monthly budget (setup) stops all cloud AI when it's reached; no request can
+  reach an expensive model.
+- Tools are AI-written code, so they run on their own origin (port 8790): they can't see the
+  Nudge apps' storage or pairing keys, can't call the hub's API as you, and can't reach the
+  internet. Only devices on the tailnet or home network can open them.
+- Sandbox builds run in OpenRouter's container with networking switched off. Attachments are
+  uploaded for that one job and deleted afterwards (OpenRouter's Files API isn't zero-retention
+  while a file exists). Batch builds send only the build brief.
+- Android can't install an app silently: a tool opens in Chrome and one tap on "Install app" adds
+  it to the home screen.
+
 ### Handing work to Claude on the computer
 
 - Only after a yes on the wall or phone, and only for what the desktop app reports it can do.
 - Claude Desktop links (Cowork / Code) only fill in the task; Peter reads it and presses send.
+- Build jobs on the computer run Claude Code only inside their own new folder in
+  `Documents/Nudge Builds`, after the PC asks too; it may edit files there and nowhere else.
 - Running Claude Code needs two switches in the tray (run, and separately edit files), a folder
   Peter added himself, and a second yes on the computer each time. It runs with
   `--permission-prompts none`, so anything beyond reading (or editing, if allowed) is refused.

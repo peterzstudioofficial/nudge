@@ -252,5 +252,37 @@ describe("assistant (OpenRouter)", () => {
     expect(ask.payload).toEqual({ target: "code_run", task: "Make the nav bar sticky on mobile", workspace: "portfolio", threadId: id });
     expect(hub.pendingHandoffs()).toHaveLength(0);
   });
+
+  it("never uses big expensive models, and stops at the monthly budget", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    for (const m of ["anthropic/claude-sonnet-5", "openai/gpt-5.6-terra", "google/gemini-3.8-pro", "x-ai/grok-4"]) {
+      expect(() => hub.updateSettings("owner", { aiModel: m })).toThrow(/expensive/);
+    }
+    for (const m of ["deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4-pro", "z-ai/glm-5.3-flash", "google/gemini-3.8-flash", "x-ai/grok-4-fast", "@preset/nudge"]) {
+      expect(() => hub.updateSettings("owner", { aiModel: m })).not.toThrow();
+    }
+    hub.updateSettings("owner", { aiBudgetUsd: 1 });
+    hub.db.kvSet("aiSpend", { [hub.todayKey().slice(0, 7)]: 1.2 });
+    const llm = scripted([() => ({ content: "should not be called" })]);
+    const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "hi", mode: "ask", origin: "app" });
+    await wait(20);
+    expect(llm.seen).toHaveLength(0);
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/budget/);
+  });
+
+  it("stops a single question that's getting pricey", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    let n = 0;
+    const llm: Llm = {
+      async chat() {
+        n++;
+        return { content: "", toolCalls: [{ id: `c${n}`, type: "function", function: { name: "get_today", arguments: "{}" } }], finish: "tool_calls", model: "t", cost: 0.03, citations: [], serverToolCalls: 0 };
+      },
+    };
+    const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "loop forever", mode: "ask", origin: "app" });
+    await wait(40);
+    expect(n).toBe(3); // 0.03, 0.06, 0.09 > 0.06 → stop
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/pricey/);
+  });
 });
 

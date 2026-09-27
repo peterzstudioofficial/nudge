@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import {
   addDays, autoTags, bankFor, BagItem, Birthday, canAddTask, canBreak, canClaim, canSkip, dateKey,
-  ClaudeDesktop, ClaudeTask, DayKind, DayState, DEFAULT_SETTINGS, FeedEvent, Handoff, hhmmToMinutes, isoWeekday, mmss, NewBagItem,
+  BuildRequest, ClaudeDesktop, ClaudeTask, DayKind, isExpensiveModel, Job, ToolInfo, DayState, DEFAULT_SETTINGS, FeedEvent, Handoff, hhmmToMinutes, isoWeekday, mmss, NewBagItem,
   NewNote, NewTask, NewTemplate, Note, NotePatch, OWNER_SETTINGS, PARENT_SETTINGS, parseDateKey, PointEntry,
   Reminder, Reward, Role, Session, Settings, SUBJECT_NAMES, sortTasks, Task, TaskPatch, Template, TermDate,
   termInfo, Timetable, CHURCHERS_2026_27, workedNow, Ask, AgentThread, SchoolItem, relativeDay, dueLabel,
@@ -54,6 +54,8 @@ export class Hub {
   asks;
   threads;
   handoffs;
+  jobs;
+  tools;
   school;
   events;
   private clock: () => number;
@@ -71,6 +73,8 @@ export class Hub {
     this.asks = db.collection<Ask>("ask", () => null, (a) => a.createdAt);
     this.threads = db.collection<AgentThread>("thread", () => null, (t) => t.createdAt);
     this.handoffs = db.collection<Handoff>("handoff", () => null, (h) => h.createdAt);
+    this.jobs = db.collection<Job>("job", () => null, (j) => j.createdAt);
+    this.tools = db.collection<ToolInfo>("tool", () => null, (t) => t.createdAt);
     this.school = db.collection<SchoolItem>("school", (s) => s.due, (s) => s.receivedAt);
     this.events = db.collection<CalEvent>("event", (e) => e.date, (e) => hhmmToMinutes(e.time ?? "00:00"));
     this.recoverSession();
@@ -93,6 +97,12 @@ export class Hub {
     const allowed: (keyof Settings)[] = role === "parent" ? PARENT_SETTINGS : OWNER_SETTINGS;
     const bad = Object.keys(patch).filter((k) => !allowed.includes(k as keyof Settings));
     if (bad.length) throw new HttpError(403, `can't change: ${bad.join(", ")}`, { icon: "lock", line: "ask a parent in their app" });
+    for (const k of ["aiModel", "aiAdvisorModel", "buildModel"] as const) {
+      const m = patch[k];
+      if (typeof m === "string" && m && isExpensiveModel(m)) {
+        throw new HttpError(400, `${m} is a big, expensive model. Nudge sticks to cheap fast ones; heavy jobs go to Claude Code on your computer.`);
+      }
+    }
     const next = { ...this.settings(), ...patch };
     this.db.kvSet("settings", next);
     this.bus.changed("settings");
@@ -913,6 +923,9 @@ export class Hub {
       this.feed("agent", `Added ${list.length} session${list.length === 1 ? "" : "s"} to the week`);
     } else if (a.kind === "reminder") {
       this.addReminder(String(p.text ?? "reminder"), String(p.line ?? ""), Number(p.at ?? this.now()), "agent");
+    } else if (a.kind === "build") {
+      const r = BuildRequest.safeParse(p.request);
+      if (r.success) this.startJob(r.data, Number(p.estUsd ?? 0), a.threadId ?? null);
     } else if (a.kind === "claude") {
       const t = ClaudeTask.safeParse(p);
       if (t.success) {
@@ -942,6 +955,10 @@ export class Hub {
     const h = this.handoffs.get(id);
     if (!h || h.kind !== "claude") throw notFound("no such hand-off");
     this.doneHandoff(id);
+    if (h.payload.jobId) {
+      const j = this.jobs.get(h.payload.jobId);
+      if (j && j.status !== "done") this.updateJob(j.id, r.ok ? { note: "built on your computer", costUsd: r.costUsd ?? 0 } : { status: "failed", error: r.text.slice(0, 200), note: "didn't finish" });
+    }
     const t = h.payload.threadId ? this.threads.get(h.payload.threadId) : null;
     if (t) {
       t.log.push({ icon: r.ok ? "terminal" : "error", text: `Claude on the computer: ${r.text}`.slice(0, 4000) });
@@ -949,6 +966,84 @@ export class Hub {
       this.bus.changed("agent");
     }
     this.feed("agent", r.ok ? "Claude on the computer finished" : "Claude on the computer couldn't finish");
+  }
+
+  /* ---------------------------- build jobs + tools ---------------------------- */
+
+  /** Set by the builder: picks up a job that should run on the Pi. */
+  onJobQueued?: (j: Job) => void;
+
+  startJob(request: BuildRequest, estUsd: number, threadId: string | null): Job {
+    const job = this.jobs.put({
+      id: newId(), kind: "build", request, status: "queued", note: request.when === "later" ? "queued for later (half price)" : "starting",
+      estUsd, costUsd: 0, batchId: null, toolId: null, threadId, error: null, createdAt: this.now(), updatedAt: this.now(),
+    });
+    if (request.where === "computer") {
+      // Claude Code on the PC builds it in the Nudge Builds folder; the PC sends the result back.
+      this.handoffs.put({
+        id: newId(), kind: "claude", createdAt: this.now(), doneAt: null,
+        payload: { target: "code_run", task: buildTaskForClaude(request), workspace: null, threadId, jobId: job.id },
+      });
+      this.updateJob(job.id, { status: "running", note: "handed to Claude Code on your computer" });
+      this.bus.changed("handoffs");
+    } else {
+      this.onJobQueued?.(job);
+    }
+    this.feed("agent", `Building "${request.title}"${request.when === "later" ? " later" : ""}`);
+    this.bus.changed("jobs");
+    return this.jobs.get(job.id)!;
+  }
+
+  updateJob(id: string, patch: Partial<Omit<Job, "id" | "kind" | "request">>): Job | null {
+    const j = this.jobs.get(id);
+    if (!j) return null;
+    const next = this.jobs.put({ ...j, ...patch, updatedAt: this.now() });
+    this.bus.changed("jobs");
+    return next;
+  }
+
+  activeJobs(): Job[] {
+    const dayAgo = this.now() - 86400_000;
+    return this.jobs.all().filter((j) => ["queued", "running", "waiting"].includes(j.status) || j.updatedAt > dayAgo).sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  listTools(): ToolInfo[] {
+    return this.tools.all().sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /** Save a built tool (files are stored as blobs; paths are relative, no "..", max 5 MB total). */
+  putTool(info: Omit<ToolInfo, "id" | "bytes" | "version" | "createdAt" | "updatedAt"> & { id?: string }, files: Record<string, { mime: string; data: Uint8Array }>): ToolInfo {
+    const paths = Object.keys(files);
+    if (!paths.includes("index.html")) throw new HttpError(400, "a tool needs an index.html");
+    let bytes = 0;
+    for (const pth of paths) {
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,100}$/.test(pth) || pth.includes("..")) throw new HttpError(400, `bad file name ${pth}`);
+      bytes += files[pth].data.length;
+    }
+    if (bytes > 5 * 1024 * 1024) throw new HttpError(413, "that tool is too big (5 MB max)");
+    const prev = info.id ? this.tools.get(info.id) : null;
+    const id = prev?.id ?? newId();
+    for (const old of this.db.kvGet<string[]>(`toolfiles:${id}`, [])) this.db.blobDel(`tool:${id}:${old}`);
+    for (const pth of paths) this.db.blobPut(`tool:${id}:${pth}`, files[pth].mime, files[pth].data);
+    this.db.kvSet(`toolfiles:${id}`, paths);
+    const t = this.tools.put({
+      id, title: info.title, description: info.description, icon: info.icon, target: info.target, jobId: info.jobId,
+      bytes, version: (prev?.version ?? 0) + 1, createdAt: prev?.createdAt ?? this.now(), updatedAt: this.now(),
+    });
+    this.bus.changed("tools");
+    return t;
+  }
+
+  toolFile(id: string, pth: string): { mime: string; data: Uint8Array } | null {
+    if (!this.tools.get(id)) return null;
+    return this.db.blobGet(`tool:${id}:${pth}`);
+  }
+
+  deleteTool(id: string): void {
+    for (const pth of this.db.kvGet<string[]>(`toolfiles:${id}`, [])) this.db.blobDel(`tool:${id}:${pth}`);
+    this.db.kvSet(`toolfiles:${id}`, []);
+    this.tools.del(id);
+    this.bus.changed("tools");
   }
 
   claudeDesktop(): (ClaudeDesktop & { at: number }) | null {
@@ -986,3 +1081,19 @@ function cap(s: string) {
 export function minutesUntil(hhmm: string, nowMins: number): number {
   return hhmmToMinutes(hhmm) - nowMins;
 }
+
+/** The instructions Claude Code gets when it builds a tool on the computer. */
+export function buildTaskForClaude(r: BuildRequest): string {
+  return [
+    `Build "${r.title}" as a small web app for ${r.target === "phone" ? "a phone (portrait, touch)" : r.target === "school" ? "school work on a laptop" : "phone and laptop"}.`,
+    "",
+    r.brief,
+    "",
+    "Rules:",
+    "- Put the finished app in ./out/ with index.html as the entry point. Prefer ONE self-contained index.html (inline CSS/JS/SVG).",
+    "- It must work offline: no CDNs, no external fonts, no network requests. Store data in localStorage.",
+    "- Keep ./out under 5 MB. Don't install global packages or push anything anywhere.",
+    "- Finish with a two-line summary of what you built.",
+  ].join("\n");
+}
+

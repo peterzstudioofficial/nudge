@@ -15,6 +15,7 @@ import { newId } from "./hub";
 import { applySetup, SetupPack } from "./setup";
 import { spend } from "./agent/spend";
 import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
+import { estimateBuild, iconFor } from "./builder/builder";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
@@ -505,6 +506,83 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     credit = null;
     return { ok: true };
   });
+  /* ----------------------------- tools + build jobs ----------------------------- */
+  const toolsOrigin = (req: FastifyRequest) => {
+    const host = String(req.headers.host ?? "127.0.0.1").replace(/:\d+$/, "");
+    const tls = !!(cfg.tlsCert && cfg.tlsKey && fs.existsSync(cfg.tlsCert));
+    return `${tls ? "https" : "http"}://${host}:${cfg.toolsPort}`;
+  };
+  app.get("/api/tools", async (req) => {
+    need(req, "notes");
+    return { origin: toolsOrigin(req), tools: hub.listTools(), jobs: hub.activeJobs().map((j) => ({ ...j, request: { ...j.request, brief: j.request.brief.slice(0, 400) } })) };
+  });
+  app.delete("/api/tools/:id", async (req) => {
+    need(req, "settings.owner");
+    hub.deleteTool((req.params as { id: string }).id);
+    return { ok: true };
+  });
+  app.post("/api/jobs/:id/cancel", async (req) => {
+    need(req, "settings.owner");
+    ctx.builder?.cancel((req.params as { id: string }).id);
+    return { ok: true };
+  });
+  // Ask for a tool from the phone (with optional files). It still needs a yes, with its cost shown.
+  app.post("/api/tools/request", async (req) => {
+    need(req, "settings.owner");
+    const b = parse(
+      z.object({
+        title: z.string().min(2).max(60),
+        brief: z.string().min(10).max(6000),
+        target: z.enum(["phone", "school", "any"]),
+        when: z.enum(["now", "later"]),
+        where: z.enum(["pi", "computer"]),
+        toolId: z.string().max(40).nullable().default(null),
+        attachments: z.array(z.object({ name: z.string().min(1).max(120), mime: z.string().max(80), data: z.string().max(11_000_000) })).max(4).default([]),
+      }),
+      req.body,
+    );
+    if (b.where === "computer" && !(hub.claudeDesktop()?.cli && hub.claudeDesktop()?.allowRun)) throw new HttpError(409, "Claude Code isn't set up on your computer yet");
+    let total = 0;
+    const attachments = b.attachments.map((a) => {
+      const data = Buffer.from(a.data, "base64");
+      total += data.length;
+      const id = newId();
+      hub.db.blobPut(`attach:${id}`, a.mime, new Uint8Array(data));
+      return { id, name: a.name.replace(/[^\w .-]/g, "_"), mime: a.mime };
+    });
+    if (total > 8 * 1024 * 1024) throw new HttpError(413, "attachments are too big (8 MB max)");
+    const request = { title: b.title, brief: b.brief, target: b.target, when: b.when, where: b.where, toolId: b.toolId, attachments };
+    const est = estimateBuild(request);
+    return hub.createAsk({
+      kind: "build",
+      head: "BIG JOB · ARE YOU SURE?",
+      line: `build ${b.title.toLowerCase()}?`,
+      rows: [
+        { k: "WHERE", v: b.where === "computer" ? "claude code on your pc" : "the pi, in a sandbox" },
+        { k: "WHEN", v: b.when === "later" ? "later · half price" : "now · a few minutes" },
+        { k: "COST", v: b.where === "computer" ? "your claude plan" : `about $${Math.max(est, 0.001).toFixed(3)}` },
+      ],
+      payload: { request, estUsd: est },
+      threadId: null,
+    });
+  });
+  // The computer sends back what Claude Code built for a job.
+  app.post("/api/jobs/:id/tool", async (req) => {
+    need(req, "handoff");
+    const id = (req.params as { id: string }).id;
+    const j = hub.jobs.get(id);
+    if (!j || j.request.where !== "computer" || j.status === "cancelled") throw new HttpError(404, "no such build");
+    const b = parse(z.object({ files: z.record(z.string().max(120), z.string().max(7_000_000)), summary: z.string().max(600).default("") }), req.body);
+    const files: Record<string, { mime: string; data: Uint8Array }> = {};
+    for (const [pth, data] of Object.entries(b.files)) files[pth] = { mime: mimeOf(pth), data: new Uint8Array(Buffer.from(data, "base64")) };
+    const r = j.request;
+    const t = hub.putTool({ id: r.toolId ?? undefined, title: r.title, description: (b.summary || r.brief).replace(/\s+/g, " ").slice(0, 300), icon: iconFor(`${r.title} ${r.brief}`), target: r.target, jobId: j.id }, files);
+    hub.updateJob(id, { status: "done", toolId: t.id, note: "ready in your Tools tab", error: null });
+    hub.feed("agent", `Built "${r.title}" on the computer — it's in your Tools tab`);
+    sayOnWall(ctx, "apps", `${r.title.toLowerCase()} is ready`, "IN YOUR PHONE'S TOOLS TAB", 5000);
+    return { ok: true, id: t.id };
+  });
+
   app.post("/api/agent/threads", async (req) => {
     const c = need(req, "agent");
     if (!hub.settings().ai) throw new HttpError(409, "assistant is off", { icon: "smart_toy", line: "assistant is off", sub: "TURN IT ON IN THE APP" });
@@ -686,3 +764,9 @@ export function sayOnWall(ctx: Ctx, icon: string, line: string, sub?: string, ms
 
 export type { FastifyReply };
 export { path };
+
+const mimeOf = (p: string) =>
+  p.endsWith(".html") ? "text/html" : p.endsWith(".js") || p.endsWith(".mjs") ? "text/javascript" : p.endsWith(".css") ? "text/css" : p.endsWith(".svg") ? "image/svg+xml"
+    : p.endsWith(".png") ? "image/png" : p.endsWith(".jpg") || p.endsWith(".jpeg") ? "image/jpeg" : p.endsWith(".json") || p.endsWith(".webmanifest") ? "application/json"
+    : p.endsWith(".woff2") ? "font/woff2" : p.endsWith(".mp3") ? "audio/mpeg" : "application/octet-stream";
+

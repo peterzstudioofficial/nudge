@@ -196,7 +196,9 @@ export class Device {
     if (ask && !this.s.shownAsks.includes(ask.id)) {
       this.s.shownAsks = [...this.s.shownAsks, ask.id].slice(-50);
       clearTimeout(this.timers.slab);
-      this.set({ slab: { icon: ask.kind === "email" ? "send" : "event_available", line: ask.line, rows: ask.rows, ask: true, askId: ask.id } });
+      const icon = ask.kind === "email" ? "send" : ask.kind === "build" ? "construction" : ask.kind === "claude" ? "terminal" : ask.kind === "app" ? "apps" : "event_available";
+      this.askKinds.set(ask.id, ask.kind);
+      this.set({ slab: { icon, line: ask.line, rows: ask.rows, ask: true, askId: ask.id } });
     }
     if (this.s.slab?.ask && !snap.asks.some((a) => a.id === this.s.slab!.askId)) this.dropSlab();
     this.emit();
@@ -615,6 +617,8 @@ export class Device {
 
   /* ------------------------------ assistant ------------------------------ */
 
+  private askKinds = new Map<string, string>();
+
   wake = () => {
     this.touch();
     const snap = this.snap;
@@ -654,7 +658,9 @@ export class Device {
     if (!sl?.askId) return;
     this.dropSlab();
     const r = await this.call("POST", `/api/asks/${sl.askId}/answer`, { yes });
-    if (r && yes) this.say({ icon: "check_circle", line: "done", sub: "CHECK YOUR COMPUTER TO SEND" }, 2600);
+    const kind = this.askKinds.get(sl.askId);
+    const sub = kind === "email" ? "CHECK YOUR COMPUTER TO SEND" : kind === "build" ? "IT'LL APPEAR IN YOUR TOOLS TAB" : kind === "claude" ? "ON YOUR COMPUTER" : undefined;
+    if (r && yes) this.say({ icon: "check_circle", line: kind === "build" ? "building it" : "done", sub }, 2600);
     this.refresh();
   };
 

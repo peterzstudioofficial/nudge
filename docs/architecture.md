@@ -86,6 +86,19 @@ The steps are `vault` → `reader` → `extract` → `classify` → `actions`:
   typed in but not sent, or runs Claude Code headless (`claude -p`, prompt on stdin) in a folder
   Peter added from the tray, after the PC asks him again. Read-and-plan only unless he allows
   edits. The result goes back into the assistant's thread.
+- `builder/` builds tools: small offline web apps for the phone's Tools tab. The `build_tool` ask
+  shows where, when and the estimated cost; only a yes starts a job. "now" runs on OpenRouter's
+  Responses API with the sandboxed `openrouter:bash` container (network off): the model writes
+  `out/`, tests it, and the files are read back with the Containers API. "later" uses the Batch
+  API at half price, falling back to an overnight sandbox build. Attachments go up with the Files
+  API for that one job and are deleted after. "computer" hands the job to Claude Code on the PC,
+  which builds in `Documents/Nudge Builds/<job>` and uploads `out/`.
+- `tools-server.ts` serves built tools on their own port (8790), so their own origin: they can't
+  read the apps' storage or keys, and `connect-src 'self'` keeps them off the internet. Each gets
+  a manifest, PNG icons and an offline service worker, so Chrome on Android offers "Install app".
+- Cost guards: a price ceiling on every request (no Claude-class models can be reached), a block
+  on setting expensive models, a per-question spend cap, and a monthly budget that stops all cloud
+  AI (assistant and builds) when it's reached.
 - `keys.ts` holds the OpenRouter key: from `hub.env`, or connected from the setup page with
   OpenRouter's OAuth PKCE flow and stored encrypted in the database.
 - `rag/` is private search: BM25 plus on-device MiniLM embeddings, fused by rank, cached in SQLite

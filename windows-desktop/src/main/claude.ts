@@ -1,4 +1,4 @@
-import { dialog, Notification, shell } from "electron";
+import { app, dialog, Notification, shell } from "electron";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -57,6 +57,7 @@ const done = (client: HubClient, h: ClaudeHandoff, ok: boolean, text: string, co
   client.request("POST", `/api/handoffs/${h.id}/result`, { ok, text: text.slice(0, 4000), ...(costUsd != null ? { costUsd } : {}) }).catch(() => {});
 
 export async function handleClaude(client: HubClient, h: ClaudeHandoff, p: Prefs): Promise<void> {
+  if (h.payload.jobId) return buildTool(client, h, p);
   const { target, task, workspace } = h.payload;
   const ws = workspace ? (p.claudeWorkspaces ?? []).find((w) => w.name === workspace) : undefined;
   if (workspace && (!ws || !fs.existsSync(ws.path))) {
@@ -128,3 +129,55 @@ export function runClaude(cwd: string, task: string, mode: "plan" | "acceptEdits
     child.stdin.end(task);
   });
 }
+
+/**
+ * A build job: Claude Code builds a tool in its own empty folder under Documents/Nudge Builds
+ * (the only place it may edit), then the app in out/ goes back to the hub's Tools tab.
+ */
+async function buildTool(client: HubClient, h: ClaudeHandoff, p: Prefs): Promise<void> {
+  const jobId = h.payload.jobId!;
+  if (!p.claudeAllowRun) return void (await done(client, h, false, "running Claude Code isn't switched on for this computer"));
+  if (!hasClaudeCli()) return void (await done(client, h, false, "Claude Code isn't installed on this computer"));
+  const dir = path.join(app.getPath("documents"), "Nudge Builds", jobId.replace(/[^\w-]/g, "").slice(0, 40));
+  fs.mkdirSync(dir, { recursive: true });
+  const title = /^Build "([^"]+)"/.exec(h.payload.task)?.[1] ?? "a tool";
+  const { response } = await dialog.showMessageBox({
+    type: "question",
+    buttons: ["Build it", "Cancel"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "Nudge → Claude Code",
+    message: `Build "${title}" with Claude Code?`,
+    detail: `${h.payload.task.slice(0, 1500)}\n\nIt works only in: ${dir}`,
+  });
+  if (response !== 0) return void (await done(client, h, false, "cancelled on the computer"));
+  new Notification({ title: "Nudge → Claude Code", body: `Building ${title}…` }).show();
+  const r = await runClaude(dir, h.payload.task, "acceptEdits");
+  const out = path.join(dir, "out");
+  const files: Record<string, string> = {};
+  let bytes = 0;
+  const walk = (d: string, rel = "") => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const rp = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(path.join(d, e.name), rp);
+      else if (Object.keys(files).length < 30) {
+        const buf = fs.readFileSync(path.join(d, e.name));
+        bytes += buf.length;
+        if (bytes <= 5 * 1024 * 1024) files[rp] = buf.toString("base64");
+      }
+    }
+  };
+  if (fs.existsSync(out)) walk(out);
+  if (!files["index.html"]) {
+    await done(client, h, false, r.ok ? "Claude Code finished but there's no out/index.html" : r.text);
+    return;
+  }
+  try {
+    await client.request("POST", `/api/jobs/${jobId}/tool`, { files, summary: r.text.slice(0, 600) });
+    await done(client, h, true, r.text, r.costUsd);
+    new Notification({ title: "Nudge", body: `${title} is ready in your Tools tab.` }).show();
+  } catch (e) {
+    await done(client, h, false, `couldn't send it to the wall: ${(e as Error).message}`);
+  }
+}
+

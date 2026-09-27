@@ -87,7 +87,7 @@ and renews its certificate by itself.
 
 | service | user | what |
 |---|---|---|
-| `nudge-hub` | `nudge` (no login) | API, rules, database, school reader, assistant: `:8787`, plus loopback-only `:8788` |
+| `nudge-hub` | `nudge` (no login) | API, rules, database, school reader, assistant: `:8787`, plus loopback-only `:8788`, and built tools on their own origin `:8790` |
 | `nudge-kiosk` | `kiosk` (no login) | `cage` + Chromium full-screen on `http://127.0.0.1:8788/screen/` |
 | `nudge-gpio` | `nudge` | keys, dial, touch pad, switches, LEDs, NFC, voice → hub over loopback |
 | `nudge-cert.timer` | root | weekly Tailscale HTTPS certificate renewal |

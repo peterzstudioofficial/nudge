@@ -527,6 +527,8 @@ function Wall({ snap, cfg, reload, disabled }: { snap: Snapshot; cfg: Config; re
   const [model, setModel] = useState(s.aiModel);
   const [voiceModel, setVoiceModel] = useState(s.voiceModel);
   const [advisor, setAdvisor] = useState(s.aiAdvisorModel);
+  const [buildModel, setBuildModel] = useState(s.buildModel);
+  const [budget, setBudget] = useState(String(s.aiBudgetUsd));
   const set = async (p: Partial<Settings>) => {
     try {
       await client.send("PATCH", "/api/settings", p);
@@ -600,12 +602,20 @@ function Wall({ snap, cfg, reload, disabled }: { snap: Snapshot; cfg: Config; re
           {!disabled && <Chip icon={s.webSearch ? "travel_explore" : "search_off"} label={s.webSearch ? "web search on" : "web search off"} go={() => set({ webSearch: !s.webSearch })} />}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+          <span style={{ fontSize: 11, color: "#8e8e97" }}>tool builder model</span>
+          <input disabled={disabled} style={{ ...inp, width: 220 }} value={buildModel} onChange={(e) => setBuildModel(e.target.value)} />
+          {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ buildModel: buildModel.trim() || "deepseek/deepseek-v4.1-flash" })}>save</Btn>}
+          <span style={{ fontSize: 11, color: "#8e8e97" }}>monthly limit $</span>
+          <input disabled={disabled} type="number" min={0.5} max={100} step={0.5} style={{ ...inp, width: 80 }} value={budget} onChange={(e) => setBudget(e.target.value)} />
+          {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ aiBudgetUsd: Math.min(100, Math.max(0.5, Number(budget) || 5)) })}>save</Btn>}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
           <span style={{ fontSize: 11, color: "#8e8e97" }}>voice model (Gemini Live)</span>
           <input disabled={disabled} style={{ ...inp, width: 200 }} value={voiceModel} onChange={(e) => setVoiceModel(e.target.value)} />
           {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ voiceModel: voiceModel.trim() || "gemini-3.8-live" })}>save</Btn>}
           {!disabled && <Chip icon={s.voiceReplies ? "volume_up" : "volume_off"} label={s.voiceReplies ? "spoken replies on" : "spoken replies off"} go={() => set({ voiceReplies: !s.voiceReplies })} />}
         </div>
-        <div style={{ fontSize: 10, color: "#5f5f67", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Every text request is routed to zero-data-retention providers that don't collect data; if none is free for the model it fails rather than falling back to one that keeps data. Web search and page reading run on OpenRouter (a few tenths of a penny a search, capped per question); searches only ever contain the topic, never your name or school, and sites blocked by a parent stay blocked. The tutor is a stronger model the assistant can ask on hard questions; it only sees the question. Search over your notes, school stuff and calendar runs on the hub; only the few results a question needs go out with it. Voice notes are turned into text on the hub too. Talking to the wall uses Gemini Live when a key is set (Google keeps paid-tier requests briefly for abuse checks only, and doesn't train on them); without it, speech is turned into text on the hub and goes to the text model.</div>
+        <div style={{ fontSize: 10, color: "#5f5f67", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Every text request is routed to zero-data-retention providers that don't collect data; if none is free for the model it fails rather than falling back to one that keeps data. Web search and page reading run on OpenRouter (a few tenths of a penny a search, capped per question); searches only ever contain the topic, never your name or school, and sites blocked by a parent stay blocked. The tutor is a stronger model the assistant can ask on hard questions; it only sees the question. Big, expensive models (Claude, "pro" tiers) are blocked here: heavy jobs go to Claude Code on your computer instead. The monthly limit stops all cloud AI until next month (or until you raise it). Search over your notes, school stuff and calendar runs on the hub; only the few results a question needs go out with it. Voice notes are turned into text on the hub too. Talking to the wall uses Gemini Live when a key is set (Google keeps paid-tier requests briefly for abuse checks only, and doesn't train on them); without it, speech is turned into text on the hub and goes to the text model.</div>
       </Section>
       {!disabled && <Apps />}
     </>

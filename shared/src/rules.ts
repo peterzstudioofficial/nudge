@@ -46,6 +46,8 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModel: "deepseek/deepseek-v4.1-flash",
   webSearch: true,
   aiAdvisorModel: "deepseek/deepseek-v4-pro",
+  buildModel: "deepseek/deepseek-v4.1-flash",
+  aiBudgetUsd: 5,
   voiceModel: "gemini-3.8-live",
   voiceReplies: false,
   yearGroup: "",

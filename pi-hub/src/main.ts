@@ -16,6 +16,9 @@ import { loadEmbedder } from "./rag/embed";
 import { searchTool } from "./rag/tool";
 import { loadStt } from "./voice/stt";
 import { Keys } from "./keys";
+import { builderService } from "./builder/builder";
+import { orClient } from "./builder/openrouter";
+import { buildToolsServer } from "./tools-server";
 import { voiceService } from "./voice/wall";
 import { schoolReader, refreshTermDates } from "./school/reader";
 import { Vault } from "./school/vault";
@@ -109,6 +112,7 @@ async function main() {
     },
   } satisfies Ctx);
 
+  ctx.builder = builderService({ hub, or: orClient(() => keys.openrouter()), log, say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms) });
   ctx.voice = voiceService({ ctx, geminiKey: cfg.geminiKey, stt: () => stt, log });
 
   const app = await buildServer(ctx);
@@ -117,6 +121,9 @@ async function main() {
   // Plain-HTTP twin on loopback only, for the wall's own kiosk browser and the hardware daemon.
   const local = await buildServer(ctx, { tls: false });
   await local.listen({ port: cfg.localPort, host: "127.0.0.1" }).catch((e) => log(`local port ${cfg.localPort} unavailable: ${e.message}`));
+  // Built tools, on their own origin (see tools-server.ts).
+  const tools = await buildToolsServer(ctx);
+  await tools.listen({ port: cfg.toolsPort, host: cfg.host }).catch((e) => log(`tools port ${cfg.toolsPort} unavailable: ${e.message}`));
   if (!auth.listDevices().length) {
     const { code } = auth.createCode("owner", "first-run");
     log(`no devices paired yet — first pairing code (owner): ${code}`);
@@ -166,6 +173,7 @@ async function main() {
     hub.heartbeat();
     await app.close();
     await local.close().catch(() => {});
+    await tools.close().catch(() => {});
     db.close();
     process.exit(0);
   };

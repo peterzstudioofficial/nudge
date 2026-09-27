@@ -214,10 +214,12 @@ harden() {
   fw default deny incoming
   fw default allow outgoing
   fw allow in on tailscale0 to any port 8787 proto tcp
+  fw allow in on tailscale0 to any port 8790 proto tcp  # tools the assistant built (own origin)
   fw allow in on tailscale0 to any port 22 proto tcp
   fw allow 41641/udp  # Tailscale direct connections
   for net in 192.168.0.0/16 10.0.0.0/8 172.16.0.0/12; do
     fw allow from "$net" to any port 8787 proto tcp
+    fw allow from "$net" to any port 8790 proto tcp
     fw allow from "$net" to any port 22 proto tcp
   done
   fw allow in proto udp to 224.0.0.251 port 5353  # nudge.local (mDNS)

@@ -150,6 +150,32 @@ public class NudgePlugin extends Plugin {
     }
 
     /** Send a note to Google Keep (Google has no Keep API for personal accounts, so it's a share). */
+    /** Opens a built tool in Chrome (not the app's web view), so Android can install it as an app. */
+    @PluginMethod
+    public void openInBrowser(PluginCall call) {
+        String url = call.getString("url", "");
+        if (!(url.startsWith("https://") || url.startsWith("http://"))) {
+            call.reject("not a web address");
+            return;
+        }
+        Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        view.addCategory(Intent.CATEGORY_BROWSABLE);
+        view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            view.setPackage("com.android.chrome");
+            getContext().startActivity(view);
+            call.resolve();
+        } catch (ActivityNotFoundException e) {
+            try {
+                view.setPackage(null);
+                getContext().startActivity(view);
+                call.resolve();
+            } catch (ActivityNotFoundException e2) {
+                call.reject("no browser");
+            }
+        }
+    }
+
     @PluginMethod
     public void shareToKeep(PluginCall call) {
         Intent send = new Intent(Intent.ACTION_SEND);

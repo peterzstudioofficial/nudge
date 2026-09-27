@@ -5,6 +5,7 @@ import type { AppsService } from "./agent/composio";
 import type { VoiceService } from "./voice/wall";
 import type { Stt } from "./voice/stt";
 import type { Keys } from "./keys";
+import type { BuilderService } from "./builder/builder";
 import type { Auth } from "./auth";
 import type { Config } from "./config";
 import type { Hub } from "./hub";
@@ -61,6 +62,8 @@ export interface Ctx {
   index?: PersonalIndex;
   /** the wall's voice assistant (mic stream from the hardware daemon) */
   voice?: VoiceService;
+  /** builds tools (small apps) after a yes */
+  builder?: BuilderService;
   /** the OpenRouter key (hub.env, or connected from setup) */
   keys?: Keys;
   /** on-device speech-to-text, once its model has loaded */

@@ -235,7 +235,7 @@ export const SchoolAction = z.object({
 export const AskStatus = z.enum(["pending", "approved", "declined", "done", "expired"]);
 export const Ask = z.object({
   id: z.string(),
-  kind: z.enum(["email", "week", "reminder", "task", "app", "claude"]),
+  kind: z.enum(["email", "week", "reminder", "task", "app", "claude", "build"]),
   line: z.string(),
   head: z.string(),
   rows: z.array(z.object({ k: z.string(), v: z.string() })),
@@ -283,6 +283,8 @@ export const ClaudeTask = z.object({
   task: z.string().min(1).max(5000),
   workspace: z.string().max(40).nullable(),
   threadId: z.string().nullable(),
+  /** set when this is a build job: the PC builds in its Nudge Builds folder and sends the tool back */
+  jobId: z.string().nullable().optional(),
 });
 export type ClaudeTask = z.infer<typeof ClaudeTask>;
 /** What the PC says it can do (sent by the desktop app). */
@@ -426,6 +428,10 @@ export const Settings = z.object({
   webSearch: z.boolean(),
   /** stronger model the assistant may consult on hard questions ("" = off) */
   aiAdvisorModel: z.string().max(60),
+  /** model that writes tools (cheap, good at code) */
+  buildModel: z.string().max(60),
+  /** the most the cloud AI may spend in a month, in US dollars; it stops at the limit */
+  aiBudgetUsd: z.number().min(0.5).max(100),
   /** Gemini Live model for the voice assistant */
   voiceModel: z.string().max(60),
   /** speak voice replies out loud (needs a speaker on the Pi) */
@@ -452,7 +458,7 @@ export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
   "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
-  "voiceModel", "voiceReplies", "webSearch", "aiAdvisorModel",
+  "voiceModel", "voiceReplies", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
 ];
 
 export const Device = z.object({
@@ -499,6 +505,59 @@ export const SchoolStatus = z.object({
 export type SchoolStatus = z.infer<typeof SchoolStatus>;
 
 /** Everything a screen needs in one fetch. Clients re-fetch it when the hub says something changed. */
+/**
+ * A tool the assistant built: a small web app (one HTML file, offline) that opens from the phone's
+ * Tools tab and can be installed like an app. Served from its own origin, with no internet access.
+ */
+export const ToolTarget = z.enum(["phone", "school", "any"]);
+export type ToolTarget = z.infer<typeof ToolTarget>;
+export const ToolInfo = z.object({
+  id: z.string(),
+  title: z.string().max(60),
+  description: z.string().max(300),
+  icon: z.string().max(40),
+  target: ToolTarget,
+  jobId: z.string().nullable(),
+  bytes: z.number(),
+  version: z.number(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+export type ToolInfo = z.infer<typeof ToolInfo>;
+
+/** A big job the assistant does after a yes: building a tool, now or later. */
+export const BuildWhere = z.enum(["pi", "computer"]);
+export const BuildWhen = z.enum(["now", "later"]);
+export const BuildRequest = z.object({
+  title: z.string().min(2).max(60),
+  brief: z.string().min(10).max(6000),
+  target: ToolTarget,
+  when: BuildWhen,
+  where: BuildWhere,
+  /** a tool to improve instead of starting from scratch */
+  toolId: z.string().max(40).nullable(),
+  /** files the student attached (stored on the hub until the job has used them) */
+  attachments: z.array(z.object({ id: z.string(), name: z.string().max(120), mime: z.string().max(80) })).max(4),
+});
+export type BuildRequest = z.infer<typeof BuildRequest>;
+export const Job = z.object({
+  id: z.string(),
+  kind: z.literal("build"),
+  request: BuildRequest,
+  status: z.enum(["queued", "running", "waiting", "done", "failed", "cancelled"]),
+  /** what's happening, for the Tools tab */
+  note: z.string().max(200),
+  estUsd: z.number(),
+  costUsd: z.number(),
+  batchId: z.string().nullable(),
+  toolId: z.string().nullable(),
+  threadId: z.string().nullable(),
+  error: z.string().nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+export type Job = z.infer<typeof Job>;
+
 export interface Snapshot {
   now: number;
   rev: number;
@@ -522,6 +581,10 @@ export interface Snapshot {
   events: CalEvent[];
   /** weekly commitments on today (rehearsals, clubs) */
   activities: Activity[];
+  /** tools the assistant built, newest first */
+  tools: ToolInfo[];
+  /** build jobs that aren't finished (or finished in the last day) */
+  jobs: { id: string; title: string; status: Job["status"]; note: string; toolId: string | null; error: string | null; updatedAt: number }[];
   weather: Weather | null;
   news: string;
   birthday: { name: string; inDays: number } | null;
@@ -561,3 +624,11 @@ export interface LedFrame {
   dialLed: number;
   touchRing: boolean;
 }
+
+/**
+ * Big, expensive models Nudge never uses on OpenRouter (Claude-class, "pro" tiers). Heavy work goes
+ * to Claude Code / Cowork on the computer instead, which runs on the student's own Claude plan.
+ */
+export const EXPENSIVE_MODEL = /(^anthropic\/|claude|opus|sonnet|fable|haiku|(^|\/)o\d(-pro)?$|gpt-5(\.\d+)?(-pro)?$|gpt-5[.\d]*-(pro|terra)|gemini-[\d.]+-pro|grok-\d(?!.*(fast|mini)))/i;
+export const isExpensiveModel = (m: string) => !m.startsWith("@preset/") && EXPENSIVE_MODEL.test(m);
+

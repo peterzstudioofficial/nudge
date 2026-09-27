@@ -30,8 +30,11 @@ export const FALLBACK_MODELS = ["z-ai/glm-5.3-flash"];
 /** A stronger model the cheap one may consult on hard questions (openrouter:advisor). */
 export const DEFAULT_ADVISOR = "deepseek/deepseek-v4-pro";
 const URL_ = "https://openrouter.ai/api/v1/chat/completions";
-/** USD per million tokens. Well above the models we use; stops a fallback to a pricey endpoint. */
-const MAX_PRICE = { prompt: "1", completion: "2" };
+/**
+ * USD per million tokens. Above the cheap models Nudge uses, far below Claude-class ones, so no
+ * request (or fallback) can ever land on an expensive model or endpoint.
+ */
+const MAX_PRICE = { prompt: "0.5", completion: "1.5" };
 
 export interface ToolCall {
   id: string;

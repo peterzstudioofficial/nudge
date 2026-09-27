@@ -32,6 +32,9 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
     formTime: today.baseKind === "school" ? formTimeOn(todayKey, hub.formTime()) : "",
     events: hub.upcomingEvents(todayKey, 8),
     activities: hub.activitiesOn(todayKey),
+    // Tools and build jobs are Peter's own: a parent never sees them.
+    tools: role === "parent" ? [] : hub.listTools(),
+    jobs: role === "parent" ? [] : hub.activeJobs().slice(0, 10).map((j) => ({ id: j.id, title: j.request.title, status: j.status, note: j.note, toolId: j.toolId, error: j.error, updatedAt: j.updatedAt })),
     weather: ctx.weather.current(),
     news: ctx.news.headline(),
     birthday: nextBirthday(hub.birthdays(), todayKey),

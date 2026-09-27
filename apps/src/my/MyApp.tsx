@@ -7,11 +7,12 @@ import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
 import { D, DOTO, Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
 import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
+import { ToolsTab } from "./ToolsTab";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
 
-type Tab = "today" | "plan" | "sick" | "settings";
-const ORDER: Tab[] = ["today", "plan", "sick", "settings"];
+type Tab = "today" | "plan" | "tools" | "sick" | "settings";
+const ORDER: Tab[] = ["today", "plan", "tools", "sick", "settings"];
 
 export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const client = getClient("owner")!;
@@ -42,9 +43,9 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
 
       <div style={{ position: "relative", padding: "2px 14px 16px" }}>
         <div style={{ position: "relative", height: 40, borderRadius: 13, background: "#101017", padding: 3 }}>
-          <span style={{ position: "absolute", top: 3, height: 34, borderRadius: 10, background: "#ff4d17", left: `calc(3px + (100% - 6px) * ${i / 4})`, right: `calc(3px + (100% - 6px) * ${(3 - i) / 4})`, transition: `left ${fwd ? ".56s" : ".32s"} cubic-bezier(.32,.72,0,1),right ${fwd ? ".32s" : ".56s"} cubic-bezier(.32,.72,0,1)` }} />
+          <span style={{ position: "absolute", top: 3, height: 34, borderRadius: 10, background: "#ff4d17", left: `calc(3px + (100% - 6px) * ${i / ORDER.length})`, right: `calc(3px + (100% - 6px) * ${(ORDER.length - 1 - i) / ORDER.length})`, transition: `left ${fwd ? ".56s" : ".32s"} cubic-bezier(.32,.72,0,1),right ${fwd ? ".32s" : ".56s"} cubic-bezier(.32,.72,0,1)` }} />
           <div style={{ position: "relative", display: "flex", height: "100%" }}>
-            {([["checklist", "tasks", "today"], ["calendar_month", "plan", "plan"], ["sick", "unwell", "sick"], ["settings", "settings", "settings"]] as const).map(([icon, label, id]) => (
+            {([["checklist", "tasks", "today"], ["calendar_month", "plan", "plan"], ["apps", "tools", "tools"], ["sick", "unwell", "sick"], ["settings", "settings", "settings"]] as const).map(([icon, label, id]) => (
               <div key={id} onClick={() => go(id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", zIndex: 1 }}>
                 <Ms style={{ fontSize: 16, color: tab === id ? "#0b0b0d" : "#7a7a84", transition: "color .4s" }}>{icon}</Ms>
                 {tab === id && <span style={{ fontSize: 10, letterSpacing: ".06em", whiteSpace: "nowrap", color: "#0b0b0d", animation: "aFade .4s ease-out .12s both" }}>{label}</span>}
@@ -57,6 +58,7 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
       {!snap && <div style={{ padding: "40px 22px", fontSize: 11, color: "#8e8e97" }}>connecting to the wall…</div>}
       {snap && tab === "today" && <Today snap={snap} />}
       {snap && tab === "plan" && <Plan />}
+      {snap && tab === "tools" && <ToolsTab snap={snap} />}
       {snap && tab === "sick" && <Sick snap={snap} />}
       {snap && tab === "settings" && <SettingsTab snap={snap} onUnpair={onUnpair} />}
       {snap && locked && <PhoneLock snap={snap} onHide={hideLock} />}

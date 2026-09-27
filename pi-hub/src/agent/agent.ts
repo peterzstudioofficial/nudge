@@ -4,6 +4,8 @@ import { type Tool, tool, parseArgs } from "./tools";
 import { addDays, dueLabel, searchNotes, sessionView, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
 import type { AgentService } from "../context";
 import { type Hub, newId } from "../hub";
+import { estimateBuild } from "../builder/builder";
+import { spend } from "./spend";
 
 /**
  * The Nudge assistant (a fast, cheap model on OpenRouter, zero data retention). It can read Peter's day, week, school mail/pages and notes.
@@ -39,6 +41,7 @@ How you work:
 - You cannot unlock the device, end a focus session, shorten a task, lift a website block or change points or rewards. Those belong to the parent app. If asked for any of that, or for any way around the device, reply with exactly REFUSE and nothing else. Never explain a way around the device.
 - Don't moralise or lecture about focus. Be neutral and factual.
 - Web search (if you have it) is for public facts only: topics, exam boards, events, opening times. Never put the student's name, school, teachers, friends or anything from their notes or emails into a search query or a URL.
+- Big jobs (building an app or tool, work on the computer) always go through build_tool or hand_to_claude: they show the cost and wait for a yes. Never try to do a big job inside a normal answer.
 - If you have the tutor tool, use it only for genuinely hard explanations or plans; answer simple things yourself. Give it the question, never personal details.`;
 
 const MODE_NOTE: Record<AgentMode, string> = {
@@ -235,6 +238,11 @@ export function agentService(o: Opts): AgentService {
     );
 
     const list: Tool[] = [getToday, getWeek, getSchool, findNotes, getCalendar, getTeachers];
+    list.push(
+      tool("my_tools", "The tools (small apps) already built for the student, with their ids.", z.object({}), "read", async () =>
+        JSON.stringify(hub.listTools().map((t) => ({ id: t.id, title: t.title, description: t.description, for: t.target, updated: new Date(t.updatedAt).toISOString().slice(0, 10) }))),
+      ),
+    );
     if (mode === "watch") return list;
 
     const saveNote = tool(
@@ -339,6 +347,51 @@ export function agentService(o: Opts): AgentService {
       },
     );
     list.push(proposeEmail, proposeSessions, proposeReminder);
+
+    // Build a tool (a small offline web app) — a big job, so it's confirmed with its cost first.
+    const pcBuild = hub.claudeDesktop();
+    const buildWhere = pcBuild?.cli && pcBuild.allowRun ? (["pi", "computer"] as const) : (["pi"] as const);
+    list.push(
+      tool(
+        "build_tool",
+        "Build the student a small app/tool (e.g. flashcards, a line-learner for rehearsals, a revision timer, a set-list organiser). " +
+          "It becomes an offline web app in the Tools tab on their phone, installable like an app. It's a big job: it's shown with its cost and only starts after they say yes. " +
+          "where: 'pi' = a cheap model builds and tests it in a sandbox" +
+          (buildWhere.length > 1 ? "; 'computer' = Claude Code on their PC builds it (for bigger or trickier things)" : "") +
+          ". when: 'now', or 'later' (half price, usually ready within the hour). Write the brief as a full spec: screens, features, what data it keeps. Use improve_tool_id to change an existing tool (see my_tools).",
+        z.object({
+          title: z.string().min(2).max(60),
+          brief: z.string().min(20).max(6000),
+          target: z.enum(["phone", "school", "any"]),
+          when: z.enum(["now", "later"]),
+          where: z.enum(buildWhere as unknown as [string, ...string[]]),
+          improve_tool_id: z.string().max(40).optional(),
+        }),
+        "ask",
+        async (i) => {
+          if (i.improve_tool_id && !hub.tools.get(i.improve_tool_id)) return "error: no tool with that id (see my_tools)";
+          step("plan the build");
+          const request = { title: i.title, brief: i.brief, target: i.target as "phone" | "school" | "any", when: i.when as "now" | "later", where: i.where as "pi" | "computer", toolId: i.improve_tool_id ?? null, attachments: [] };
+          const est = estimateBuild(request);
+          const ask = hub.createAsk({
+            kind: "build",
+            head: "BIG JOB · ARE YOU SURE?",
+            line: `${i.improve_tool_id ? "improve" : "build"} ${i.title.toLowerCase()}?`,
+            rows: [
+              { k: "WHERE", v: i.where === "computer" ? "claude code on your pc" : "the pi, in a sandbox" },
+              { k: "WHEN", v: i.when === "later" ? "later · half price" : "now · a few minutes" },
+              { k: "COST", v: i.where === "computer" ? "your claude plan" : `about $${Math.max(est, 0.001).toFixed(3)}` },
+            ],
+            payload: { request, estUsd: est },
+            threadId: thread.id,
+          });
+          thread.askId = ask.id;
+          thread.status = "asking";
+          save(thread);
+          return `Proposed (about $${est.toFixed(3)}). Waiting for the student's OK; nothing has started.`;
+        },
+      ),
+    );
 
     // Hand bigger computer jobs to Claude on Peter's PC (only if the desktop app says it can).
     const pc = hub.claudeDesktop();
@@ -480,6 +533,13 @@ export function agentService(o: Opts): AgentService {
       let text = "";
       const s = hub.settings();
       const wall = thread.origin === "wall";
+      // Monthly budget: stop before going over it.
+      if (spend(hub).usd >= s.aiBudgetUsd) {
+        finish(thread, `This month's AI budget ($${s.aiBudgetUsd}) is used up. You can raise it in setup.`);
+        return;
+      }
+      let spent = 0;
+      const cap = wall ? 0.02 : 0.06;
       const serverTools = serverToolsFor(s, { wall });
       const specs = list.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
       const cites = new Map<string, Citation>();
@@ -490,12 +550,18 @@ export function agentService(o: Opts): AgentService {
           serverTools,
           maxTokens: wall ? 500 : 2000,
           model: s.aiModel || DEFAULT_MODEL,
-          effort: wall ? "low" : "medium",
+          effort: wall ? "minimal" : "low",
           sessionId: thread.id,
           maxToolCostUsd: wall ? 0.01 : 0.03,
           signal: ac.signal,
         });
         for (const c of r.citations) cites.set(c.url, c);
+        spent += r.cost;
+        if (spent > cap && r.toolCalls.length) {
+          // One question shouldn't cost more than a few pence: stop and say so.
+          text = r.content || "That was getting pricey, so I stopped there. Ask again (or ask for it as a build) if you want me to keep going.";
+          break;
+        }
         if (r.serverToolCalls && !thread.steps.some((x) => x.text === "looked it up")) {
           thread.steps.forEach((x) => (x.done = true));
           thread.steps.push({ text: "looked it up", meta: r.citations.length ? `${r.citations.length} SOURCES` : "", done: false });

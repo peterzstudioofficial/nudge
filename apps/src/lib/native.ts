@@ -10,6 +10,7 @@ export interface NudgeNative {
   setLock(o: { enabled: boolean }): Promise<void>;
   openApp(o: { which: "call" | "chat" | "map" | "school"; url?: string }): Promise<void>;
   shareToKeep(o: { title: string; text: string }): Promise<void>;
+  openInBrowser(o: { url: string }): Promise<void>;
   addListener(ev: "lock", cb: (d: { blocked?: string }) => void): Promise<{ remove: () => void }>;
 }
 
@@ -37,3 +38,11 @@ export async function sendToKeep(title: string, text: string): Promise<"sent" | 
   window.open("https://keep.google.com/", "_blank", "noopener");
   return "copied";
 }
+
+/** Open a built tool in the real browser (Chrome on Android), where it can be installed as an app. */
+export async function openTool(url: string): Promise<void> {
+  const n = native();
+  if (n) return n.openInBrowser({ url });
+  window.open(url, "_blank", "noopener");
+}
+

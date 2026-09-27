@@ -180,6 +180,11 @@ function buildTray() {
         ],
       },
       {
+        label: "My tools",
+        enabled: !!snap?.tools.length,
+        submenu: (snap?.tools ?? []).slice(0, 15).map((t) => ({ label: t.title, click: () => void openToolInBrowser(t.id) })),
+      },
+      {
         label: "Claude on this computer",
         submenu: [
           { label: "Let the assistant run Claude Code here", type: "checkbox", checked: p.claudeAllowRun, click: (i) => { setPrefs({ claudeAllowRun: i.checked }); reportClaude(); } },
@@ -199,6 +204,13 @@ function buildTray() {
       { label: "Quit Nudge", click: () => { app.exit(0); } },
     ]),
   );
+}
+
+/** Built tools open in the normal browser (their own origin on the wall; installable there too). */
+async function openToolInBrowser(id: string) {
+  if (!client) return;
+  const r = await client.get<{ origin: string }>("/api/tools").catch(() => null);
+  if (r?.origin && /^https?:\/\//.test(r.origin)) void shell.openExternal(`${r.origin}/t/${encodeURIComponent(id)}/`);
 }
 
 /** Tell the hub what Claude can do on this computer (folder names only). */
