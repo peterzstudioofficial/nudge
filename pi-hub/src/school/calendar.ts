@@ -41,7 +41,7 @@ export function importCalendarText(hub: Hub, text: string): { events: number; we
   const { lines, weeks } = parseSchoolCalendar(text);
   const keep: CalEvent[] = [];
   for (const l of lines) {
-    const tags = calendarTags(l.title, { yearGroup: s.yearGroup, house: s.house });
+    const tags = calendarTags(l.title, { yearGroup: s.yearGroup, house: s.house, interests: s.interests });
     if (!tags) continue;
     const id = "cal:" + crypto.createHash("sha1").update(`${l.date}|${l.time}|${l.title}`).digest("hex").slice(0, 16);
     keep.push({ id, date: l.date, time: l.time, title: l.title.slice(0, 160), tags, source: "calendar" });

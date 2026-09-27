@@ -7,7 +7,8 @@ There's no desktop. The Pi boots straight into the screen, full-screen, in about
 |---|---|---|
 | Wall screen, keys, lights, apps syncing | ✓ | ✓ |
 | School reader (headless Chromium every 30–60 min) | ✓ slower (about 40 s per run, uses swap) | ✓ (about 10 s) |
-| Assistant, voice | ✓ | ✓ |
+| Assistant (cloud models) | ✓ | ✓ |
+| On-device speech-to-text + smart search | ✓ (a 10 s note takes ~5 s) | ✓ (~2 s) |
 
 A Pi 3 manages this for a few reasons:
 
@@ -17,6 +18,8 @@ A Pi 3 manages this for a few reasons:
 - The wall's browser switches itself to low-memory mode on 1 GB boards. On a Pi 4 or 5 it uses
   the GPU instead.
 - Compressed RAM swap (zram) absorbs memory spikes, and /tmp lives in RAM to spare the SD card.
+- The on-device models (speech-to-text ~60 MB, search ~80 MB) load only when they're used and
+  unload after 10 quiet minutes. The Gemini and Composio libraries only load if their keys are set.
 
 If the screen ever stutters, a Pi 4 fixes it.
 
@@ -38,8 +41,8 @@ If the screen ever stutters, a Pi 4 fixes it.
    tar xzf nudge-pi.tar.gz && cd nudge-pi && sudo ./install.sh
    sudo reboot
    ```
-   Add `--voice` to include offline speech for the touch pad. Add `--screen 1024x600` only if the
-   screen stays black.
+   This also downloads the on-device models (speech-to-text and search, ~70 MB); add
+   `--no-models` to skip them. Add `--screen 1024x600` only if the screen stays black.
 
 ### B. Flash the ready-made image
 
@@ -61,7 +64,9 @@ It's applied once at boot, then wiped. The SSH user is `admin`. Its password is 
 ## After installing
 
 ```sh
-sudo nudge key              # paste your Anthropic API key → the assistant switches on
+sudo nudge key openrouter   # paste your OpenRouter key → the assistant switches on
+sudo nudge key gemini       # optional: Gemini key → talk to the wall (Gemini Live)
+sudo nudge key composio     # optional: Composio key → connected apps (sign in from the app's setup page)
 sudo nudge pair owner       # pairing code for your phone / PC (the wall's Pair screen shows one too)
 sudo nudge pair parent      # …for a parent's phone
 nudge status                # what's running + addresses
@@ -153,6 +158,7 @@ sudo reboot
 | dial LED | GPIO12 → 220 Ω → LED → GND | PWM |
 | NFC | USB reader that types tag IDs (e.g. an ACR122U in keyboard mode, or a cheap 125 kHz / 13.56 MHz USB reader) | set `NUDGE_NFC_DEVICE` in `/etc/nudge/gpio.env` (see `ls /dev/input/by-id/`) |
 | mic | any USB mic | only needed for voice |
+| speaker | any USB or 3.5 mm speaker | optional: spoken replies (switch on in setup) |
 
 Test the hardware without the hub:
 

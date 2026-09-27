@@ -7,7 +7,7 @@ lights) plus apps that all sync with it.
                    ┌──────────── Raspberry Pi (ND-1) ────────────┐
  phone / PC  ◄────►│  pi-hub  :8787  database · rules · school   │◄── school SharePoint + Outlook (read-only)
  (Tailscale / Wi-Fi)│    ▲ loopback :8788                          │◄── weather, news
-                   │    ├── pi-screen   (Chromium kiosk)          │──► Claude (assistant, optional)
+                   │    ├── pi-screen   (Chromium kiosk)          │──► OpenRouter · Gemini Live · Composio (optional)
                    │    └── nudge_gpio  (keys, dial, LEDs, NFC)   │
                    └──────────────────────────────────────────────┘
 ```

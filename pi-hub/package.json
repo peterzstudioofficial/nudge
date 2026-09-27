@@ -12,13 +12,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0",
+    "@composio/core": "^0.17.0",
     "@fastify/static": "^8.2.0",
     "@fastify/websocket": "^11.2.0",
+    "@google/genai": "^2.24.0",
+    "@huggingface/tokenizers": "^0.2.0",
     "@nudge/shared": "*",
     "fastify": "^5.6.0",
+    "onnxruntime-node": "^1.30.0",
     "pdfjs-dist": "^4.10.38",
     "playwright-core": "^1.55.0",
+    "sherpa-onnx-node": "^1.13.8",
     "zod": "^4.1.0"
   },
   "devDependencies": {

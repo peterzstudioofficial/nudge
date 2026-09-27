@@ -146,7 +146,8 @@ function SchoolStrip({ snap }: { snap: Snapshot }) {
   const toMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3));
   const lessons = snap.timetable;
   const soon = snap.events.filter((e) => e.date > snap.today.date || !e.time || toMin(e.time) >= mins).slice(0, 3);
-  if (!lessons.length && !soon.length) return null;
+  const acts = snap.activities ?? [];
+  if (!lessons.length && !soon.length && !acts.length) return null;
   const cur = lessons.find((l) => mins >= toMin(l.start) && mins < toMin(l.end));
   const next = lessons.find((l) => toMin(l.start) > mins);
   return (
@@ -176,6 +177,13 @@ function SchoolStrip({ snap }: { snap: Snapshot }) {
           )}
         </div>
       )}
+      {acts.map((a) => (
+        <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "#dedad4" }}>
+          <Ms style={{ fontSize: 14, color: "#ff4d17" }}>theater_comedy</Ms>
+          <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}{a.where ? ` · ${a.where}` : ""}</span>
+          <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#8e8e97", flex: "none" }}>{a.start}–{a.end}</span>
+        </div>
+      ))}
       {soon.map((e) => <EventRow key={e.id} e={e} today={snap.today.date} />)}
     </div>
   );

@@ -1,12 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { type Llm, type Message, DEFAULT_MODEL, LlmError } from "./llm";
+import { type Tool, tool, parseArgs } from "./tools";
 import { addDays, dueLabel, searchNotes, sessionView, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
 import type { AgentService } from "../context";
 import { type Hub, newId } from "../hub";
 
 /**
- * The Nudge assistant (Claude). It can read Peter's day, week, school mail/pages and notes.
+ * The Nudge assistant (a fast, cheap model on OpenRouter, zero data retention). It can read Peter's day, week, school mail/pages and notes.
  * It can never send, buy, delete or change the week by itself: those tools only create an
  * "ask" that waits for a yes on the wall, the desktop or the app. An approved email becomes a
  * ready-to-send draft on the computer — Peter presses send himself.
@@ -14,7 +14,9 @@ import { type Hub, newId } from "../hub";
 
 interface Opts {
   hub: Hub;
-  apiKey: string | null;
+  llm: Llm | null;
+  /** extra tools from connected apps (Composio) and the private search index */
+  extraTools?: (mode: AgentMode, gate: (t: Omit<Tool, "run"> & { run(args: unknown): Promise<string> }) => Tool) => Promise<Tool[]>;
   say: (icon: string, line: string, sub?: string, ms?: number) => void;
   log: (m: string) => void;
 }
@@ -37,15 +39,43 @@ const MODE_NOTE: Record<AgentMode, string> = {
 
 export function agentService(o: Opts): AgentService {
   const { hub } = o;
-  const client = o.apiKey ? new Anthropic({ apiKey: o.apiKey }) : null;
+  const client = o.llm;
   const running = new Map<string, AbortController>();
+
+  /**
+   * Tools from connected apps: reading runs straight away; anything that would send, post,
+   * create, delete or change something becomes an ask showing exactly what would happen, and
+   * only runs after a yes (see answerAsk → "connector").
+   */
+  const gateTool = (thread: AgentThread, t: Omit<Tool, "run"> & { run(args: unknown): Promise<string> }): Tool => {
+    if (t.kind === "read") return t as Tool;
+    return {
+      ...t,
+      kind: "ask",
+      async run(args) {
+        const shown = JSON.stringify(args).slice(0, 400);
+        const ask = hub.createAsk({
+          kind: "app",
+          head: "NEEDS YOUR OK",
+          line: `${t.description.split(/[.:]/)[0].toLowerCase().slice(0, 60)}?`,
+          rows: [{ k: "APP", v: t.name.split("_")[0].toLowerCase() }, { k: "DOES", v: t.name.toLowerCase().replace(/_/g, " ").slice(0, 40) }, { k: "WITH", v: shown.slice(0, 80) }],
+          payload: { connector: t.name, args },
+          threadId: thread.id,
+        });
+        thread.askId = ask.id;
+        thread.status = "asking";
+        save(thread);
+        return "Proposed. Waiting for the student's OK; nothing has happened yet.";
+      },
+    };
+  };
 
   const save = (t: AgentThread) => {
     hub.threads.put({ ...t, updatedAt: Date.now() });
     hub.bus.changed("agent");
   };
 
-  function tools(thread: AgentThread, mode: AgentMode) {
+  function tools(thread: AgentThread, mode: AgentMode): Tool[] {
     const step = (text: string, meta = "") => {
       thread.steps.forEach((s) => (s.done = true));
       thread.steps.push({ text, meta, done: false });
@@ -67,11 +97,12 @@ export function agentService(o: Opts): AgentService {
       ...(t.expected ? { expected: "timetable says it was set; not confirmed yet" } : {}),
     });
 
-    const getToday = betaZodTool({
-      name: "get_today",
-      description: "Today's date, school week (A/B), what kind of day it is, form time, the lessons with times, rooms and teachers, school calendar dates today, the task list with progress, and the focus session if one is running.",
-      inputSchema: z.object({}),
-      run: async () => {
+    const getToday = tool(
+      "get_today",
+      "Today's date, school week (A/B), what kind of day it is, form time, the lessons with times, rooms and teachers, school calendar dates today, the task list with progress, and the focus session if one is running.",
+      z.object({}),
+      "read",
+      async () => {
         step("check today");
         const d = today();
         const day = hub.dayState(d);
@@ -84,17 +115,19 @@ export function agentService(o: Opts): AgentService {
           form_time: day.baseKind === "school" ? `08:30 ${formTimeOn(d, hub.formTime())}` : null,
           lessons: hub.lessonsOn(d).map(lessonInfo),
           calendar: hub.upcomingEvents(d, 1).map((e) => `${e.time ?? "all day"} ${e.title}`),
+          commitments: hub.activitiesOn(d).map((a) => `${a.start}-${a.end} ${a.name}${a.where ? " (" + a.where + ")" : ""}`),
           tasks: hub.listTasks(d).map(openTask),
           session: s ? { task: hub.tasks.get(s.taskId)?.name, state: s.state } : null,
         });
       },
-    });
+    );
 
-    const getWeek = betaZodTool({
-      name: "get_week",
-      description: "The next 7 days: day kinds (school / weekend / half term / holiday / away), week A/B, lessons, school calendar dates, tasks already planned (with homework due dates), and free evenings.",
-      inputSchema: z.object({}),
-      run: async () => {
+    const getWeek = tool(
+      "get_week",
+      "The next 7 days: day kinds (school / weekend / half term / holiday / away), week A/B, lessons, school calendar dates, tasks already planned (with homework due dates), and free evenings.",
+      z.object({}),
+      "read",
+      async () => {
         step("check the week");
         const out = [];
         for (let i = 0; i < 7; i++) {
@@ -109,19 +142,21 @@ export function agentService(o: Opts): AgentService {
             week: day.week,
             lessons: hub.lessonsOn(d).map((l) => `${l.start} ${SUBJECT_NAMES[l.subject] ?? l.subject}${l.span > 1 ? " (double)" : ""}`),
             calendar: hub.upcomingEvents(d, 1).map((e) => `${e.time ?? ""} ${e.title}`.trim()),
+            commitments: hub.activitiesOn(d).map((a) => `${a.start}-${a.end} ${a.name}`),
             planned_minutes: tasks.reduce((a, t) => a + t.mins, 0),
             tasks: tasks.map(openTask),
           });
         }
         return JSON.stringify(out);
       },
-    });
+    );
 
-    const getSchool = betaZodTool({
-      name: "get_school_items",
-      description: "Recent school emails (sender, subject, preview) and school web page sections, newest first. Optionally filter by words.",
-      inputSchema: z.object({ query: z.string().max(80).optional() }),
-      run: async ({ query }) => {
+    const getSchool = tool(
+      "get_school_items",
+      "Recent school emails (sender, subject, preview) and school web page sections, newest first. Optionally filter by words.",
+      z.object({ query: z.string().max(80).optional() }),
+      "read",
+      async ({ query }) => {
         const all = hub.school.all().sort((a, b) => b.receivedAt - a.receivedAt);
         const words = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
         const hits = words.length ? all.filter((i) => words.some((w) => `${i.title} ${i.preview} ${i.from}`.toLowerCase().includes(w))) : all;
@@ -133,35 +168,38 @@ export function agentService(o: Opts): AgentService {
           })),
         );
       },
-    });
+    );
 
-    const findNotes = betaZodTool({
-      name: "search_notes",
-      description: "Search the student's own notes and voice-note transcripts.",
-      inputSchema: z.object({ query: z.string().min(1).max(80) }),
-      run: async ({ query }) => {
+    const findNotes = tool(
+      "search_notes",
+      "Search the student's own notes and voice-note transcripts.",
+      z.object({ query: z.string().min(1).max(80) }),
+      "read",
+      async ({ query }) => {
         step("checking notes");
         return JSON.stringify(searchNotes(hub.listNotes(), query).slice(0, 8).map((n) => ({ title: n.label, body: n.body.slice(0, 500) })));
       },
-    });
+    );
 
-    const getCalendar = betaZodTool({
-      name: "get_school_calendar",
-      description: "School calendar dates that matter to the student (term dates, their year group, exams and mocks, parents' evenings, creative events) for the coming weeks. Optionally filter by words.",
-      inputSchema: z.object({ days: z.number().int().min(1).max(200).default(60), query: z.string().max(80).optional() }),
-      run: async ({ days, query }) => {
+    const getCalendar = tool(
+      "get_school_calendar",
+      "School calendar dates that matter to the student (term dates, their year group, exams and mocks, parents' evenings, creative events) for the coming weeks. Optionally filter by words.",
+      z.object({ days: z.number().int().min(1).max(200).default(60), query: z.string().max(80).optional() }),
+      "read",
+      async ({ days, query }) => {
         step("check the school calendar");
         const words = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
         const list = hub.upcomingEvents(today(), days).filter((e) => !words.length || words.some((w) => e.title.toLowerCase().includes(w)));
         return JSON.stringify(list.slice(0, 40).map((e) => ({ date: e.date, weekday: parseDateKey(e.date).toLocaleDateString("en-GB", { weekday: "short" }), time: e.time, title: e.title, tags: e.tags })));
       },
-    });
+    );
 
-    const getTeachers = betaZodTool({
-      name: "get_teachers",
-      description: "The student's own teachers (subject, timetable code, name) and, if asked, a search of the school staff list by name, subject or job. Use before drafting an email to a teacher. Email addresses are not in the list — never guess one.",
-      inputSchema: z.object({ query: z.string().max(60).optional() }),
-      run: async ({ query }) => {
+    const getTeachers = tool(
+      "get_teachers",
+      "The student's own teachers (subject, timetable code, name) and, if asked, a search of the school staff list by name, subject or job. Use before drafting an email to a teacher. Email addresses are not in the list — never guess one.",
+      z.object({ query: z.string().max(60).optional() }),
+      "read",
+      async ({ query }) => {
         step("check teachers");
         const mine = new Map<string, { subject: string; code: string; name: string | null }>();
         for (const periods of Object.values(hub.timetable())) {
@@ -174,16 +212,17 @@ export function agentService(o: Opts): AgentService {
         const found = q ? staff.filter((t) => `${t.name} ${t.role}`.toLowerCase().includes(q)).slice(0, 15) : [];
         return JSON.stringify({ my_teachers: [...mine.values()], staff_matches: found });
       },
-    });
+    );
 
-    const list = [getToday, getWeek, getSchool, findNotes, getCalendar, getTeachers];
+    const list: Tool[] = [getToday, getWeek, getSchool, findNotes, getCalendar, getTeachers];
     if (mode === "watch") return list;
 
-    const saveNote = betaZodTool({
-      name: "save_note",
-      description: "Save an answer or explanation to the student's notes app so they can read it later. Use this for anything longer than two short sentences.",
-      inputSchema: z.object({ title: z.string().min(1).max(80), body: z.string().min(1).max(8000) }),
-      run: async ({ title, body }) => {
+    const saveNote = tool(
+      "save_note",
+      "Save an answer or explanation to the student's notes app so they can read it later. Use this for anything longer than two short sentences.",
+      z.object({ title: z.string().min(1).max(80), body: z.string().min(1).max(8000) }),
+      "save",
+      async ({ title, body }) => {
         step("save to notes");
         const n = hub.addNote({ kind: "note", label: title, body, tags: [], secs: 0 });
         thread.output = { file: title.toLowerCase(), icon: "bookmark_added", meta: "IN NOTES", noteId: n.id };
@@ -191,21 +230,22 @@ export function agentService(o: Opts): AgentService {
         if (thread.origin === "wall") o.say("bookmark_added", "saved to your notes", "READ IT AFTER THIS SESSION", 3000);
         return "saved";
       },
-    });
-    list.push(saveNote as never);
+    );
+    list.push(saveNote);
     if (mode === "ask") return list;
 
-    const proposeEmail = betaZodTool({
-      name: "propose_email",
-      description: "Draft an email from the student to a teacher. This does NOT send anything: it asks the student to approve, then opens it ready in their school Outlook for them to press send.",
-      inputSchema: z.object({
+    const proposeEmail = tool(
+      "propose_email",
+      "Draft an email from the student to a teacher. This does NOT send anything: it asks the student to approve, then opens it ready in their school Outlook for them to press send.",
+      z.object({
         to_email: z.string().email().describe("recipient email address, taken from a school email you read"),
         to_name: z.string().min(1).max(60).describe("short name, e.g. 'mr hale'"),
         subject: z.string().min(1).max(120),
         body: z.string().min(1).max(3000),
         ask_summary: z.string().min(1).max(60).describe("what the email asks for, in a few words, e.g. 'two more days'"),
       }),
-      run: async (i) => {
+      "ask",
+      async (i) => {
         step("draft the reply");
         thread.log.push({ icon: "draft", text: "Drafted:", code: i.body });
         const ask = hub.createAsk({
@@ -222,12 +262,12 @@ export function agentService(o: Opts): AgentService {
         save(thread);
         return "Proposed. It is waiting for the student's OK; nothing has been sent.";
       },
-    });
+    );
 
-    const proposeSessions = betaZodTool({
-      name: "propose_sessions",
-      description: "Propose adding study sessions to the student's week. Nothing is added until they approve.",
-      inputSchema: z.object({
+    const proposeSessions = tool(
+      "propose_sessions",
+      "Propose adding study sessions to the student's week. Nothing is added until they approve.",
+      z.object({
         summary: z.string().min(1).max(60).describe("e.g. 'add six revision sessions?'"),
         sessions: z
           .array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), name: z.string().min(1).max(60), mins: z.number().int().min(5).max(90), subject: z.string().max(24).optional() }))
@@ -236,7 +276,8 @@ export function agentService(o: Opts): AgentService {
         when: z.string().max(40).describe("short description of days, e.g. 'mon to thu'"),
         keeps: z.string().max(40).optional().describe("what stays clear, e.g. 'friday clear'"),
       }),
-      run: async (i) => {
+      "ask",
+      async (i) => {
         step("spread the sessions");
         const ask = hub.createAsk({
           kind: "week",
@@ -252,13 +293,14 @@ export function agentService(o: Opts): AgentService {
         save(thread);
         return "Proposed. Waiting for the student's OK.";
       },
-    });
+    );
 
-    const proposeReminder = betaZodTool({
-      name: "propose_reminder",
-      description: "Propose a reminder that drops onto the wall at a set time. Waits for the student's OK.",
-      inputSchema: z.object({ text: z.string().min(1).max(80), at_iso: z.string().describe("local date-time, e.g. 2026-09-28T16:10") }),
-      run: async (i) => {
+    const proposeReminder = tool(
+      "propose_reminder",
+      "Propose a reminder that drops onto the wall at a set time. Waits for the student's OK.",
+      z.object({ text: z.string().min(1).max(80), at_iso: z.string().describe("local date-time, e.g. 2026-09-28T16:10") }),
+      "ask",
+      async (i) => {
         const at = new Date(i.at_iso).getTime();
         if (!Number.isFinite(at)) return "bad time";
         step("set a reminder");
@@ -275,20 +317,18 @@ export function agentService(o: Opts): AgentService {
         save(thread);
         return "Proposed. Waiting for the student's OK.";
       },
-    });
-    list.push(proposeEmail as never, proposeSessions as never, proposeReminder as never);
+    );
+    list.push(proposeEmail, proposeSessions, proposeReminder);
     return list;
   }
 
-  async function execute(thread: AgentThread) {
-    if (!client) return;
-    const ac = new AbortController();
-    running.set(thread.id, ac);
+  /** The per-question context: time, who the student is, the mode and the session rule. */
+  function contextFor(thread: AgentThread): string {
     const s = hub.settings();
     const sess = hub.session();
     const duringSession = thread.origin === "wall" && sess?.state === "running";
     const now = new Date();
-    const context =
+    return (
       `Now: ${now.toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}. ` +
       `Student: ${s.ownerName}${s.yearGroup ? `, ${s.yearGroup}` : ""}. Parent: ${s.parentName}. ` +
       (s.profile ? `About them: ${s.profile.replace(/\s+/g, " ").trim()} ` : "") +
@@ -296,88 +336,120 @@ export function agentService(o: Opts): AgentService {
       (duringSession
         ? " The student is in a focus session right now. If the request is not about the current task, reply with exactly DEFER and nothing else."
         : "") +
-      (thread.origin === "wall" ? " This will show on a tiny screen: answer in at most two short lines; anything longer goes to save_note." : "");
+      (thread.origin === "wall" ? " This will show on a tiny screen: answer in at most two short lines; anything longer goes to save_note." : "")
+    );
+  }
+
+  async function allTools(thread: AgentThread): Promise<Tool[]> {
+    const list = tools(thread, thread.mode);
+    if (o.extraTools) list.push(...(await o.extraTools(thread.mode, (t) => gateTool(thread, t))));
+    return list;
+  }
+
+  /** What happens with the final answer: DEFER / REFUSE mapped to their slabs, long answers to notes. */
+  function finish(thread: AgentThread, text: string) {
+    thread.steps.forEach((x) => (x.done = true));
+    if (text === "DEFER") {
+      hub.db.kvSet("deferred", [...hub.db.kvGet<string[]>("deferred", []), thread.prompt].slice(-5));
+      thread.log.push({ icon: "block", text: "after this session" });
+      thread.status = "done";
+      save(thread);
+      const cur = hub.session();
+      const left = cur ? Math.max(1, Math.ceil(sessionView(cur, Date.now()).remaining / 60)) : 0;
+      o.say("block", "after this session", left ? `${left} MINUTE${left === 1 ? "" : "S"}` : undefined, 3000);
+      return;
+    }
+    // Every bypass attempt gets the same flat line. It never negotiates.
+    if (text === "REFUSE") {
+      thread.log.push({ icon: "lock", text: "That's in the parent app." });
+      thread.status = "done";
+      save(thread);
+      if (thread.origin === "wall") o.say("lock", "cannot unlock the wall", "ASK A PARENT IN THEIR APP", 3000);
+      return;
+    }
+    if (text) thread.log.push({ icon: "lightbulb", text });
+    if (thread.status !== "asking") thread.status = "done";
+    save(thread);
+    if (thread.origin === "wall") {
+      const lines = text.split(/(?<=[.!?])\s+/);
+      if (thread.status === "asking") {
+        /* the ask slab takes over */
+      } else if (text.length > 90 || lines.length > 2) {
+        if (!thread.output) {
+          const n = hub.addNote({ kind: "note", label: thread.prompt.slice(0, 60), body: text, tags: [], secs: 0 });
+          thread.output = { file: thread.prompt.slice(0, 40), icon: "bookmark_added", meta: "IN NOTES", noteId: n.id };
+          save(thread);
+        }
+        o.say("bookmark_added", "saved to your notes", "READ IT AFTER THIS SESSION", 3000);
+      } else if (text) {
+        o.say("lightbulb", text.toLowerCase(), undefined, 5000);
+      }
+    }
+    hub.feed("agent", `Asked the agent: ${thread.prompt.slice(0, 60)}`);
+  }
+
+  function newThread(prompt: string, mode: AgentMode, origin: AgentThread["origin"]): AgentThread {
+    const t: AgentThread = {
+      id: newId(), prompt, mode, origin, status: "working", steps: [], log: [], askId: null, output: null, error: null,
+      createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    save(t);
+    return t;
+  }
+
+  async function execute(thread: AgentThread) {
+    if (!client) return;
+    const ac = new AbortController();
+    running.set(thread.id, ac);
+    const context = contextFor(thread);
     try {
       if (thread.origin === "wall") o.say("progress_activity", "working on it", undefined, 30_000);
-      const runner = client.beta.messages.toolRunner(
-        {
-          model: s.aiModel || "claude-opus-5",
-          max_tokens: 16000,
-          stream: false,
-          // If the model declines, the API re-runs the request on a fallback model automatically.
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-          system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-          output_config: { effort: thread.origin === "wall" ? "low" : "high" },
-          tools: tools(thread, thread.mode),
-          messages: [{ role: "user", content: `${context}\n\n${thread.prompt}` }],
-          max_iterations: 12,
-        },
-        { signal: ac.signal },
-      );
-      for await (const msg of runner) {
-        if (ac.signal.aborted) break;
-        for (const b of msg.content) {
-          if (b.type === "text" && b.text.trim() && msg.stop_reason !== "end_turn") {
-            thread.log.push({ icon: "notes", text: b.text.trim() });
-            save(thread);
-          }
+      const list = await allTools(thread);
+      const byName = new Map(list.map((t) => [t.name, t]));
+      const messages: Message[] = [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: `${context}\n\n${thread.prompt}` },
+      ];
+      let text = "";
+      for (let turn = 0; turn < 10 && !ac.signal.aborted; turn++) {
+        const r = await client.chat({
+          messages,
+          tools: list.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })),
+          maxTokens: thread.origin === "wall" ? 500 : 2000,
+          model: hub.settings().aiModel || DEFAULT_MODEL,
+          signal: ac.signal,
+        });
+        messages.push({ role: "assistant", content: r.content || null, ...(r.toolCalls.length ? { tool_calls: r.toolCalls } : {}) });
+        if (!r.toolCalls.length) {
+          text = r.content;
+          break;
         }
-        if (msg.stop_reason === "refusal") throw new Error("the assistant declined that one");
-      }
-      const final = await runner.done();
-      const text = final.content
-        .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-        .map((b) => b.text)
-        .join("\n")
-        .trim();
-      if (ac.signal.aborted) return;
-      thread.steps.forEach((x) => (x.done = true));
-      if (text === "DEFER") {
-        hub.db.kvSet("deferred", [...hub.db.kvGet<string[]>("deferred", []), thread.prompt].slice(-5));
-        thread.log.push({ icon: "block", text: "after this session" });
-        thread.status = "done";
-        save(thread);
-        const cur = hub.session();
-        const left = cur ? Math.max(1, Math.ceil(sessionView(cur, Date.now()).remaining / 60)) : 0;
-        o.say("block", "after this session", left ? `${left} MINUTE${left === 1 ? "" : "S"}` : undefined, 3000);
-        return;
-      }
-      // Every bypass attempt gets the same flat line. It never negotiates.
-      if (text === "REFUSE") {
-        thread.log.push({ icon: "lock", text: "That's in the parent app." });
-        thread.status = "done";
-        save(thread);
-        if (thread.origin === "wall") o.say("lock", "cannot unlock the wall", "ASK A PARENT IN THEIR APP", 3000);
-        return;
-      }
-      if (text) thread.log.push({ icon: "lightbulb", text });
-      if (thread.status !== "asking") thread.status = "done";
-      save(thread);
-      if (thread.origin === "wall") {
-        const lines = text.split(/(?<=[.!?])\s+/);
+        if (r.content) {
+          thread.log.push({ icon: "notes", text: r.content });
+          save(thread);
+        }
+        for (const call of r.toolCalls) {
+          const t = byName.get(call.function.name);
+          let out: string;
+          try {
+            out = t ? await t.run(parseArgs(call.function.arguments)) : `error: no tool called ${call.function.name}`;
+          } catch (e) {
+            out = `error: ${(e as Error).message}`.slice(0, 300);
+          }
+          messages.push({ role: "tool", tool_call_id: call.id, content: out.slice(0, 12_000) });
+        }
         if (thread.status === "asking") {
-          /* the ask slab takes over */
-        } else if (text.length > 90 || lines.length > 2) {
-          if (!thread.output) {
-            const n = hub.addNote({ kind: "note", label: thread.prompt.slice(0, 60), body: text, tags: [], secs: 0 });
-            thread.output = { file: thread.prompt.slice(0, 40), icon: "bookmark_added", meta: "IN NOTES", noteId: n.id };
-            save(thread);
-          }
-          o.say("bookmark_added", "saved to your notes", "READ IT AFTER THIS SESSION", 3000);
-        } else if (text) {
-          o.say("lightbulb", text.toLowerCase(), undefined, 5000);
+          // An ask is waiting for a yes: stop here, the student answers on the wall or the app.
+          text = "";
+          break;
         }
       }
-      hub.feed("agent", `Asked the agent: ${thread.prompt.slice(0, 60)}`);
+      if (ac.signal.aborted) return;
+      finish(thread, text);
     } catch (e) {
       if (ac.signal.aborted) return;
       let msg = "something went wrong";
-      if (e instanceof Anthropic.AuthenticationError) msg = "the Claude API key was rejected";
-      else if (e instanceof Anthropic.RateLimitError) msg = "too many requests, try again in a minute";
-      else if (e instanceof Anthropic.APIConnectionError) msg = "can't reach Claude — offline?";
-      else if (e instanceof Anthropic.APIError) msg = `Claude error ${e.status}`;
-      else if (e instanceof Error) msg = e.message;
+      if (e instanceof LlmError || e instanceof Error) msg = e.message;
       thread.status = "error";
       thread.error = msg;
       save(thread);
@@ -399,13 +471,28 @@ export function agentService(o: Opts): AgentService {
   const svc: AgentService = {
     available: () => !!client,
     run({ prompt, mode, origin }) {
-      const t: AgentThread = {
-        id: newId(), prompt, mode, origin, status: "working", steps: [], log: [], askId: null, output: null, error: null,
-        createdAt: Date.now(), updatedAt: Date.now(),
-      };
-      save(t);
+      const t = newThread(prompt, mode, origin);
       void execute(t);
       return t.id;
+    },
+    /** For the voice assistant: same tools, same rules, same finish — a different model drives it. */
+    async voiceTurn() {
+      const thread = newThread("(voice)", "act", "wall");
+      return {
+        thread,
+        system: SYSTEM,
+        context: contextFor(thread),
+        tools: await allTools(thread),
+        finish: (heard: string, text: string) => {
+          thread.prompt = heard.slice(0, 300) || "(voice)";
+          finish(thread, text.trim());
+        },
+        fail: (msg: string) => {
+          thread.status = "error";
+          thread.error = msg;
+          save(thread);
+        },
+      };
     },
     stop(id) {
       running.get(id)?.abort();

@@ -95,6 +95,15 @@ describe("school calendar", () => {
     expect(calendarTags("GCSE & A Level Drama Theatre Trip to see ‘The Curious Incident’ (Woking Theatre)", who)).toContain("creative");
   });
 
+  it("pulls in what the student is part of, and their house", () => {
+    const me = { yearGroup: "5th Year", house: "Grenville", interests: ["senior production", "musical theatre"] };
+    expect(calendarTags("Senior School Production Rehearsal (Donald Brooks Auditorium)", me)).toContain("mine");
+    expect(calendarTags("Musical Theatre Masterclass with Industry Professional", me)).toContain("mine");
+    expect(calendarTags("Lower School Production Rehearsals (A Hall)", me)).toBe(null);
+    expect(calendarTags("5th Year & 6th Form Grenville House Waterpark Trip", me)).toEqual(expect.arrayContaining(["year", "house"]));
+    expect(calendarTags("5th Year Collingwood House Trip", me)).toBe(null);
+  });
+
   it("drops other years, staff meetings, fixtures and venues", () => {
     expect(calendarTags("4th Year GCSE Drama DNA Workshop by Quirky Bird Theatre Company (Studio 45)", who)).toBe(null);
     expect(calendarTags("PSHE Meeting for 1st-5th Year Form Tutors (Lecture Theatre)", who)).toBe(null);

@@ -7,9 +7,8 @@ import { isoWeekday, parseDateKey } from "./time";
  * Source: the school's Autumn Term 2026 calendar (page 2, "Term Dates") and its published term-date
  * list, both checked 26 Sep 2026. Autumn starts Wed 9 Sep for everyone except L6 and 1st Year
  * (Tue 8 Sep). Half terms are the school's own ranges; Fri 23 Oct is a day off.
- * Timetable weeks: Autumn 2026 starts on Week A (calendar: "WEEK 1 (A) 07 SEP – 13 SEP") and
- * half-term weeks are skipped. Later terms are assumed to start on Week A too until their
- * calendar says otherwise (importing the calendar PDF fixes it automatically).
+ * Timetable weeks: every term starts on Week A (calendar: "WEEK 1 (A) 07 SEP – 13 SEP"), and
+ * half-term weeks are skipped. Importing a term's calendar PDF double-checks it.
  */
 export const CHURCHERS_2026_27: TermDate[] = [
   {
@@ -28,6 +27,7 @@ export const CHURCHERS_2026_27: TermDate[] = [
     breaks: [{ label: "half term", start: "2027-02-13", end: "2027-02-21" }],
     confirmed: true,
     note: "",
+    abStart: "A",
   },
   {
     term: "Summer 2027",
@@ -36,6 +36,7 @@ export const CHURCHERS_2026_27: TermDate[] = [
     breaks: [{ label: "half term", start: "2027-05-29", end: "2027-06-06" }],
     confirmed: true,
     note: "",
+    abStart: "A",
   },
   {
     term: "Autumn 2027",
@@ -44,6 +45,7 @@ export const CHURCHERS_2026_27: TermDate[] = [
     breaks: [{ label: "half term", start: "2027-10-22", end: "2027-10-31" }],
     confirmed: true,
     note: "L6 & 1st Year start Tue 7 Sep; everyone else Wed 8 Sep.",
+    abStart: "A",
   },
 ];
 

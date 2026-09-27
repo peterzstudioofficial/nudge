@@ -43,10 +43,16 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run bundle:pi
+      # same bundle for a PC, so the install test below can run the on-device models for real
+      - run: NUDGE_ARCH=x64 node scripts/bundle-pi.mjs --no-build
       - uses: actions/upload-artifact@v4
         with:
           name: nudge-pi
           path: pi-os/deploy/nudge-pi.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nudge-pi-x64
+          path: pi-os/deploy/nudge-pi-x64.tar.gz
 
   pi-install:
     name: Pi installer (real run in Debian)
@@ -55,9 +61,9 @@ jobs:
     container: debian:bookworm
     steps:
       - uses: actions/download-artifact@v4
-        with: { name: nudge-pi }
+        with: { name: nudge-pi-x64 }
       - run: apt-get update -qq && apt-get install -y -qq curl ca-certificates xz-utils systemd procps
-      - run: tar xzf nudge-pi.tar.gz && bash nudge-pi/install.sh --image --no-tailscale
+      - run: tar xzf nudge-pi-x64.tar.gz && bash nudge-pi/install.sh --image --no-tailscale
       - name: installed hub starts and serves the wall
         run: |
           test -x /opt/nudge/node/bin/node && test -f /opt/nudge/hub/hub.mjs && test -f /etc/systemd/system/nudge-hub.service
@@ -68,6 +74,17 @@ jobs:
           curl -sf http://127.0.0.1:8788/screen/ > /dev/null
           curl -sf -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:8788/api/homework/plan > /dev/null
           cat /tmp/hub.log
+          grep -q "speech-to-text: on-device model installed" /tmp/hub.log
+          grep -q "on-device embeddings installed" /tmp/hub.log
+      - name: on-device models really run
+        run: |
+          set -a; . /etc/nudge/hub.env; set +a
+          cd /opt/nudge/hub
+          curl -fsSL https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2 | tar xj -C /tmp sherpa-onnx-moonshine-tiny-en-int8/test_wavs/0.wav
+          chmod -R a+rX /tmp/sherpa-onnx-moonshine-tiny-en-int8
+          runuser -u nudge -- /opt/nudge/node/bin/node --no-warnings hub.mjs transcribe /tmp/sherpa-onnx-moonshine-tiny-en-int8/test_wavs/0.wav | tee /tmp/stt.txt
+          grep -qi "nightfall" /tmp/stt.txt
+          runuser -u nudge -- /opt/nudge/node/bin/node -e "require('./node_modules/onnxruntime-node').InferenceSession.create('/var/lib/nudge/models/minilm/model.onnx').then((s) => console.log('minilm inputs:', s.inputNames.join(', ')))"
 
   windows:
     name: Windows installer

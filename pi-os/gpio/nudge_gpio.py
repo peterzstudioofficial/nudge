@@ -45,7 +45,6 @@ LED_MATRIX = 25
 LED_BAR = int(os.environ.get("NUDGE_BAR_LEDS", "16"))
 LED_BRIGHTNESS = float(os.environ.get("NUDGE_LED_BRIGHTNESS", "0.35"))
 NFC_DEVICE = os.environ.get("NUDGE_NFC_DEVICE", "")  # e.g. /dev/input/by-id/usb-…-event-kbd
-VOSK_MODEL = os.environ.get("NUDGE_VOSK_MODEL", "/opt/nudge/vosk-model")
 
 
 def log(*a):
@@ -80,6 +79,8 @@ class Hub:
                             if msg.get("type") == "leds":
                                 self.frame = msg.get("frame")
                                 self.frame_at = time.monotonic()
+                            elif msg.get("type") == "play":
+                                play_audio(msg.get("pcm") or "", int(msg.get("rate") or 24000))
                     finally:
                         sender.cancel()
             except Exception as e:  # noqa: BLE001 - keep the daemon alive whatever happens
@@ -90,10 +91,15 @@ class Hub:
     async def _send_loop(self, ws):
         while True:
             item = await self.queue.get()
-            await ws.send(json.dumps({"type": "input", "input": item}))
+            raw = item.pop("__raw", None) if isinstance(item, dict) else None
+            await ws.send(json.dumps(raw if raw is not None else {"type": "input", "input": item}))
 
     def send(self, item: dict):
         self.queue.put_nowait(item)
+
+    def send_raw(self, msg: dict):
+        """A message that isn't a hardware input (e.g. microphone audio for the assistant)."""
+        self.queue.put_nowait({"__raw": msg})
 
 
 # ----------------------------------------------------------------------------- inputs
@@ -184,45 +190,72 @@ _hub_ref: "Hub | None" = None
 
 
 def start_listening():
-    """Touch pad pressed: record up to 6 s, recognise offline with Vosk, send the text."""
+    """Touch pad pressed: stream the microphone to the hub until the student stops talking.
+
+    The hub decides what to do with it: Gemini Live if that's set up, otherwise on-device
+    speech-to-text on the Pi. Nothing is recorded to disk.
+    """
     global _listen_task
     if _listen_task and not _listen_task.done():
         return
-    _listen_task = asyncio.ensure_future(listen_once())
+    _listen_task = asyncio.ensure_future(stream_voice())
 
 
-async def listen_once():
-    if not os.path.isdir(VOSK_MODEL) or _hub_ref is None:
+async def stream_voice():
+    if _hub_ref is None:
         return
-    try:
-        from vosk import KaldiRecognizer, Model  # pip install vosk
-    except Exception:  # noqa: BLE001
-        return
-    model = getattr(listen_once, "_model", None) or Model(VOSK_MODEL)
-    listen_once._model = model  # type: ignore[attr-defined]
-    rec = KaldiRecognizer(model, 16000)
+    import base64
+
     proc = await asyncio.create_subprocess_exec(
-        "arecord", "-q", "-f", "S16_LE", "-r", "16000", "-c", "1", "-d", "6", "-t", "raw",
+        "arecord", "-q", "-f", "S16_LE", "-r", "16000", "-c", "1", "-d", "12", "-t", "raw",
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
     )
-    silent_for = 0.0
     heard_any = False
+    silent_for = 0.0
+    waited = 0.0
     assert proc.stdout
-    while True:
-        chunk = await proc.stdout.read(4000)
-        if not chunk:
-            break
-        if rec.AcceptWaveform(chunk):
-            heard_any = True
-        level = max(abs(int.from_bytes(chunk[i:i + 2], "little", signed=True)) for i in range(0, len(chunk) - 1, 64))
-        silent_for = silent_for + 0.125 if level < 800 else 0
-        if heard_any and silent_for > 1.2:
+    try:
+        while True:
+            chunk = await proc.stdout.read(8000)  # 0.25 s
+            if not chunk:
+                break
+            _hub_ref.send_raw({"type": "voice-audio", "pcm": base64.b64encode(chunk).decode()})
+            level = max(abs(int.from_bytes(chunk[i:i + 2], "little", signed=True)) for i in range(0, len(chunk) - 1, 64))
+            if level >= 800:
+                heard_any = True
+                silent_for = 0.0
+            else:
+                silent_for += 0.25
+                waited += 0.25
+            # Stop after a pause once they've spoken, or if nothing was said at all.
+            if (heard_any and silent_for > 1.2) or (not heard_any and waited > 3.0):
+                break
+    finally:
+        if proc.returncode is None:
             proc.terminate()
-            break
-    text = json.loads(rec.FinalResult()).get("text", "").strip()
-    if text:
-        log("heard:", text)
-        _hub_ref.send({"kind": "voice", "text": text})
+        _hub_ref.send_raw({"type": "voice-end"})
+
+
+_player = None
+
+
+def play_audio(pcm_b64: str, rate: int):
+    """Spoken replies (only if they're switched on in setup): 16-bit mono PCM to the speaker."""
+    global _player
+    import base64
+    import subprocess
+
+    if not pcm_b64:
+        return
+    try:
+        if _player is None or _player.poll() is not None or getattr(_player, "_rate", 0) != rate:
+            _player = subprocess.Popen(["aplay", "-q", "-f", "S16_LE", "-r", str(rate), "-c", "1", "-t", "raw"], stdin=subprocess.PIPE)
+            _player._rate = rate  # type: ignore[attr-defined]
+        _player.stdin.write(base64.b64decode(pcm_b64))  # type: ignore[union-attr]
+        _player.stdin.flush()  # type: ignore[union-attr]
+    except Exception as e:  # noqa: BLE001
+        log("can't play audio:", e)
+        _player = None
 
 
 # ----------------------------------------------------------------------------- lights

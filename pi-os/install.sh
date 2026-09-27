@@ -6,7 +6,7 @@
 #   sudo ./install.sh --image         used by the pi-gen image build (inside a chroot)
 #
 # Options:
-#   --voice            also install offline speech (Vosk, ~50 MB) for the touch pad
+#   --no-models        skip the on-device AI models (speech-to-text ~45 MB, smart search ~23 MB)
 #   --screen WxH       force an HDMI mode, e.g. --screen 1024x600 (only if the screen stays black)
 #   --lan-only-ssh     keep SSH reachable from the home network (default: yes; tailnet always)
 #   --no-tailscale     skip Tailscale (phones then only work on the home Wi-Fi)
@@ -16,12 +16,13 @@
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-MODE=full VOICE=0 SCREEN="" TAILSCALE=1 HOST=nudge
+MODE=full MODELS=1 SCREEN="" TAILSCALE=1 HOST=nudge
 while [ $# -gt 0 ]; do
   case "$1" in
     --update) MODE=update ;;
     --image) MODE=image ;;
-    --voice) VOICE=1 ;;
+    --no-models) MODELS=0 ;;
+    --voice) ;; # old flag: speech is now part of the normal install
     --screen) SCREEN="$2"; shift ;;
     --no-tailscale) TAILSCALE=0 ;;
     --hostname) HOST="$2"; shift ;;
@@ -48,6 +49,9 @@ case "$ARCH" in
   *) die "unsupported CPU $ARCH" ;;
 esac
 
+[ -d "$HERE/hub/node_modules/onnxruntime-node/bin/napi-v6/linux/$NODE_ARCH" ] \
+  || warn "this bundle's on-device AI is built for another CPU — speech-to-text and smart search stay off (everything else works)"
+
 BOOT=/boot/firmware; [ -d "$BOOT" ] || BOOT=/boot
 . /etc/os-release
 CODENAME=${VERSION_CODENAME:-bookworm}
@@ -59,7 +63,7 @@ install_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends \
-    ca-certificates curl xz-utils gnupg cage \
+    ca-certificates curl xz-utils bzip2 gnupg cage \
     python3 python3-venv python3-pip python3-dev python3-websockets python3-evdev \
     gcc libc6-dev ufw unattended-upgrades alsa-utils util-linux
   # Nice-to-haves (some only exist in the Raspberry Pi repo): skip any that aren't there.
@@ -152,19 +156,42 @@ install_app() {
   fi
   /opt/nudge/venv/bin/pip install -q --disable-pip-version-check "rpi-ws281x>=5,<6" \
     || warn "LED driver didn't install — lights stay off, everything else works"
-  if [ "$VOICE" = 1 ]; then install_voice; fi
 }
 
-install_voice() {
-  say "Installing offline speech (Vosk)"
-  /opt/nudge/venv/bin/pip install -q --disable-pip-version-check "vosk>=0.3.45,<0.4" || { warn "Vosk didn't install"; return 0; }
-  if [ ! -d /opt/nudge/vosk-model ]; then
-    local tmp; tmp=$(mktemp -d)
-    curl -fsSL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o "$tmp/m.zip"
-    python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$tmp/m.zip" "$tmp"
-    mv "$tmp"/vosk-model-small-en-us-0.15 /opt/nudge/vosk-model; rm -rf "$tmp"
+# On-device AI models. They run on the Pi, so voice notes and personal search never leave it.
+MOONSHINE_URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2
+MOONSHINE_SHA=d5fe6ec4334fef36255b2a4010412cad4c007e33103fec62fb5d17cad88086f2
+MINILM_URL=https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main
+install_models() {
+  [ "$MODELS" = 1 ] || return 0
+  local dir=/var/lib/nudge/models tmp
+  install -d -m 700 -o nudge -g nudge "$dir"
+  if [ ! -f "$dir/moonshine/tokens.txt" ]; then
+    say "Downloading on-device speech-to-text (Moonshine tiny, ~45 MB)"
+    tmp=$(mktemp -d)
+    if curl -fsSL "$MOONSHINE_URL" -o "$tmp/m.tar.bz2" && echo "$MOONSHINE_SHA  $tmp/m.tar.bz2" | sha256sum -c --quiet -; then
+      tar -xjf "$tmp/m.tar.bz2" -C "$tmp"
+      rm -rf "$dir/moonshine"; mkdir -p "$dir/moonshine"
+      cp "$tmp"/sherpa-onnx-moonshine-tiny-en-int8/*.onnx "$tmp"/sherpa-onnx-moonshine-tiny-en-int8/tokens.txt "$dir/moonshine/"
+    else
+      warn "speech model didn't download (or didn't match) — voice notes stay audio-only; run install.sh --update to retry"
+    fi
+    rm -rf "$tmp"
   fi
-  sed -i 's#^\#NUDGE_VOSK_MODEL=.*#NUDGE_VOSK_MODEL=/opt/nudge/vosk-model#' /etc/nudge/gpio.env
+  if [ ! -f "$dir/minilm/model.onnx" ]; then
+    say "Downloading smart search (MiniLM, ~23 MB)"
+    tmp=$(mktemp -d)
+    if curl -fsSL "$MINILM_URL/onnx/model_quantized.onnx" -o "$tmp/model.onnx" \
+      && curl -fsSL "$MINILM_URL/tokenizer.json" -o "$tmp/tokenizer.json" \
+      && curl -fsSL "$MINILM_URL/tokenizer_config.json" -o "$tmp/tokenizer_config.json" \
+      && [ "$(stat -c %s "$tmp/model.onnx")" -gt 5000000 ]; then
+      rm -rf "$dir/minilm"; mkdir -p "$dir/minilm"; cp "$tmp"/* "$dir/minilm/"
+    else
+      warn "search model didn't download — search still works on keywords"
+    fi
+    rm -rf "$tmp"
+  fi
+  chown -R nudge:nudge "$dir"
 }
 
 install_services() {
@@ -308,13 +335,14 @@ EOF
 }
 
 if [ "$MODE" = update ]; then
-  install_node; install_app; install_services; finish; exit 0
+  install_node; install_app; install_models; install_services; finish; exit 0
 fi
 install_packages
 install_tailscale
 install_node
 make_users
 install_app
+install_models
 install_services
 harden
 tune

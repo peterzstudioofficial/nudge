@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { z } from "zod";
-import { Birthday, CalEvent, FormTime, HomeworkPlan, SchoolDay, Settings, Teacher, TermDate, Timetable } from "@nudge/shared";
+import { Activity, Birthday, CalEvent, FormTime, HomeworkPlan, SchoolDay, Settings, Teacher, TermDate, Timetable } from "@nudge/shared";
 import { type Hub, newId } from "./hub";
 
 /** A setup file: everything personal that isn't in the code (timetable, staff, birthdays…). */
@@ -13,7 +13,8 @@ export const SetupPack = z.object({
   teachers: z.array(Teacher).max(500).optional(),
   terms: z.array(TermDate).max(12).optional(),
   events: z.array(CalEvent.omit({ id: true, source: true })).max(1000).optional(),
-  settings: Settings.pick({ ownerName: true, yearGroup: true, house: true, profile: true }).partial().optional(),
+  activities: z.array(Activity.omit({ id: true })).max(40).optional(),
+  settings: Settings.pick({ ownerName: true, yearGroup: true, house: true, profile: true, interests: true }).partial().optional(),
 });
 export type SetupPack = z.infer<typeof SetupPack>;
 
@@ -27,6 +28,7 @@ export function applySetup(hub: Hub, pack: SetupPack): string[] {
   if (pack.homework) (hub.setHomeworkPlan(pack.homework), done.push("homework plan"));
   if (pack.birthdays) (hub.setBirthdays(pack.birthdays), done.push(`${pack.birthdays.length} birthdays`));
   if (pack.teachers) (hub.setTeachers(pack.teachers), done.push(`${pack.teachers.length} staff`));
+  if (pack.activities) (hub.setActivities(pack.activities.map((a) => ({ ...a, id: newId() }))), done.push(`${pack.activities.length} weekly activities`));
   if (pack.events) {
     for (const e of hub.events.all()) if (e.source === "calendar") hub.events.del(e.id);
     for (const e of pack.events) hub.events.put({ ...e, id: `cal:${newId().slice(0, 12)}`, source: "calendar" });

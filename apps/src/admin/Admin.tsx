@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   SUBJECT_NAMES, tint, type Device, type Settings, type Snapshot, type TermDate, type Timetable, type Birthday, type SchoolItem,
-  type FormTime, type HomeworkPlan, type SchoolDay, type Teacher, type Period, type CalEvent, relativeDay, dateKey,
+  type FormTime, type HomeworkPlan, type SchoolDay, type Teacher, type Period, type CalEvent, type Activity, relativeDay, dateKey,
 } from "@nudge/shared";
 import { getClient, loadPairing, useHubGet, useSnapshot, type AppKey } from "../lib/hub";
 import { Btn, D, DOTO, Ms, toast, toastError } from "../lib/ui";
@@ -402,12 +402,16 @@ function People({ snap, cfg, reload }: { snap: Snapshot; cfg: Config; reload: ()
   const client = getClient("owner")!;
   const s = snap.settings;
   const [me, setMe] = useState({ yearGroup: s.yearGroup, house: s.house, profile: s.profile });
+  const [interests, setInterests] = useState(s.interests.join(", "));
+  const { data: acts, reload: reActs } = useHubGet<Activity[]>(client, "/api/config/activities");
+  const [actList, setActList] = useState<Activity[] | null>(null);
+  const list = actList ?? acts ?? [];
   const { data: staff, reload: again } = useHubGet<{ teachers: Teacher[]; matches: { code: string; subject: string; name: string | null }[] }>(client, "/api/config/teachers");
   const [paste, setPaste] = useState("");
   const [bd, setBd] = useState(() => cfg.birthdays.map((b) => `${b.name}: ${b.date.slice(3)}/${b.date.slice(0, 2)}`).join("\n"));
   const saveMe = async () => {
     try {
-      await client.send("PATCH", "/api/settings", me);
+      await client.send("PATCH", "/api/settings", { ...me, interests: interests.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 12) });
       toast("check_circle", "saved");
       void client.snapshot();
     } catch (e) {
@@ -459,8 +463,34 @@ function People({ snap, cfg, reload }: { snap: Snapshot; cfg: Config; reload: ()
           <input style={{ ...inp, width: 140 }} placeholder="year group, e.g. 5th Year" value={me.yearGroup} onChange={(e) => setMe({ ...me, yearGroup: e.target.value.slice(0, 20) })} />
           <input style={{ ...inp, width: 140 }} placeholder="house (optional)" value={me.house} onChange={(e) => setMe({ ...me, house: e.target.value.slice(0, 20) })} />
         </div>
+        <input style={{ ...inp, width: "100%", marginBottom: 8 }} placeholder="things you're part of, e.g. senior production, musical theatre" value={interests} onChange={(e) => setInterests(e.target.value)} />
         <textarea style={{ ...inp, width: "100%", height: 90, padding: 12, lineHeight: 1.5, resize: "vertical" }} value={me.profile} onChange={(e) => setMe({ ...me, profile: e.target.value.slice(0, 800) })} placeholder="GCSE subjects, what you enjoy, plans…" />
         <Btn dark style={{ width: 120, height: 38, marginTop: 8 }} onClick={saveMe}>save</Btn>
+      </Section>
+
+      <Section title="weekly commitments" note="Rehearsals, clubs, lessons outside school. Shown on your phone, known to the assistant, and homework is planned around them (an evening with rehearsal till six gets less).">
+        {list.map((a, i) => {
+          const upd = (p: Partial<Activity>) => setActList(list.map((x, j) => (j === i ? { ...x, ...p } : x)));
+          return (
+            <div key={a.id || i} style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <input style={{ ...inp, width: 200 }} value={a.name} onChange={(e) => upd({ name: e.target.value })} placeholder="senior production rehearsals" />
+              {WDAYS.map((d, k) => (
+                <span key={d} className="tap" onClick={() => upd({ days: a.days.includes(k + 1) ? a.days.filter((x) => x !== k + 1) : [...a.days, k + 1].sort() })} style={{ padding: "6px 8px", borderRadius: 7, fontSize: 9, background: a.days.includes(k + 1) ? "#ff4d17" : "#15151b", color: a.days.includes(k + 1) ? "#0b0b0d" : "#8e8e97" }}>{d}</span>
+              ))}
+              <input type="time" style={inp} value={a.start} onChange={(e) => upd({ start: e.target.value })} />
+              <input type="time" style={inp} value={a.end} onChange={(e) => upd({ end: e.target.value })} />
+              <input style={{ ...inp, width: 110 }} value={a.where} onChange={(e) => upd({ where: e.target.value })} placeholder="where" />
+              <span className="tap" onClick={() => setActList(list.filter((_, j) => j !== i))}><Ms style={{ fontSize: 16, color: "#5f5f67" }}>close</Ms></span>
+            </div>
+          );
+        })}
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <Btn dark style={{ width: 130, height: 36, background: "#15151b", color: "#c9c8c2" }} onClick={() => setActList([...list, { id: "", name: "", days: [1], start: "16:00", end: "17:00", where: "", termOnly: true }])}>add</Btn>
+          <Btn dark style={{ width: 130, height: 36 }} onClick={() => {
+            if (list.some((a) => !a.name.trim() || !a.days.length || a.end <= a.start)) return toast("error", "each needs a name, a day and an end after its start");
+            void client.send("PUT", "/api/config/activities", list.map(({ id, ...a }) => (id ? { id, ...a } : a))).then(() => { toast("check_circle", "saved"); setActList(null); reActs(); }).catch(toastError);
+          }}>save</Btn>
+        </div>
       </Section>
 
       <Section title="your teachers" note="Matched from the codes on your timetable. The staff list stays on the wall only — it's never shown in the parent app. Emails from your teachers get filed under their subject.">
@@ -495,6 +525,7 @@ function Wall({ snap, cfg, reload, disabled }: { snap: Snapshot; cfg: Config; re
   const [times, setTimes] = useState({ alarm: s.alarm, leaveForSchool: s.leaveForSchool });
   const [loc, setLoc] = useState(s.location);
   const [model, setModel] = useState(s.aiModel);
+  const [voiceModel, setVoiceModel] = useState(s.voiceModel);
   const set = async (p: Partial<Settings>) => {
     try {
       await client.send("PATCH", "/api/settings", p);
@@ -555,14 +586,88 @@ function Wall({ snap, cfg, reload, disabled }: { snap: Snapshot; cfg: Config; re
           <input disabled={disabled} style={{ ...inp, width: 100 }} value={loc.lon} onChange={(e) => setLoc({ ...loc, lon: Number(e.target.value) || 0 })} />
           {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ location: loc })}>save</Btn>}
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "#8e8e97" }}>Claude model</span>
-          <input disabled={disabled} style={{ ...inp, width: 220 }} value={model} onChange={(e) => setModel(e.target.value)} />
-          {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ aiModel: model.trim() || "claude-opus-5" })}>save</Btn>}
+        <AiStatus />
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: "#8e8e97" }}>text model (OpenRouter)</span>
+          <input disabled={disabled} style={{ ...inp, width: 260 }} value={model} onChange={(e) => setModel(e.target.value)} />
+          {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ aiModel: model.trim() || "deepseek/deepseek-v4.1-flash" })}>save</Btn>}
         </div>
-        <div style={{ fontSize: 10, color: "#5f5f67", marginTop: 8, lineHeight: 1.5 }}>The API key lives only on the hub (ANTHROPIC_API_KEY in /etc/nudge/hub.env). When you ask the assistant something, the relevant school items and notes are sent to Claude to answer it.</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+          <span style={{ fontSize: 11, color: "#8e8e97" }}>voice model (Gemini Live)</span>
+          <input disabled={disabled} style={{ ...inp, width: 200 }} value={voiceModel} onChange={(e) => setVoiceModel(e.target.value)} />
+          {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ voiceModel: voiceModel.trim() || "gemini-3.8-live" })}>save</Btn>}
+          {!disabled && <Chip icon={s.voiceReplies ? "volume_up" : "volume_off"} label={s.voiceReplies ? "spoken replies on" : "spoken replies off"} go={() => set({ voiceReplies: !s.voiceReplies })} />}
+        </div>
+        <div style={{ fontSize: 10, color: "#5f5f67", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Every text request is routed to zero-data-retention providers that don't collect data; if none is free for the model it fails rather than falling back to one that keeps data. Search over your notes, school stuff and calendar runs on the hub; only the few results a question needs go out with it. Voice notes are turned into text on the hub too. Talking to the wall uses Gemini Live when a key is set (Google keeps paid-tier requests briefly for abuse checks only, and doesn't train on them); without it, speech is turned into text on the hub and goes to the text model.</div>
       </Section>
+      {!disabled && <Apps />}
     </>
+  );
+}
+
+/** Connected apps (Composio): sign in once in your browser, then the assistant can use them. */
+function Apps() {
+  const client = getClient("owner")!;
+  const { data, reload } = useHubGet<{ on: boolean; suggested: { slug: string; name: string }[]; toolkits: string[]; connected: { toolkit: string; status: string; id: string }[] }>(client, "/api/apps");
+  const [custom, setCustom] = useState("");
+  if (!data) return null;
+  const connect = async (toolkit: string) => {
+    try {
+      const r = await client.send<{ url: string | null }>("POST", "/api/apps/connect", { toolkit });
+      if (r?.url) window.open(r.url, "_blank", "noopener");
+      toast("open_in_new", r?.url ? "finish signing in in the new tab" : "connected");
+      setTimeout(reload, 4000);
+    } catch (e) {
+      toastError(e);
+    }
+  };
+  const byKit = new Map(data.connected.map((c) => [c.toolkit, c]));
+  return (
+    <Section title="connected apps" note="Let the assistant use your other apps (through Composio). Reading happens straight away; anything that would send, post, add or delete shows you exactly what it will do and waits for your yes. Sign-ins are held by Composio, not on the wall.">
+      {!data.on && <div style={{ fontSize: 11, color: "#8e8e97", marginBottom: 10 }}>Off — add a Composio key on the hub: <span style={{ fontFamily: DOTO, fontWeight: 900 }}>sudo nudge key composio</span></div>}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {[...data.suggested, ...data.toolkits.filter((t) => !data.suggested.some((x) => x.slug === t)).map((t) => ({ slug: t, name: t }))].map((t) => {
+          const c = byKit.get(t.slug);
+          const ok = c?.status === "ACTIVE";
+          return (
+            <span key={t.slug} className="tap" onClick={() => (data.on ? (c ? void client.send("DELETE", `/api/apps/${c.id}`).then(reload).catch(toastError) : void connect(t.slug)) : undefined)} title={c ? "tap to disconnect" : "tap to connect"} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 11px", borderRadius: 9, fontSize: 10, background: ok ? "#1f7a4d33" : "#15151b", color: ok ? "#6fcf97" : data.on ? "#c9c8c2" : "#5f5f67" }}>
+              <Ms style={{ fontSize: 14 }}>{ok ? "link" : c ? "hourglass_top" : "add_link"}</Ms>{t.name}
+            </span>
+          );
+        })}
+      </div>
+      {data.on && (
+        <div style={{ display: "flex", gap: 8 }}>
+          <input style={{ ...inp, width: 200 }} value={custom} onChange={(e) => setCustom(e.target.value.toLowerCase().trim())} placeholder="another app, e.g. todoist" />
+          <Btn dark style={{ width: 110, height: 40 }} disabled={!custom} onClick={() => void connect(custom)}>connect</Btn>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function AiStatus() {
+  const client = getClient("owner")!;
+  const { data } = useHubGet<{
+    text: { on: boolean; model: string };
+    voice: { on: boolean; onDevice: boolean };
+    search: { items: number; semantic: boolean };
+    connections: { on: boolean };
+    spend: { month: string; usd: number };
+  }>(client, "/api/ai/status");
+  if (!data) return null;
+  const pill = (on: boolean, label: string) => (
+    <span style={{ fontSize: 9, letterSpacing: ".12em", padding: "5px 9px", borderRadius: 7, background: on ? "#1f7a4d33" : "#15151b", color: on ? "#6fcf97" : "#5f5f67" }}>{label.toUpperCase()} {on ? "ON" : "OFF"}</span>
+  );
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+      {pill(data.text.on, "text")}
+      {pill(data.voice.on, "voice")}
+      {pill(data.connections.on, "apps")}
+      {pill(data.voice.onDevice, "on-device speech")}
+      {pill(data.search.semantic, "smart search")}
+      <span style={{ fontSize: 10, color: "#8e8e97", marginLeft: 6 }}>spent this month: ${data.spend.usd.toFixed(3)}</span>
+    </div>
   );
 }
 

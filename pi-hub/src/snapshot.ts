@@ -31,6 +31,7 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
     timetable: lessons.map((l) => ({ subject: l.subject, span: l.span, start: l.start, end: l.end, room: l.room, teacher: l.teacher })),
     formTime: today.baseKind === "school" ? formTimeOn(todayKey, hub.formTime()) : "",
     events: hub.upcomingEvents(todayKey, 8),
+    activities: hub.activitiesOn(todayKey),
     weather: ctx.weather.current(),
     news: ctx.news.headline(),
     birthday: nextBirthday(hub.birthdays(), todayKey),

@@ -205,6 +205,7 @@ export class Device {
   private onMessage(m: HubMessage) {
     if (m.type === "input") this.input(m.input);
     if (m.type === "say") {
+      if (this.s.listening) this.set({ listening: false });
       if (this.s.slab?.ask) return; // never cover a question
       this.say({ icon: m.icon, line: m.line, sub: m.sub, spin: m.icon === "progress_activity" }, m.ms ?? 3000);
     }
@@ -622,7 +623,8 @@ export class Device {
     const mode = this.effectiveMode();
     if (["unlock", "update", "boot"].includes(mode)) return;
     this.set({ listening: true, slab: { icon: "blur_on", line: "listening", wave: true } });
-    this.later("slab", 8000, () => {
+    // The mic streams for up to ~12 s; the hub answers with "checking" when they stop talking.
+    this.later("slab", 14_000, () => {
       if (!this.s.listening) return;
       this.set({ listening: false });
       this.say({ icon: "help", line: "say that again?" }, 2600);

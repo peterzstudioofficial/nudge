@@ -7,11 +7,13 @@ import { z } from "zod";
 import {
   can, type Cap, type HubMessage, type HwInput, type LedFrame, NewBagItem, NewNote, NewTask, NewTemplate, NotePatch,
   Role, SchoolAction, Settings, TaskPatch, TermDate, Timetable, Birthday, ToWall, DateKey, AgentMode, addDays,
-  CalEvent, FormTime, HomeworkPlan, SchoolDay, Teacher, matchTeacher, parseStaffList,
+  CalEvent, Activity, FormTime, HomeworkPlan, SchoolDay, Teacher, matchTeacher, parseStaffList,
 } from "@nudge/shared";
 import { importCalendarText, pdfToRows } from "./school/calendar";
 import { newId } from "./hub";
 import { applySetup, SetupPack } from "./setup";
+import { spend } from "./agent/spend";
+import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
 import { HttpError } from "./errors";
@@ -343,6 +345,27 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const secs = Number((req.query as { secs?: string }).secs) || undefined;
     return hub.setNoteAudio((req.params as { id: string }).id, String(req.headers["content-type"] || "audio/webm"), new Uint8Array(body), secs);
   });
+  // Voice note → text, on the Pi (16-bit PCM WAV; the apps convert their recording first).
+  app.post("/api/notes/:id/transcribe", async (req) => {
+    need(req, "notes");
+    const stt = ctx.stt?.();
+    if (!stt) throw new HttpError(503, "speech-to-text isn't installed on the hub");
+    const body = req.body as Buffer;
+    if (!Buffer.isBuffer(body) || body.length < 44) throw new HttpError(400, "no audio");
+    if (body.length > 10 * 1024 * 1024) throw new HttpError(413, "recording too long");
+    let text: string;
+    try {
+      text = await stt.transcribeWav(new Uint8Array(body));
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message);
+    }
+    const id = (req.params as { id: string }).id;
+    const note = hub.listNotes().find((n) => n.id === id);
+    if (!note) throw new HttpError(404, "no such note");
+    if (!text) return { text, note };
+    const label = note.label === "new recording" ? text.split(/\s+/).slice(0, 6).join(" ").replace(/[.,!?]+$/, "").slice(0, 60) : undefined;
+    return { text, note: hub.patchNote(id, { body: note.body ? `${note.body}\n\n${text}` : text, ...(label ? { label } : {}) }) };
+  });
   app.get("/api/notes/:id/audio", async (req, reply) => {
     need(req, "notes");
     const blob = hub.db.blobGet("audio:" + (req.params as { id: string }).id);
@@ -396,10 +419,51 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     if (!t) throw new HttpError(404, "no such thread");
     return t;
   });
+  // Private search (owner devices only).
+  app.get("/api/search", async (req) => {
+    need(req, "notes");
+    const { q } = parse(z.object({ q: z.string().min(1).max(200) }), req.query);
+    return { semantic: !!ctx.index?.semantic, hits: (await ctx.index?.search(q, 12)) ?? [] };
+  });
+
+  // Connected apps (Composio). Owner devices only.
+  app.get("/api/apps", async (req) => {
+    need(req, "settings.owner");
+    const on = !!ctx.apps?.available();
+    return { on, suggested: SUGGESTED_TOOLKITS, ...(on ? await ctx.apps!.status() : { toolkits: [], connected: [] }) };
+  });
+  app.post("/api/apps/connect", async (req) => {
+    need(req, "settings.owner");
+    if (!ctx.apps?.available()) throw new HttpError(409, "connected apps are off (no Composio key on the hub)");
+    const { toolkit } = parse(z.object({ toolkit: z.string().regex(/^[a-z0-9_-]{2,40}$/) }), req.body);
+    return ctx.apps.connect(toolkit);
+  });
+  app.delete("/api/apps/:id", async (req) => {
+    need(req, "settings.owner");
+    await ctx.apps?.disconnect((req.params as { id: string }).id);
+    return { ok: true };
+  });
+  app.put("/api/apps/toolkits", async (req) => {
+    need(req, "settings.owner");
+    hub.db.kvSet("composioToolkits", parse(z.array(z.string().regex(/^[a-z0-9_-]{2,40}$/)).max(12), req.body));
+    return { ok: true };
+  });
+
+  // What's switched on, and what it has cost this month (never the keys themselves).
+  app.get("/api/ai/status", async (req) => {
+    need(req, "settings.owner");
+    return {
+      text: { on: ctx.agent.available(), model: hub.settings().aiModel, provider: "openrouter", zdr: true },
+      voice: { on: !!ctx.cfg.geminiKey, model: hub.settings().voiceModel, spoken: hub.settings().voiceReplies, onDevice: !!ctx.stt?.() },
+      search: { items: ctx.index?.size ?? 0, semantic: !!ctx.index?.semantic },
+      connections: { on: !!ctx.cfg.composioKey },
+      spend: spend(hub),
+    };
+  });
   app.post("/api/agent/threads", async (req) => {
     const c = need(req, "agent");
     if (!hub.settings().ai) throw new HttpError(409, "assistant is off", { icon: "smart_toy", line: "assistant is off", sub: "TURN IT ON IN THE APP" });
-    if (!ctx.agent.available()) throw new HttpError(409, "no Claude API key on the hub", { icon: "smart_toy", line: "assistant not set up", sub: "ADD A KEY ON THE HUB" });
+    if (!ctx.agent.available()) throw new HttpError(409, "no OpenRouter key on the hub", { icon: "smart_toy", line: "assistant not set up", sub: "ADD A KEY ON THE HUB" });
     const b = parse(z.object({ prompt: z.string().min(1).max(4000), mode: AgentMode.default("act") }), req.body);
     const id = ctx.agent.run({ prompt: b.prompt, mode: b.mode, origin: c.role === "screen" ? "wall" : c.role === "desktop" ? "desktop" : "app" });
     return { id };
@@ -429,6 +493,12 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   });
   app.put("/api/config/schoolday", async (req) => (need(req, "settings.owner"), hub.setSchoolDay(parse(SchoolDay, req.body)), { ok: true }));
   app.put("/api/config/formtime", async (req) => (need(req, "settings.owner"), hub.setFormTime(parse(FormTime, req.body)), { ok: true }));
+  app.get("/api/config/activities", async (req) => (need(req, "read"), hub.activities()));
+  app.put("/api/config/activities", async (req) => {
+    need(req, "settings.owner");
+    hub.setActivities(parse(z.array(Activity.omit({ id: true }).extend({ id: z.string().optional() })).max(40), req.body).map((a) => ({ ...a, id: a.id ?? newId() })));
+    return hub.activities();
+  });
   app.put("/api/config/homework", async (req) => (need(req, "settings.owner"), hub.setHomeworkPlan(parse(HomeworkPlan, req.body)), { ok: true }));
 
   // Staff directory: private to the owner's devices (never the parent app).
@@ -508,7 +578,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const send = (m: HubMessage) => socket.send(JSON.stringify(m));
     const authTimer = setTimeout(() => socket.close(4401, "auth timeout"), 5000);
     socket.on("message", (raw: Buffer) => {
-      let msg: { type?: string; token?: string | null; input?: HwInput; frame?: LedFrame };
+      let msg: { type?: string; token?: string | null; input?: HwInput; frame?: LedFrame; pcm?: string };
       try {
         msg = JSON.parse(raw.toString());
       } catch {
@@ -530,6 +600,9 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
       // Hardware traffic only from the Pi itself.
       if (msg.type === "input" && msg.input && isLoopback(ip)) ctx.hw.input(msg.input);
       if (msg.type === "leds" && msg.frame && caller.role === "screen" && isLoopback(ip)) ctx.hw.leds(msg.frame);
+      // Mic audio for the voice assistant, streamed by the hardware daemon.
+      if (msg.type === "voice-audio" && typeof msg.pcm === "string" && isLoopback(ip)) ctx.voice?.audio(msg.pcm);
+      if (msg.type === "voice-end" && isLoopback(ip)) ctx.voice?.end();
     });
     socket.on("close", () => {
       clearTimeout(authTimer);

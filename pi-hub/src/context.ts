@@ -1,3 +1,9 @@
+import type { AgentThread } from "@nudge/shared";
+import type { Tool } from "./agent/tools";
+import type { PersonalIndex } from "./rag/index";
+import type { AppsService } from "./agent/composio";
+import type { VoiceService } from "./voice/wall";
+import type { Stt } from "./voice/stt";
 import type { Auth } from "./auth";
 import type { Config } from "./config";
 import type { Hub } from "./hub";
@@ -21,6 +27,15 @@ export interface AgentService {
   available(): boolean;
   run(input: { prompt: string; mode: "ask" | "act" | "watch"; origin: "desktop" | "wall" | "app" }): string;
   stop(threadId: string): void;
+  /** Set up one spoken turn for the voice assistant (Gemini Live) with the same tools and rules. */
+  voiceTurn?(): Promise<{
+    thread: AgentThread;
+    system: string;
+    context: string;
+    tools: Tool[];
+    finish(heard: string, text: string): void;
+    fail(msg: string): void;
+  }>;
 }
 export interface HwBridge {
   /** input from the GPIO daemon → the wall screen */
@@ -37,5 +52,13 @@ export interface Ctx {
   news: NewsService;
   school: SchoolService;
   agent: AgentService;
+  /** connected apps (Composio); optional so tests can leave it out */
+  apps?: AppsService;
+  /** private search over the wall's own data */
+  index?: PersonalIndex;
+  /** the wall's voice assistant (mic stream from the hardware daemon) */
+  voice?: VoiceService;
+  /** on-device speech-to-text, once its model has loaded */
+  stt?: () => Stt | null;
   hw: HwBridge;
 }

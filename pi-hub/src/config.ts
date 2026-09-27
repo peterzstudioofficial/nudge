@@ -18,7 +18,12 @@ export interface Config {
   chromium: string | null;
   /** allow requests from LAN addresses (otherwise loopback + Tailscale only) */
   allowLan: boolean;
-  anthropicKey: string | null;
+  /** OpenRouter: the text assistant */
+  openrouterKey: string | null;
+  /** Gemini Live: the voice assistant on the wall */
+  geminiKey: string | null;
+  /** Composio: connected apps as tools */
+  composioKey: string | null;
 }
 
 function arg(name: string): string | undefined {
@@ -58,6 +63,8 @@ export function loadConfig(): Config {
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     ]),
     allowLan: process.env.NUDGE_ALLOW_LAN !== "0",
-    anthropicKey: process.env.ANTHROPIC_API_KEY || null,
+    openrouterKey: process.env.OPENROUTER_API_KEY || null,
+    geminiKey: process.env.GEMINI_API_KEY || null,
+    composioKey: process.env.COMPOSIO_API_KEY || null,
   };
 }

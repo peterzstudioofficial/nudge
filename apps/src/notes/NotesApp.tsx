@@ -361,6 +361,12 @@ function Island({ drawer, mini, onDrawer, onSaved }: { drawer: Drawer; mini: boo
       const p = loadPairing("owner")!;
       await fetch(`${p.hub}/api/notes/${id}/audio?secs=${secs}`, { method: "PUT", headers: { authorization: "Bearer " + p.token, "content-type": blob.type.split(";")[0] || "audio/webm" }, body: blob });
       void client.snapshot();
+      // Words for the note, worked out on the hub itself (skipped quietly if it can't).
+      const wav = await toWav16k(blob).catch(() => null);
+      if (wav) {
+        const r = await fetch(`${p.hub}/api/notes/${id}/transcribe`, { method: "POST", headers: { authorization: "Bearer " + p.token, "content-type": "audio/wav" }, body: wav }).catch(() => null);
+        if (r?.ok) void client.snapshot();
+      }
     } catch {
       toast("cloud_off", "saved here — uploads when back online");
     }
@@ -735,4 +741,38 @@ function WallCard({ n, snap, onClose, onSent }: { n: Note; snap: Snapshot; onClo
       </div>
     </>
   );
+}
+
+/** Any recording → 16 kHz mono 16-bit WAV, the format the hub's on-device speech-to-text reads. */
+async function toWav16k(blob: Blob): Promise<Blob> {
+  const ac = new AudioContext();
+  let buf: AudioBuffer;
+  try {
+    buf = await ac.decodeAudioData(await blob.arrayBuffer());
+  } finally {
+    void ac.close();
+  }
+  const rate = 16000;
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(buf.duration * rate)), rate);
+  const src = off.createBufferSource();
+  src.buffer = buf;
+  src.connect(off.destination);
+  src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const str = (o: number, t: string) => [...t].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF");
+  out.setUint32(4, 36 + pcm.length * 2, true);
+  str(8, "WAVEfmt ");
+  out.setUint32(16, 16, true);
+  out.setUint16(20, 1, true);
+  out.setUint16(22, 1, true);
+  out.setUint32(24, rate, true);
+  out.setUint32(28, rate * 2, true);
+  out.setUint16(32, 2, true);
+  out.setUint16(34, 16, true);
+  str(36, "data");
+  out.setUint32(40, pcm.length * 2, true);
+  for (let i = 0; i < pcm.length; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
+  return new Blob([out.buffer], { type: "audio/wav" });
 }

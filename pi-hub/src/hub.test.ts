@@ -205,6 +205,15 @@ describe("school week + homework", () => {
     expect(hub.tasks.get(t.id)).toBeNull();
   });
 
+  it("plans around weekly rehearsals", () => {
+    const { hub } = thursdayA();
+    hub.setActivities([{ id: "r", name: "rehearsal", days: [4], start: "16:00", end: "18:00", where: "DBA", termOnly: true }]);
+    expect(hub.activitiesOn("2026-09-10").map((a) => a.name)).toEqual(["rehearsal"]);
+    expect(hub.activitiesOn("2026-10-29")).toEqual([]); // half term
+    const maths = hub.planHomework().find((t) => t.subject === "maths")!;
+    expect(maths.date).toBe("2026-09-11"); // Thursday has rehearsal till six, so it moves to Friday
+  });
+
   it("does nothing on days off", () => {
     const { hub } = setup(new Date(2026, 9, 27, 16, 10).getTime()); // half term
     hub.setTimetable(TT);

@@ -255,9 +255,17 @@ const HOUSES = /\b(Grenville|Rodney|Collingwood|Nelson|Drake)\b/i;
  * their year group, their house, their exams, and creative things (drama, art, film, photography)
  * open to them; drops other years, staff meetings and sports fixtures.
  */
-export function calendarTags(title: string, who: { yearGroup: string; house: string }): string[] | null {
+export function calendarTags(title: string, who: { yearGroup: string; house: string; interests?: string[] }): string[] | null {
   const t = title.replace(/\s+/g, " ").trim();
   if (STAFF.test(t)) return null;
+  // Things the student is part of (e.g. "senior production"): every word of the interest appears
+  // in the title, so rehearsals count too, but "Lower School Production" doesn't match.
+  const words = t.toLowerCase().split(/[^a-z0-9]+/);
+  const hit = (who.interests ?? []).find((i) => {
+    const w = i.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    return w.length > 0 && w.every((x) => words.includes(x));
+  });
+  if (hit) return ["mine", "creative"];
   // Fixtures belong to the sports apps, not the wall.
   if (/\bv\b .*\((A|H)\b|\bU1[2-8][A-D]\b|\b1st XV\b|Development League/i.test(t)) return null;
   const body = t.replace(/\([^)]*\)/g, ""); // venues like "(Lecture Theatre)" aren't the event

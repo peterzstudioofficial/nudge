@@ -39,10 +39,26 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 
 ## The assistant
 
-- It's optional and switched off until an API key is set (`sudo nudge key`).
+- It's optional and switched off until a key is set (`sudo nudge key openrouter`).
 - It can *read* tasks, notes, school items and the timetable. Anything that changes things (new
-  tasks, reminders, email drafts) becomes an **ask** that Peter approves on the wall or phone.
+  tasks, reminders, email drafts, anything in a connected app) becomes an **ask** that Peter
+  approves on the wall or phone. The model never gets a tool that acts directly.
 - It won't interrupt a focus session. Questions asked mid-session are answered after it.
+- Keys live only in `/etc/nudge/hub.env` (root-only). Phones and the PC never see them.
+
+### Where data goes
+
+| What | Where it's processed | What leaves the Pi |
+| --- | --- | --- |
+| Text assistant | OpenRouter, pinned to **zero-data-retention** providers that don't collect data (`provider.zdr`, `data_collection: "deny"`). If no such provider is free, the request fails; it never falls back to one that keeps data. | the question, a short context (today, week, profile) and the tool results it asks for |
+| Personal search (notes, school mail, calendar, tasks, birthdays, teachers) | **on the Pi**: keywords plus a local MiniLM model | only the few results the assistant asked for, inside that one request |
+| Voice notes → text | **on the Pi** (Moonshine, sherpa-onnx) | nothing |
+| Talking to the wall | Gemini Live, if a Gemini key is set. Otherwise speech is turned into text **on the Pi** and goes to the text assistant as above. | the audio of that one question. Google's paid tier doesn't train on it but may keep it for a short time for abuse checks, so this isn't zero-retention. Leave the Gemini key out if that matters. |
+| Connected apps (Google Calendar, Notion, Spotify…) | Composio holds the sign-ins (OAuth tokens) and makes the calls | whatever the approved or read-only app action needs |
+
+- Mic audio is streamed to the hub over loopback and never written to disk.
+- The staff list and other private setup data never go to the parent app and are only sent to a
+  model when a question needs them.
 
 ## Phone lock (Android)
 

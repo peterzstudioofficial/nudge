@@ -43,11 +43,14 @@ export const DEFAULT_SETTINGS: Settings = {
   schoolPages: [],
   schoolMail: true,
   schoolMailSenders: [],
-  aiModel: "claude-opus-5",
+  aiModel: "deepseek/deepseek-v4.1-flash",
+  voiceModel: "gemini-3.8-live",
+  voiceReplies: false,
   yearGroup: "",
   house: "",
   profile: "",
   googleKeep: false,
+  interests: [],
 };
 
 /** Work seconds on the clock right now for a session. */

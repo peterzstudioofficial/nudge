@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type HwInput, type LedFrame, minutesOfDay, isoWeekday, hhmmToMinutes } from "@nudge/shared";
 import { Auth } from "./auth";
@@ -6,6 +8,14 @@ import type { Ctx } from "./context";
 import { Db } from "./db";
 import { Hub } from "./hub";
 import { agentService } from "./agent/agent";
+import { openRouter } from "./agent/llm";
+import { addSpend } from "./agent/spend";
+import { appsService } from "./agent/composio";
+import { PersonalIndex } from "./rag/index";
+import { loadEmbedder } from "./rag/embed";
+import { searchTool } from "./rag/tool";
+import { loadStt } from "./voice/stt";
+import { voiceService } from "./voice/wall";
 import { schoolReader, refreshTermDates } from "./school/reader";
 import { Vault } from "./school/vault";
 import { newsService } from "./services/news";
@@ -36,11 +46,28 @@ async function main() {
     return;
   }
 
+  // `node hub.mjs transcribe note.wav` — check on-device speech-to-text from the Pi's terminal.
+  if (process.argv[2] === "transcribe") {
+    const stt = loadStt(process.env.NUDGE_STT_MODEL || path.join(cfg.dataDir, "models", "moonshine"), log);
+    if (!stt) throw new Error("speech-to-text model isn't installed (sudo ./install.sh --update)");
+    const t0 = Date.now();
+    console.log(await stt.transcribeWav(new Uint8Array(fs.readFileSync(process.argv[3]))));
+    log(`took ${Date.now() - t0} ms`);
+    db.close();
+    return;
+  }
+
   if (cfg.dev) {
     seedDemo(hub);
     loadPrivateSetup(hub, fileURLToPath(new URL("../../private/nudge-setup.json", import.meta.url)), log);
   }
 
+  // Private search over everything on the wall. Embeddings load in the background if installed.
+  const index = new PersonalIndex(hub, null, log);
+  void loadEmbedder(process.env.NUDGE_EMBED_MODEL || path.join(cfg.dataDir, "models", "minilm"), log).then((e) => index.setEmbedder(e));
+  // On-device speech-to-text (voice notes, and the voice fallback without Gemini).
+  const stt = loadStt(process.env.NUDGE_STT_MODEL || path.join(cfg.dataDir, "models", "moonshine"), log);
+  const apps = appsService({ hub, apiKey: cfg.composioKey, log });
   const ctx = {} as Ctx;
   Object.assign(ctx, {
     cfg,
@@ -56,12 +83,26 @@ async function main() {
       log,
       onNeedsSignIn: () => sayOnWall(ctx, "school", "sign in to school again", "ON YOUR COMPUTER", 4000),
     }),
-    agent: agentService({ hub, apiKey: cfg.anthropicKey, say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms), log }),
+    apps,
+    index,
+    stt: () => stt,
+    agent: agentService({
+      hub,
+      llm: cfg.openrouterKey ? openRouter(cfg.openrouterKey, { onCost: (usd) => addSpend(hub, usd) }) : null,
+      extraTools: async (mode, gate) => [
+        searchTool(index),
+        ...(mode === "ask" || mode === "watch" ? (await apps.tools()).filter((t) => t.kind === "read") : await apps.tools()).map(gate),
+      ],
+      say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms),
+      log,
+    }),
     hw: {
       input: (input: HwInput) => hub.bus.broadcast({ type: "input", input }, ["local"]),
       leds: (frame: LedFrame) => hub.bus.broadcast({ type: "leds", frame }, ["local"]),
     },
   } satisfies Ctx);
+
+  ctx.voice = voiceService({ ctx, geminiKey: cfg.geminiKey, stt: () => stt, log });
 
   const app = await buildServer(ctx);
   await app.listen({ port: cfg.port, host: cfg.host });
@@ -73,7 +114,7 @@ async function main() {
     const { code } = auth.createCode("owner", "first-run");
     log(`no devices paired yet — first pairing code (owner): ${code}`);
   }
-  if (!cfg.anthropicKey) log("assistant off: set ANTHROPIC_API_KEY in /etc/nudge/hub.env to turn it on");
+  if (!cfg.openrouterKey) log("assistant off: set OPENROUTER_API_KEY in /etc/nudge/hub.env (sudo nudge key openrouter)");
 
   /* -------------------------------- schedule -------------------------------- */
   const every = (ms: number, fn: () => void | Promise<void>, now = true) => {

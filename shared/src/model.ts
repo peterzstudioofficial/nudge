@@ -235,7 +235,7 @@ export const SchoolAction = z.object({
 export const AskStatus = z.enum(["pending", "approved", "declined", "done", "expired"]);
 export const Ask = z.object({
   id: z.string(),
-  kind: z.enum(["email", "week", "reminder", "task"]),
+  kind: z.enum(["email", "week", "reminder", "task", "app"]),
   line: z.string(),
   head: z.string(),
   rows: z.array(z.object({ k: z.string(), v: z.string() })),
@@ -325,6 +325,20 @@ export const Teacher = z.object({
 });
 export type Teacher = z.infer<typeof Teacher>;
 
+/** A weekly commitment in term time: a club, rehearsals, a lesson outside school. */
+export const Activity = z.object({
+  id: z.string(),
+  name: z.string().max(60),
+  /** ISO weekdays */
+  days: z.array(z.number().int().min(1).max(7)).min(1),
+  start: z.string().regex(/^\d{2}:\d{2}$/),
+  end: z.string().regex(/^\d{2}:\d{2}$/),
+  where: z.string().max(40).default(""),
+  /** only in term time (not half term / holidays) */
+  termOnly: z.boolean().default(true),
+});
+export type Activity = z.infer<typeof Activity>;
+
 /** A date from the school calendar (or added by hand). */
 export const CalEvent = z.object({
   id: z.string(),
@@ -385,12 +399,18 @@ export const Settings = z.object({
   schoolMail: z.boolean(),
   schoolMailSenders: z.array(z.string().max(120)).max(50),
   aiModel: z.string().max(60),
+  /** Gemini Live model for the voice assistant */
+  voiceModel: z.string().max(60),
+  /** speak voice replies out loud (needs a speaker on the Pi) */
+  voiceReplies: z.boolean(),
   /** e.g. "5th Year" — picks out the calendar events that matter */
   yearGroup: z.string().max(20),
   /** house name, e.g. "Grenville" (optional) */
   house: z.string().max(20),
   /** a few lines about the student, given to the assistant */
   profile: z.string().max(800),
+  /** things the student is part of, e.g. "senior production" — pulls those dates in from the calendar */
+  interests: z.array(z.string().max(40)).max(12),
   /** offer "send to Google Keep" on notes */
   googleKeep: z.boolean(),
 });
@@ -404,7 +424,8 @@ export const PARENT_SETTINGS: (keyof Settings)[] = [
 export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
-  "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep",
+  "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
+  "voiceModel", "voiceReplies",
 ];
 
 export const Device = z.object({
@@ -472,6 +493,8 @@ export interface Snapshot {
   formTime: string;
   /** school calendar dates in the next week */
   events: CalEvent[];
+  /** weekly commitments on today (rehearsals, clubs) */
+  activities: Activity[];
   weather: Weather | null;
   news: string;
   birthday: { name: string; inDays: number } | null;
@@ -489,7 +512,9 @@ export type HubMessage =
   | { type: "changed"; rev: number; topics: string[] }
   | { type: "input"; input: HwInput }
   | { type: "say"; icon: string; line: string; sub?: string; ms?: number }
-  | { type: "leds"; frame: LedFrame };
+  | { type: "leds"; frame: LedFrame }
+  /** spoken reply audio for the speaker (16-bit mono PCM, base64) — hardware daemon only */
+  | { type: "play"; pcm: string; rate: number };
 
 /** Physical inputs from the GPIO daemon (or the simulator). */
 export type HwInput =

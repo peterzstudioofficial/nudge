@@ -3,7 +3,7 @@
 #   nudge status              what's running, addresses, disk + memory
 #   nudge pair [owner|parent|desktop]
 #                             print a one-time pairing code (10 minutes)
-#   nudge key                 set / change the Anthropic API key
+#   nudge key openrouter|gemini|composio   set an API key
 #   nudge logs [hub|kiosk|gpio]
 #   nudge restart             restart hub, screen and hardware daemon
 #   nudge update FILE.tar.gz  install a newer nudge-pi bundle (keeps all data)
@@ -32,13 +32,21 @@ case "$1" in
     hub pair --role "${2:-owner}"
     ;;
   key)
-    printf "Paste your Anthropic API key (input hidden): "
+    # sudo nudge key openrouter|gemini|composio
+    case "${2:-openrouter}" in
+      openrouter) VAR=OPENROUTER_API_KEY; PAT='sk-or-*'; WHAT="OpenRouter key (openrouter.ai/keys)" ;;
+      gemini) VAR=GEMINI_API_KEY; PAT='*'; WHAT="Gemini API key (aistudio.google.com, billing on)" ;;
+      composio) VAR=COMPOSIO_API_KEY; PAT='*'; WHAT="Composio API key (platform.composio.dev)" ;;
+      *) echo "usage: nudge key openrouter|gemini|composio"; exit 1 ;;
+    esac
+    printf "Paste your %s (input hidden): " "$WHAT"
     stty -echo; read -r KEY; stty echo; echo
-    case "$KEY" in sk-ant-*) ;; *) echo "that doesn't look like an Anthropic key (sk-ant-…)"; exit 1 ;; esac
-    TMP=$(mktemp); grep -v '^ANTHROPIC_API_KEY=' /etc/nudge/hub.env > "$TMP"
-    echo "ANTHROPIC_API_KEY=$KEY" >> "$TMP"
+    case "$KEY" in $PAT) ;; *) echo "that doesn't look right"; exit 1 ;; esac
+    [ ${#KEY} -ge 20 ] || { echo "too short"; exit 1; }
+    TMP=$(mktemp); grep -v "^$VAR=" /etc/nudge/hub.env > "$TMP"
+    echo "$VAR=$KEY" >> "$TMP"
     install -m 600 -o root -g root "$TMP" /etc/nudge/hub.env; rm -f "$TMP"
-    systemctl restart nudge-hub; echo "saved — the assistant is on"
+    systemctl restart nudge-hub; echo "saved"
     ;;
   logs)
     exec journalctl -u "nudge-${2:-hub}" -n 200 -f

@@ -61,10 +61,21 @@ The steps are `vault` → `reader` → `extract` → `classify` → `actions`:
 
 ## Assistant (pi-hub/src/agent)
 
-- It uses the Claude API tool runner. Read tools see tasks, notes, school items and the timetable.
-- `propose_*` tools create asks, which Peter approves.
-- The wall uses low effort for quick answers; the desktop agent window uses high effort. Long
-  answers are saved as notes.
+- `llm.ts` talks to OpenRouter (OpenAI-style chat + tools). Default model is a fast, cheap one
+  (`deepseek/deepseek-v4.1-flash`, falling back to `z-ai/glm-5.3-flash`), always on
+  zero-data-retention providers, sorted by speed. Cost per month is tracked in `spend.ts`.
+- `tools.ts` defines each tool once (zod schema → JSON Schema). The same tools serve the text
+  assistant and Gemini Live. Read tools see tasks, notes, school items, calendar and timetable;
+  `propose_*` tools create asks, which Peter approves.
+- `composio.ts` adds connected apps. Tools Composio marks read-only (and whose names don't look
+  like writes) run straight away; everything else is turned into an ask and only runs after a yes.
+- `rag/` is private search: BM25 plus on-device MiniLM embeddings, fused by rank, cached in SQLite
+  and rebuilt when data changes. The embedding model loads on first use and unloads when idle.
+- `voice/` handles the wall mic. The GPIO daemon streams 16 kHz PCM over loopback; `wall.ts` runs
+  one Gemini Live turn with the same tools, or turns the speech into text on the Pi (`stt.ts`,
+  Moonshine) and hands it to the text assistant. Voice notes from the apps are transcribed the
+  same way.
+- Long answers are saved as notes.
 
 ## Screen (pi-screen)
 

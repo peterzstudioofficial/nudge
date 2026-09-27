@@ -5,7 +5,7 @@ import {
   NewNote, NewTask, NewTemplate, Note, NotePatch, OWNER_SETTINGS, PARENT_SETTINGS, parseDateKey, PointEntry,
   Reminder, Reward, Role, Session, Settings, SUBJECT_NAMES, sortTasks, Task, TaskPatch, Template, TermDate,
   termInfo, Timetable, CHURCHERS_2026_27, workedNow, Ask, AgentThread, SchoolItem, relativeDay, dueLabel,
-  CalEvent, CHURCHERS_DAY, DEFAULT_FORM_TIME, DEFAULT_HOMEWORK, FormTime, HomeworkPlan, SchoolDay, Teacher,
+  CalEvent, Activity, CHURCHERS_DAY, DEFAULT_FORM_TIME, DEFAULT_HOMEWORK, FormTime, HomeworkPlan, SchoolDay, Teacher,
   homeworkMins, homeworkSetOn, lessonTimes, nextLesson, periodsFor, weekLetter, type Lesson, type Period,
   type SchoolCtx, type WeekLetter, DAY_LONG,
 } from "@nudge/shared";
@@ -146,6 +146,30 @@ export class Hub {
   }
   setTeachers(t: Teacher[]): void {
     this.db.kvSet("teachers", t);
+  }
+
+  /** Weekly commitments (rehearsals, clubs). */
+  activities(): Activity[] {
+    return this.db.kvGet<Activity[]>("activities", []);
+  }
+  setActivities(a: Activity[]): void {
+    this.db.kvSet("activities", a);
+    this.bus.changed("day");
+  }
+  /** Commitments on a date: term-only ones skip half term and holidays. */
+  activitiesOn(date: string): Activity[] {
+    const wd = isoWeekday(parseDateKey(date));
+    const inTerm = ["school", "sick"].includes(this.dayState(date).baseKind);
+    return this.activities()
+      .filter((a) => a.days.includes(wd) && (!a.termOnly || inTerm))
+      .sort((a, b) => a.start.localeCompare(b.start));
+  }
+  /** Evening minutes taken by commitments ending after school (16:00). */
+  private busyEveningMins(date: string): number {
+    return this.activitiesOn(date).reduce((m, a) => {
+      const from = Math.max(hhmmToMinutes(a.start), 16 * 60);
+      return m + Math.max(0, hhmmToMinutes(a.end) - from);
+    }, 0);
   }
 
   /** Week A / B for a date (null outside term). */
@@ -451,7 +475,9 @@ export class Hub {
       if (due && d >= due) break;
       const open = this.tasks.byDay(d).filter((t) => !t.done);
       const load = open.reduce((a, t) => a + t.mins, 0);
-      if (open.length < max && load + mins <= 120) return d;
+      // Rehearsal till six? That evening has less room for homework.
+      const room = Math.max(45, 120 - Math.round(this.busyEveningMins(d) * 0.5));
+      if (open.length < max && load + mins <= room) return d;
     }
     return from;
   }
@@ -858,6 +884,9 @@ export class Hub {
   }
 
   /** Runs an approved ask. Nothing is ever sent from here: email becomes a hand-off to the desktop. */
+  /** Set by the connected-apps service: runs an approved app action. */
+  onAppApproved?: (a: Ask) => Promise<void>;
+
   answerAsk(id: string, yes: boolean, by: string): Ask {
     const a = this.asks.get(id);
     if (!a) throw notFound("no such question");
@@ -884,6 +913,9 @@ export class Hub {
       this.feed("agent", `Added ${list.length} session${list.length === 1 ? "" : "s"} to the week`);
     } else if (a.kind === "reminder") {
       this.addReminder(String(p.text ?? "reminder"), String(p.line ?? ""), Number(p.at ?? this.now()), "agent");
+    } else if (a.kind === "app") {
+      // A connected-app action (Composio) the student said yes to. It runs now, exactly as shown.
+      void this.onAppApproved?.(a);
     }
     const r = this.asks.put({ ...a, status: "done", answeredAt: this.now(), answeredBy: by });
     this.bus.changed("asks");
