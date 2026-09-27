@@ -17,6 +17,12 @@ export interface Prefs {
   launchAtLogin: boolean;
   watchApps: boolean;
   bedtimeSnoozeUntil: number;
+  /** folders Claude Code may work in when the assistant hands a job over */
+  claudeWorkspaces: { name: string; path: string }[];
+  /** let the assistant run Claude Code here (it still asks on this computer each time) */
+  claudeAllowRun: boolean;
+  /** …and let it edit files in those folders (off = read and plan only) */
+  claudeCanEdit: boolean;
 }
 
 const file = () => path.join(app.getPath("userData"), "nudge.json");
@@ -75,7 +81,7 @@ export function savePairing(p: Pairing | null) {
 }
 
 export function prefs(): Prefs {
-  return { hudCorner: "br", launchAtLogin: true, watchApps: true, bedtimeSnoozeUntil: 0, ...read().prefs };
+  return { hudCorner: "br", launchAtLogin: true, watchApps: true, bedtimeSnoozeUntil: 0, claudeWorkspaces: [], claudeAllowRun: false, claudeCanEdit: false, ...read().prefs };
 }
 export function setPrefs(p: Partial<Prefs>) {
   const d = read();

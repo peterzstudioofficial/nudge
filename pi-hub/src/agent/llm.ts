@@ -15,6 +15,14 @@
  *
  * OpenRouter server tools (web search, web fetch, datetime, advisor) run on OpenRouter's side
  * inside the same request; `stop_server_tools_when` caps their steps and spend.
+ *
+ * Routing: requests with tools are left to Auto Exacto (OpenRouter's default for tool calls: it
+ * ranks providers by tool-calling success and speed); plain requests go fastest-first. Router
+ * metadata is switched on so the Pi's log shows which provider answered.
+ *
+ * Deliberately not used: response caching (it would keep answers on OpenRouter for minutes),
+ * `:free` models (their providers may log prompts), service tiers (the zero-retention providers
+ * for these models don't offer them) and input/output logging (keep it off in the dashboard).
  */
 
 export const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
@@ -90,8 +98,13 @@ export interface Llm {
   chat(o: ChatOptions): Promise<ChatResult>;
 }
 
-export function openRouter(apiKey: string, opts: { onCost?: (usd: number) => void; fetchImpl?: typeof fetch } = {}): Llm {
+/** The key can change while the hub runs (connected from the setup page), so it's read per call. */
+export function openRouter(
+  apiKey: string | (() => string | null),
+  opts: { onCost?: (usd: number) => void; onRoute?: (summary: string) => void; fetchImpl?: typeof fetch } = {},
+): Llm {
   const f = opts.fetchImpl ?? fetch;
+  const key = () => (typeof apiKey === "function" ? apiKey() : apiKey);
   const llm: Llm = {
     async chat(o) {
       try {
@@ -128,19 +141,25 @@ export function openRouter(apiKey: string, opts: { onCost?: (usd: number) => voi
         zdr: true,
         data_collection: "deny",
         require_parameters: true,
-        sort: "throughput",
+        // With tools, leave the order to Auto Exacto; without, fastest first.
+        ...(allTools.length ? {} : { sort: "throughput" }),
         max_price: MAX_PRICE,
       },
       usage: { include: true },
     };
+    const k = key();
+    if (!k) throw new LlmError("no OpenRouter key on the hub", 401);
     let res: Response;
     try {
       res = await f(URL_, {
         method: "POST",
         headers: {
-          authorization: `Bearer ${apiKey}`,
+          authorization: `Bearer ${k}`,
           "content-type": "application/json",
+          // Shows as "Nudge" in your own OpenRouter activity. No HTTP-Referer, so the app isn't
+          // listed publicly.
           "x-title": "Nudge",
+          "x-openrouter-metadata": "enabled",
         },
         body: JSON.stringify(body),
         signal: signal ?? AbortSignal.timeout(90_000),
@@ -161,6 +180,7 @@ export function openRouter(apiKey: string, opts: { onCost?: (usd: number) => voi
         finish_reason?: string;
       }[];
       usage?: { cost?: number; server_tool_use_details?: { tool_calls_executed?: number } };
+      openrouter_metadata?: { summary?: string };
     };
     if (!res.ok || out.error) {
       const m = out.error?.message ?? `HTTP ${res.status}`;
@@ -172,6 +192,7 @@ export function openRouter(apiKey: string, opts: { onCost?: (usd: number) => voi
     }
     const choice = out.choices?.[0];
     const cost = out.usage?.cost ?? 0;
+    if (out.openrouter_metadata?.summary) opts.onRoute?.(out.openrouter_metadata.summary.slice(0, 200));
     if (cost) opts.onCost?.(cost);
     const seen = new Set<string>();
     const citations: Citation[] = [];
@@ -241,4 +262,29 @@ export function serverToolsFor(s: { webSearch: boolean; aiAdvisorModel: string; 
     });
   }
   return list;
+}
+
+/** The key's own limits and what's been used (GET /api/v1/key). Free to call. */
+export async function openRouterKeyInfo(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<{ usage: number; limit: number | null; remaining: number | null; label: string } | null> {
+  try {
+    const r = await fetchImpl("https://openrouter.ai/api/v1/key", { headers: { authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) return null;
+    const d = ((await r.json()) as { data?: { usage?: number; limit?: number | null; limit_remaining?: number | null; label?: string } }).data;
+    return d ? { usage: d.usage ?? 0, limit: d.limit ?? null, remaining: d.limit_remaining ?? null, label: d.label ?? "" } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** OAuth PKCE: swap the code OpenRouter sent back for a key. */
+export async function openRouterExchange(code: string, verifier: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const r = await fetchImpl("https://openrouter.ai/api/v1/auth/keys", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const j = (await r.json().catch(() => ({}))) as { key?: string; error?: { message?: string } };
+  if (!r.ok || !j.key) throw new LlmError(`OpenRouter didn't give a key (${j.error?.message ?? r.status})`, r.status);
+  return j.key;
 }

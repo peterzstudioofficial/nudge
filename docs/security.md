@@ -44,7 +44,27 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
   tasks, reminders, email drafts, anything in a connected app) becomes an **ask** that Peter
   approves on the wall or phone. The model never gets a tool that acts directly.
 - It won't interrupt a focus session. Questions asked mid-session are answered after it.
-- Keys live only in `/etc/nudge/hub.env` (root-only). Phones and the PC never see them.
+- Keys live only on the hub: `/etc/nudge/hub.env` (root-only), or, for OpenRouter connected from
+  the setup page, encrypted in the hub's database with the same vault as the school sign-in.
+  Phones and the PC never see them. Connecting with OAuth means a key is never typed or pasted
+  anywhere; set a spend limit on it at openrouter.ai.
+- In your OpenRouter account: keep **Input & Output Logging off**, turn on the account-wide
+  **ZDR** guardrail, and give the key a monthly limit. Response caching isn't used (it would keep
+  answers on OpenRouter for a while). Router metadata only puts the provider's name in the Pi's
+  log.
+- Connected apps run in a Composio session with its code sandbox switched off. Only actions from
+  apps switched on in setup can run.
+
+### Handing work to Claude on the computer
+
+- Only after a yes on the wall or phone, and only for what the desktop app reports it can do.
+- Claude Desktop links (Cowork / Code) only fill in the task; Peter reads it and presses send.
+- Running Claude Code needs two switches in the tray (run, and separately edit files), a folder
+  Peter added himself, and a second yes on the computer each time. It runs with
+  `--permission-prompts none`, so anything beyond reading (or editing, if allowed) is refused.
+  The task goes in on stdin, never on a command line.
+- The hub only knows folder names. Everything Claude reads stays on the PC; a short summary
+  (max 4,000 characters) comes back to the thread.
 
 ### Where data goes
 
@@ -57,7 +77,8 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 | Personal search (notes, school mail, calendar, tasks, birthdays, teachers) | **on the Pi**: keywords plus a local MiniLM model | only the few results the assistant asked for, inside that one request |
 | Voice notes → text | **on the Pi** (Moonshine, sherpa-onnx) | nothing |
 | Talking to the wall | Gemini Live, if a Gemini key is set. Otherwise speech is turned into text **on the Pi** and goes to the text assistant as above. | the audio of that one question. Google's paid tier doesn't train on it but may keep it for a short time for abuse checks, so this isn't zero-retention. Leave the Gemini key out if that matters. |
-| Connected apps (Google Calendar, Notion, Spotify…) | Composio holds the sign-ins (OAuth tokens) and makes the calls | whatever the approved or read-only app action needs |
+| Connected apps (Google Calendar, Notion, Spotify…) | Composio holds the sign-ins (OAuth tokens) and makes the calls | the search query for finding an action, then whatever the approved or read-only action needs |
+| Claude on the computer | Claude Desktop / Claude Code on Peter's PC, under his own Claude account | the task the assistant wrote (shown before the yes) |
 
 - Mic audio is streamed to the hub over loopback and never written to disk.
 - The staff list and other private setup data never go to the parent app and are only sent to a

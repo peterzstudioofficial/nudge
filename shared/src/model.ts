@@ -235,7 +235,7 @@ export const SchoolAction = z.object({
 export const AskStatus = z.enum(["pending", "approved", "declined", "done", "expired"]);
 export const Ask = z.object({
   id: z.string(),
-  kind: z.enum(["email", "week", "reminder", "task", "app"]),
+  kind: z.enum(["email", "week", "reminder", "task", "app", "claude"]),
   line: z.string(),
   head: z.string(),
   rows: z.array(z.object({ k: z.string(), v: z.string() })),
@@ -270,13 +270,36 @@ export const AgentThread = z.object({
 export type AgentThread = z.infer<typeof AgentThread>;
 
 /** A job the desktop must finish by hand, e.g. an email opened ready in Outlook for Peter to send. */
-export const Handoff = z.object({
-  id: z.string(),
-  kind: z.enum(["compose"]),
-  payload: z.object({ to: z.string(), subject: z.string(), body: z.string() }),
-  createdAt: z.number(),
-  doneAt: z.number().nullable(),
+/**
+ * Work handed to Claude on Peter's computer, after a yes:
+ * - "cowork" / "code": opens Claude Desktop (Cowork or Code) with the task typed in, not sent
+ * - "code_run": runs Claude Code headless in one of the folders set up on the PC, after the PC
+ *   itself asks too. Only folder names are known to the hub; paths stay on the PC.
+ */
+export const ClaudeTarget = z.enum(["cowork", "code", "code_run"]);
+export type ClaudeTarget = z.infer<typeof ClaudeTarget>;
+export const ClaudeTask = z.object({
+  target: ClaudeTarget,
+  task: z.string().min(1).max(5000),
+  workspace: z.string().max(40).nullable(),
+  threadId: z.string().nullable(),
 });
+export type ClaudeTask = z.infer<typeof ClaudeTask>;
+/** What the PC says it can do (sent by the desktop app). */
+export const ClaudeDesktop = z.object({
+  workspaces: z.array(z.string().min(1).max(40)).max(20),
+  desktopApp: z.boolean(),
+  cli: z.boolean(),
+  allowRun: z.boolean(),
+  runMode: z.enum(["plan", "acceptEdits"]),
+});
+export type ClaudeDesktop = z.infer<typeof ClaudeDesktop>;
+
+const HandoffBase = { id: z.string(), createdAt: z.number(), doneAt: z.number().nullable() };
+export const Handoff = z.discriminatedUnion("kind", [
+  z.object({ ...HandoffBase, kind: z.literal("compose"), payload: z.object({ to: z.string(), subject: z.string(), body: z.string() }) }),
+  z.object({ ...HandoffBase, kind: z.literal("claude"), payload: ClaudeTask }),
+]);
 export type Handoff = z.infer<typeof Handoff>;
 
 export const Period = z.object({

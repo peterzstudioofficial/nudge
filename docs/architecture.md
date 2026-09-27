@@ -76,8 +76,18 @@ The steps are `vault` → `reader` → `extract` → `classify` → `actions`:
 - `tools.ts` defines each tool once (zod schema → JSON Schema). The same tools serve the text
   assistant and Gemini Live. Read tools see tasks, notes, school items, calendar and timetable;
   `propose_*` tools create asks, which Peter approves.
-- `composio.ts` adds connected apps. Tools Composio marks read-only (and whose names don't look
-  like writes) run straight away; everything else is turned into an ask and only runs after a yes.
+- `composio.ts` adds connected apps through a Composio session (one per set of switched-on apps,
+  Composio's remote sandbox off, its own meta tools never exposed). The model gets two tools:
+  `find_app_actions` (Composio's semantic tool search) and `use_app`. Actions Composio tags
+  read-only (and whose names don't look like writes) run straight away; everything else becomes an
+  ask and only runs after a yes, and not at all outside "act" mode.
+- `hand_to_claude` passes bigger computer jobs to Claude on Peter's PC after a yes. The desktop
+  app either opens Claude Desktop (`claude://cowork/new` or `claude://code/new`) with the task
+  typed in but not sent, or runs Claude Code headless (`claude -p`, prompt on stdin) in a folder
+  Peter added from the tray, after the PC asks him again. Read-and-plan only unless he allows
+  edits. The result goes back into the assistant's thread.
+- `keys.ts` holds the OpenRouter key: from `hub.env`, or connected from the setup page with
+  OpenRouter's OAuth PKCE flow and stored encrypted in the database.
 - `rag/` is private search: BM25 plus on-device MiniLM embeddings, fused by rank, cached in SQLite
   and rebuilt when data changes. The embedding model loads on first use and unloads when idle.
 - `voice/` handles the wall mic. The GPIO daemon streams 16 kHz PCM over loopback; `wall.ts` runs

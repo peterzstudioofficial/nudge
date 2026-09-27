@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray, clipboard } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray, clipboard } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { HubClient, memoryKV, type Snapshot, type Handoff, hhmmToMinutes } from "@nudge/shared";
@@ -6,6 +6,7 @@ import { loadPairing, savePairing, prefs, setPrefs, type Pairing } from "./store
 import { Watcher, distraction } from "./watch";
 import { signInToSchool, openDraft } from "./school";
 import { startBlocker, blockerKey, BLOCKER_PORT } from "./blocker";
+import { claudeCapabilities, handleClaude } from "./claude";
 
 /**
  * Nudge for Windows.
@@ -178,6 +179,19 @@ function buildTray() {
           { label: "Copy install steps", click: () => clipboard.writeText(`1. Open edge://extensions (or chrome://extensions)\n2. Turn on Developer mode\n3. Load unpacked → ${extensionDir()}`) },
         ],
       },
+      {
+        label: "Claude on this computer",
+        submenu: [
+          { label: "Let the assistant run Claude Code here", type: "checkbox", checked: p.claudeAllowRun, click: (i) => { setPrefs({ claudeAllowRun: i.checked }); reportClaude(); } },
+          { label: "…and edit files (off = read and plan only)", type: "checkbox", enabled: p.claudeAllowRun, checked: p.claudeCanEdit, click: (i) => { setPrefs({ claudeCanEdit: i.checked }); reportClaude(); } },
+          { type: "separator" },
+          { label: "Add a folder…", click: () => void addClaudeFolder() },
+          ...p.claudeWorkspaces.map((w) => ({
+            label: `Remove "${w.name}"`,
+            click: () => { setPrefs({ claudeWorkspaces: prefs().claudeWorkspaces.filter((x) => x.path !== w.path) }); reportClaude(); buildTray(); },
+          })),
+        ],
+      },
       { type: "separator" },
       { label: "Start with Windows", type: "checkbox", checked: p.launchAtLogin, click: (i) => { setPrefs({ launchAtLogin: i.checked }); applyLogin(); } },
       { label: "Nudge me when I drift", type: "checkbox", checked: p.watchApps, click: (i) => setPrefs({ watchApps: i.checked }) },
@@ -185,6 +199,24 @@ function buildTray() {
       { label: "Quit Nudge", click: () => { app.exit(0); } },
     ]),
   );
+}
+
+/** Tell the hub what Claude can do on this computer (folder names only). */
+function reportClaude() {
+  if (!client) return;
+  void client.request("PUT", "/api/desktop/claude", claudeCapabilities(prefs())).catch(() => {});
+}
+
+async function addClaudeFolder() {
+  const r = await dialog.showOpenDialog({ title: "A folder Claude Code may work in", properties: ["openDirectory"] });
+  const dir = r.filePaths[0];
+  if (r.canceled || !dir) return;
+  const list = prefs().claudeWorkspaces.filter((w) => w.path !== dir);
+  let name = path.basename(dir).toLowerCase().replace(/[^a-z0-9 _-]/g, "").slice(0, 40) || "folder";
+  while (list.some((w) => w.name === name)) name = `${name.slice(0, 36)}-${list.length + 1}`;
+  setPrefs({ claudeWorkspaces: [...list, { name, path: dir }].slice(0, 20) });
+  reportClaude();
+  buildTray();
 }
 
 function applyLogin() {
@@ -212,6 +244,7 @@ function connect(p: Pairing) {
   client.connect();
   void client.snapshot().catch(() => {});
   void checkHandoffs();
+  reportClaude();
   buildTray();
 }
 
@@ -238,7 +271,8 @@ async function checkHandoffs() {
     for (const h of list) {
       if (openHandoffs.has(h.id)) continue;
       openHandoffs.add(h.id);
-      await openDraft(client, h);
+      if (h.kind === "compose") await openDraft(client, h);
+      else if (h.kind === "claude") void handleClaude(client, h, prefs());
     }
   } catch {
     /* offline */

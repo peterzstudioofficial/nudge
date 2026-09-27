@@ -67,6 +67,7 @@
 "crop_square",
 "css",
 "cut",
+"dashboard",
 "database",
 "delete",
 "description",
@@ -181,6 +182,7 @@
 "mic",
 "mic_off",
 "minimize",
+"mobile",
 "mode",
 "more",
 "mouse",
@@ -286,6 +288,7 @@
 "sort",
 "source",
 "speaker",
+"speed",
 "spellcheck",
 "sports",
 "sports_esports",
@@ -359,5 +362,6 @@
 "wifi",
 "wifi_off",
 "window",
-"work"
+"work",
+"workspaces"
 ]

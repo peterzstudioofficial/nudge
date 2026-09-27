@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import {
   addDays, autoTags, bankFor, BagItem, Birthday, canAddTask, canBreak, canClaim, canSkip, dateKey,
-  DayKind, DayState, DEFAULT_SETTINGS, FeedEvent, Handoff, hhmmToMinutes, isoWeekday, mmss, NewBagItem,
+  ClaudeDesktop, ClaudeTask, DayKind, DayState, DEFAULT_SETTINGS, FeedEvent, Handoff, hhmmToMinutes, isoWeekday, mmss, NewBagItem,
   NewNote, NewTask, NewTemplate, Note, NotePatch, OWNER_SETTINGS, PARENT_SETTINGS, parseDateKey, PointEntry,
   Reminder, Reward, Role, Session, Settings, SUBJECT_NAMES, sortTasks, Task, TaskPatch, Template, TermDate,
   termInfo, Timetable, CHURCHERS_2026_27, workedNow, Ask, AgentThread, SchoolItem, relativeDay, dueLabel,
@@ -913,6 +913,13 @@ export class Hub {
       this.feed("agent", `Added ${list.length} session${list.length === 1 ? "" : "s"} to the week`);
     } else if (a.kind === "reminder") {
       this.addReminder(String(p.text ?? "reminder"), String(p.line ?? ""), Number(p.at ?? this.now()), "agent");
+    } else if (a.kind === "claude") {
+      const t = ClaudeTask.safeParse(p);
+      if (t.success) {
+        this.handoffs.put({ id: newId(), kind: "claude", payload: t.data, createdAt: this.now(), doneAt: null });
+        this.feed("agent", t.data.target === "code_run" ? "Sent to Claude Code on the computer" : `Opening Claude ${t.data.target === "cowork" ? "Cowork" : "Code"} on the computer`);
+        this.bus.changed("handoffs");
+      }
     } else if (a.kind === "app") {
       // A connected-app action (Composio) the student said yes to. It runs now, exactly as shown.
       void this.onAppApproved?.(a);
@@ -928,6 +935,29 @@ export class Hub {
   doneHandoff(id: string): void {
     this.handoffs.patch(id, (h) => ({ ...h, doneAt: this.now() }));
     this.bus.changed("handoffs");
+  }
+
+  /** What Claude on the computer reported back; it goes into the question's thread. */
+  handoffResult(id: string, r: { ok: boolean; text: string; costUsd?: number }): void {
+    const h = this.handoffs.get(id);
+    if (!h || h.kind !== "claude") throw notFound("no such hand-off");
+    this.doneHandoff(id);
+    const t = h.payload.threadId ? this.threads.get(h.payload.threadId) : null;
+    if (t) {
+      t.log.push({ icon: r.ok ? "terminal" : "error", text: `Claude on the computer: ${r.text}`.slice(0, 4000) });
+      this.threads.put({ ...t, updatedAt: this.now() });
+      this.bus.changed("agent");
+    }
+    this.feed("agent", r.ok ? "Claude on the computer finished" : "Claude on the computer couldn't finish");
+  }
+
+  claudeDesktop(): (ClaudeDesktop & { at: number }) | null {
+    const d = this.db.kvGet<(ClaudeDesktop & { at: number }) | null>("claudeDesktop", null);
+    // Only trust what a computer reported in the last two weeks.
+    return d && this.now() - d.at < 14 * 86400_000 ? d : null;
+  }
+  setClaudeDesktop(d: ClaudeDesktop): void {
+    this.db.kvSet("claudeDesktop", { ...d, at: this.now() });
   }
 
   /* ------------------------------ school heads --------------------------- */

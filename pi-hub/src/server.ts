@@ -5,6 +5,7 @@ import fastifyWebsocket from "@fastify/websocket";
 import fastifyStatic from "@fastify/static";
 import { z } from "zod";
 import {
+  ClaudeDesktop,
   can, type Cap, type HubMessage, type HwInput, type LedFrame, NewBagItem, NewNote, NewTask, NewTemplate, NotePatch,
   Role, SchoolAction, Settings, TaskPatch, TermDate, Timetable, Birthday, ToWall, DateKey, AgentMode, addDays,
   CalEvent, Activity, FormTime, HomeworkPlan, SchoolDay, Teacher, matchTeacher, parseStaffList,
@@ -13,6 +14,7 @@ import { importCalendarText, pdfToRows } from "./school/calendar";
 import { newId } from "./hub";
 import { applySetup, SetupPack } from "./setup";
 import { spend } from "./agent/spend";
+import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
@@ -463,15 +465,45 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   });
 
   // What's switched on, and what it has cost this month (never the keys themselves).
+  // Credit left on the OpenRouter key (cached; free to ask).
+  let credit: { at: number; v: Awaited<ReturnType<typeof openRouterKeyInfo>> } | null = null;
   app.get("/api/ai/status", async (req) => {
     need(req, "settings.owner");
+    const k = ctx.keys?.openrouter();
+    if (k && (!credit || Date.now() - credit.at > 10 * 60_000)) credit = { at: Date.now(), v: await openRouterKeyInfo(k) };
     return {
-      text: { on: ctx.agent.available(), model: hub.settings().aiModel, provider: "openrouter", zdr: true },
+      text: { on: ctx.agent.available(), model: hub.settings().aiModel, provider: "openrouter", zdr: true, key: ctx.keys?.source() ?? null, credit: k ? (credit?.v ?? null) : null },
       voice: { on: !!ctx.cfg.geminiKey, model: hub.settings().voiceModel, spoken: hub.settings().voiceReplies, onDevice: !!ctx.stt?.() },
       search: { items: ctx.index?.size ?? 0, semantic: !!ctx.index?.semantic },
       connections: { on: !!ctx.cfg.composioKey },
       spend: spend(hub),
     };
+  });
+  /* Connect OpenRouter from the setup page (OAuth PKCE): no key is ever typed or pasted. */
+  app.post("/api/ai/openrouter/start", async (req) => {
+    need(req, "settings.owner");
+    if (!ctx.keys) throw new HttpError(503, "not available");
+    const b = parse(z.object({ callback: z.string().url().max(300) }), req.body);
+    const cb = new URL(b.callback);
+    // Only back to this hub's own setup page.
+    if (!/^https?:$/.test(cb.protocol) || cb.host !== req.headers.host) throw new HttpError(400, "bad callback");
+    return { url: ctx.keys.startOAuth(cb.toString()) };
+  });
+  app.post("/api/ai/openrouter/finish", async (req) => {
+    need(req, "settings.owner");
+    if (!ctx.keys) throw new HttpError(503, "not available");
+    const b = parse(z.object({ code: z.string().min(4).max(400) }), req.body);
+    const verifier = ctx.keys.takeVerifier();
+    if (!verifier) throw new HttpError(400, "that sign-in expired, try again");
+    ctx.keys.setOpenrouter(await openRouterExchange(b.code, verifier));
+    credit = null;
+    return { ok: true };
+  });
+  app.delete("/api/ai/openrouter", async (req) => {
+    need(req, "settings.owner");
+    ctx.keys?.setOpenrouter(null);
+    credit = null;
+    return { ok: true };
   });
   app.post("/api/agent/threads", async (req) => {
     const c = need(req, "agent");
@@ -489,6 +521,18 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   });
   app.get("/api/handoffs", async (req) => (need(req, "handoff"), hub.pendingHandoffs()));
   app.post("/api/handoffs/:id/done", async (req) => (need(req, "handoff"), hub.doneHandoff((req.params as { id: string }).id), { ok: true }));
+  app.post("/api/handoffs/:id/result", async (req) => {
+    need(req, "handoff");
+    const b = parse(z.object({ ok: z.boolean(), text: z.string().max(8000), costUsd: z.number().min(0).max(100).optional() }), req.body);
+    hub.handoffResult((req.params as { id: string }).id, b);
+    return { ok: true };
+  });
+  // The computer says what Claude can do there: folder names only, never paths.
+  app.put("/api/desktop/claude", async (req) => {
+    need(req, "handoff");
+    hub.setClaudeDesktop(parse(ClaudeDesktop, req.body));
+    return { ok: true };
+  });
 
   /* -------------------------------- settings -------------------------------- */
   app.get("/api/settings", async (req) => (need(req, "read"), hub.settings()));

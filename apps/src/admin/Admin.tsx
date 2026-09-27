@@ -655,25 +655,67 @@ function Apps() {
 
 function AiStatus() {
   const client = getClient("owner")!;
-  const { data } = useHubGet<{
-    text: { on: boolean; model: string };
+  const { data, reload } = useHubGet<{
+    text: { on: boolean; model: string; key: "hub.env" | "connected" | null; credit: { usage: number; limit: number | null; remaining: number | null } | null };
     voice: { on: boolean; onDevice: boolean };
     search: { items: number; semantic: boolean };
     connections: { on: boolean };
     spend: { month: string; usd: number };
   }>(client, "/api/ai/status");
+
+  // Back from OpenRouter's sign-in with ?code=… → the hub swaps it for a key (it never reaches this page).
+  useEffect(() => {
+    const u = new URL(location.href);
+    const code = u.searchParams.get("code");
+    if (!code || sessionStorage.getItem("nudge-or") !== "1") return;
+    sessionStorage.removeItem("nudge-or");
+    u.searchParams.delete("code");
+    history.replaceState(null, "", u.toString());
+    void client
+      .send("POST", "/api/ai/openrouter/finish", { code })
+      .then(() => (toast("check_circle", "OpenRouter connected"), reload()))
+      .catch(toastError);
+  }, []);
+
+  const connect = async () => {
+    try {
+      const r = await client.send<{ url: string }>("POST", "/api/ai/openrouter/start", { callback: `${location.origin}${location.pathname}` });
+      if (!r) return;
+      sessionStorage.setItem("nudge-or", "1");
+      location.href = r.url;
+    } catch (e) {
+      toastError(e);
+    }
+  };
+
   if (!data) return null;
   const pill = (on: boolean, label: string) => (
     <span style={{ fontSize: 9, letterSpacing: ".12em", padding: "5px 9px", borderRadius: 7, background: on ? "#1f7a4d33" : "#15151b", color: on ? "#6fcf97" : "#5f5f67" }}>{label.toUpperCase()} {on ? "ON" : "OFF"}</span>
   );
+  const c = data.text.credit;
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-      {pill(data.text.on, "text")}
-      {pill(data.voice.on, "voice")}
-      {pill(data.connections.on, "apps")}
-      {pill(data.voice.onDevice, "on-device speech")}
-      {pill(data.search.semantic, "smart search")}
-      <span style={{ fontSize: 10, color: "#8e8e97", marginLeft: 6 }}>spent this month: ${data.spend.usd.toFixed(3)}</span>
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {pill(data.text.on, "text")}
+        {pill(data.voice.on, "voice")}
+        {pill(data.connections.on, "apps")}
+        {pill(data.voice.onDevice, "on-device speech")}
+        {pill(data.search.semantic, "smart search")}
+        <span style={{ fontSize: 10, color: "#8e8e97", marginLeft: 6 }}>
+          spent this month: ${data.spend.usd.toFixed(3)}
+          {c && c.remaining != null ? ` · key has $${c.remaining.toFixed(2)} left of $${(c.limit ?? 0).toFixed(2)}` : c ? " · key has no spend limit (set one on openrouter.ai)" : ""}
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+        {data.text.key === "hub.env" ? (
+          <span style={{ fontSize: 10, color: "#5f5f67" }}>key set on the hub (hub.env)</span>
+        ) : (
+          <>
+            <Chip icon="link" label={data.text.key === "connected" ? "reconnect openrouter" : "connect openrouter"} go={() => void connect()} />
+            {data.text.key === "connected" && <Chip icon="link_off" label="disconnect" go={() => void client.send("DELETE", "/api/ai/openrouter").then(reload).catch(toastError)} />}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -8,6 +8,9 @@ import type { Ctx } from "./context";
 import { Db } from "./db";
 import { Hub } from "./hub";
 import { buildServer } from "./server";
+import { Keys } from "./keys";
+import { Vault } from "./school/vault";
+import { vi } from "vitest";
 
 let app: FastifyInstance;
 let hub: Hub;
@@ -27,6 +30,7 @@ beforeAll(async () => {
     school: { status: () => ({ signedIn: false, needsSignIn: false, lastRun: null, lastOk: null, lastError: null, running: false, itemCount: 0 }), refresh: async () => {}, setSession: async () => {}, clearSession: async () => {} },
     agent: { available: () => false, run: () => "", stop: () => {} },
     hw: { input: () => {}, leds: () => {} },
+    keys: new Keys(hub, new Vault(dir), { openrouter: null }),
   };
   app = await buildServer(ctx);
   await app.ready();
@@ -126,3 +130,35 @@ describe("school setup", () => {
     expect(r.statusCode).toBe(400);
   });
 });
+
+describe("connect OpenRouter (PKCE)", () => {
+  it("only returns to this hub's own page, swaps the code once, and keeps the key on the hub", async () => {
+    const owner = auth.pair(auth.createCode("owner", "test").code, "or-phone", "100.101.102.103").token;
+    const host = { host: "nudge.tail.ts.net" };
+    const start = (callback: string) =>
+      app.inject({ method: "POST", url: "/api/ai/openrouter/start", remoteAddress: "100.101.102.103", headers: { authorization: "Bearer " + owner, ...host }, payload: { callback } });
+    expect((await start("https://evil.example/app/admin.html")).statusCode).toBe(400);
+    const r = await start("https://nudge.tail.ts.net/app/admin.html");
+    expect(r.statusCode).toBe(200);
+    const url = new URL(r.json().url);
+    expect(url.origin).toBe("https://openrouter.ai");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ key: "sk-or-v1-fromoauth" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const fin = await inject("POST", "/api/ai/openrouter/finish", { token: owner, body: { code: "abc123" } });
+      expect(fin.statusCode).toBe(200);
+      const sent = JSON.parse(String((fetchMock.mock.calls[0] as unknown[])[1] && ((fetchMock.mock.calls[0] as unknown[])[1] as RequestInit).body));
+      expect(sent.code).toBe("abc123");
+      expect(sent.code_verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      // the verifier is single-use
+      expect((await inject("POST", "/api/ai/openrouter/finish", { token: owner, body: { code: "abc123" } })).statusCode).toBe(400);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    // stored sealed, never in plain text
+    expect(JSON.stringify(hub.db.kvGet("openrouterKey", null))).not.toContain("fromoauth");
+  });
+});
+

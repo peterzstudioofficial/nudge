@@ -123,7 +123,21 @@ describe("rules", () => {
     hub.answerAsk(ask.id, true, "test");
     const h = hub.pendingHandoffs();
     expect(h).toHaveLength(1);
-    expect(h[0].payload.to).toBe("a@b.c");
+    expect(h[0].kind === "compose" && h[0].payload.to).toBe("a@b.c");
+  });
+
+  it("hands work to Claude on the computer only after a yes, and files the result in the thread", () => {
+    const hub = new Hub(new Db(":memory:"));
+    const thread = { id: "t1", prompt: "fix my site", mode: "act" as const, origin: "app" as const, status: "asking" as const, steps: [], log: [], askId: null, output: null, error: null, createdAt: 0, updatedAt: 0 };
+    hub.threads.put(thread);
+    const ask = hub.createAsk({ kind: "claude", head: "", line: "", rows: [], payload: { target: "code_run", task: "fix the nav bar", workspace: "portfolio", threadId: "t1" }, threadId: "t1" });
+    expect(hub.pendingHandoffs()).toHaveLength(0);
+    hub.answerAsk(ask.id, true, "owner");
+    const [h] = hub.pendingHandoffs();
+    expect(h.kind).toBe("claude");
+    hub.handoffResult(h.id, { ok: true, text: "Fixed the nav bar in index.html" });
+    expect(hub.pendingHandoffs()).toHaveLength(0);
+    expect(hub.threads.get("t1")!.log.at(-1)?.text).toContain("Fixed the nav bar");
   });
 });
 

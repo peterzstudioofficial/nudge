@@ -195,5 +195,62 @@ describe("assistant (OpenRouter)", () => {
     expect(bodies).toHaveLength(2);
     expect(bodies[1].reasoning).toBeUndefined();
   });
+
+  it("app actions: reading runs, changing waits for a yes, and never outside act mode", async () => {
+    const ran: string[] = [];
+    const appTool = {
+      name: "use_app",
+      description: "Run one action in a connected app",
+      parameters: { type: "object" },
+      kind: "read" as const,
+      needsOk: async (a: unknown) => {
+        const slug = (a as { slug: string }).slug;
+        return slug.includes("LIST") ? { ok: false as const } : { ok: true as const, connector: slug, args: (a as { arguments: unknown }).arguments, label: "create event" };
+      },
+      run: async (a: unknown) => (ran.push((a as { slug: string }).slug), "[]"),
+    };
+    const make = (steps: Parameters<typeof scripted>[0]) => {
+      const hub = new Hub(new Db(":memory:"));
+      const agent = agentService({ hub, llm: scripted(steps), say: () => {}, log: () => {}, extraTools: async (_m, gate) => [gate(appTool)] });
+      return { hub, agent };
+    };
+    const a = make([() => ({ tool: { name: "use_app", args: { slug: "GOOGLECALENDAR_EVENTS_LIST", arguments: {} } } }), () => ({ content: "free all week" })]);
+    a.agent.run({ prompt: "am I free", mode: "ask", origin: "app" });
+    await wait(40);
+    expect(ran).toEqual(["GOOGLECALENDAR_EVENTS_LIST"]);
+
+    const b = make([() => ({ tool: { name: "use_app", args: { slug: "GOOGLECALENDAR_CREATE_EVENT", arguments: { summary: "rehearsal" } } } }), () => ({ content: "ok" })]);
+    b.agent.run({ prompt: "add rehearsal", mode: "act", origin: "app" });
+    await wait(40);
+    expect(ran).toEqual(["GOOGLECALENDAR_EVENTS_LIST"]); // not run
+    expect(b.hub.pendingAsks()[0].payload).toEqual({ connector: "GOOGLECALENDAR_CREATE_EVENT", args: { summary: "rehearsal" } });
+
+    const c = make([() => ({ tool: { name: "use_app", args: { slug: "GOOGLECALENDAR_CREATE_EVENT", arguments: {} } } }), (m) => ({ content: String(m.at(-1)?.content) })]);
+    const id = c.agent.run({ prompt: "add rehearsal", mode: "watch", origin: "app" });
+    await wait(40);
+    expect(c.hub.pendingAsks()).toHaveLength(0);
+    expect(c.hub.threads.get(id)!.log.at(-1)?.text).toMatch(/isn't allowed in this mode/);
+  });
+
+  it("offers the Claude hand-off only when the computer can take it, and only as an ask", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    let names: string[] = [];
+    const peek: Llm = { async chat(o) { names = (o.tools ?? []).map((t) => t.function.name); return { content: "ok", toolCalls: [], finish: "stop", model: "t", cost: 0, citations: [], serverToolCalls: 0 }; } };
+    agentService({ hub, llm: peek, say: () => {}, log: () => {} }).run({ prompt: "hi", mode: "act", origin: "app" });
+    await wait(20);
+    expect(names).not.toContain("hand_to_claude");
+
+    hub.setClaudeDesktop({ workspaces: ["portfolio"], desktopApp: true, cli: true, allowRun: true, runMode: "plan" });
+    const llm = scripted([
+      () => ({ tool: { name: "hand_to_claude", args: { target: "code_run", task: "Make the nav bar sticky on mobile", folder: "portfolio", summary: "sticky nav" } } }),
+      () => ({ content: "asked" }),
+    ]);
+    const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "fix my site nav", mode: "act", origin: "app" });
+    await wait(40);
+    const [ask] = hub.pendingAsks();
+    expect(ask.kind).toBe("claude");
+    expect(ask.payload).toEqual({ target: "code_run", task: "Make the nav bar sticky on mobile", workspace: "portfolio", threadId: id });
+    expect(hub.pendingHandoffs()).toHaveLength(0);
+  });
 });
 

@@ -12,11 +12,19 @@ import { type Hub, newId } from "../hub";
  * ready-to-send draft on the computer — Peter presses send himself.
  */
 
+/** A tool from outside (connected apps). `needsOk` decides per call whether it waits for a yes. */
+export type GatedTool = Omit<Tool, "run"> & {
+  run(args: unknown): Promise<string>;
+  needsOk?(args: unknown): Promise<{ ok: false } | { ok: true; connector: string; args: unknown; label: string }>;
+};
+
 interface Opts {
   hub: Hub;
   llm: Llm | null;
+  /** false while there's no key (it can be connected later from setup) */
+  ready?: () => boolean;
   /** extra tools from connected apps (Composio) and the private search index */
-  extraTools?: (mode: AgentMode, gate: (t: Omit<Tool, "run"> & { run(args: unknown): Promise<string> }) => Tool) => Promise<Tool[]>;
+  extraTools?: (mode: AgentMode, gate: (t: GatedTool) => Tool) => Promise<Tool[]>;
   say: (icon: string, line: string, sub?: string, ms?: number) => void;
   log: (m: string) => void;
 }
@@ -49,27 +57,37 @@ export function agentService(o: Opts): AgentService {
    * create, delete or change something becomes an ask showing exactly what would happen, and
    * only runs after a yes (see answerAsk → "connector").
    */
-  const gateTool = (thread: AgentThread, t: Omit<Tool, "run"> & { run(args: unknown): Promise<string> }): Tool => {
-    if (t.kind === "read") return t as Tool;
-    return {
-      ...t,
-      kind: "ask",
-      async run(args) {
-        const shown = JSON.stringify(args).slice(0, 400);
-        const ask = hub.createAsk({
-          kind: "app",
-          head: "NEEDS YOUR OK",
-          line: `${t.description.split(/[.:]/)[0].toLowerCase().slice(0, 60)}?`,
-          rows: [{ k: "APP", v: t.name.split("_")[0].toLowerCase() }, { k: "DOES", v: t.name.toLowerCase().replace(/_/g, " ").slice(0, 40) }, { k: "WITH", v: shown.slice(0, 80) }],
-          payload: { connector: t.name, args },
-          threadId: thread.id,
-        });
-        thread.askId = ask.id;
-        thread.status = "asking";
-        save(thread);
-        return "Proposed. Waiting for the student's OK; nothing has happened yet.";
-      },
+  const gateTool = (thread: AgentThread, t: GatedTool): Tool => {
+    const makeAsk = (connector: string, args: unknown, label: string) => {
+      const shown = JSON.stringify(args ?? {}).slice(0, 400);
+      const ask = hub.createAsk({
+        kind: "app",
+        head: "NEEDS YOUR OK",
+        line: `${label.toLowerCase().replace(/_/g, " ").slice(0, 60)}?`,
+        rows: [{ k: "APP", v: connector.split("_")[0].toLowerCase() }, { k: "DOES", v: connector.toLowerCase().replace(/_/g, " ").slice(0, 40) }, { k: "WITH", v: shown.slice(0, 80) }],
+        payload: { connector, args },
+        threadId: thread.id,
+      });
+      thread.askId = ask.id;
+      thread.status = "asking";
+      save(thread);
+      return "Proposed. Waiting for the student's OK; nothing has happened yet.";
     };
+    if (t.needsOk) {
+      const check = t.needsOk.bind(t);
+      return {
+        ...t,
+        kind: "read",
+        async run(args) {
+          const need = await check(args);
+          if (!need.ok) return t.run(args);
+          if (thread.mode !== "act") return "error: that would change something in the app, which isn't allowed in this mode. Tell the student what you'd do instead.";
+          return makeAsk(need.connector, need.args, need.label);
+        },
+      };
+    }
+    if (t.kind === "read") return t as Tool;
+    return { ...t, kind: "ask", run: async (args) => makeAsk(t.name, args, t.description.split(/[.:]/)[0]) };
   };
 
   const save = (t: AgentThread) => {
@@ -321,6 +339,53 @@ export function agentService(o: Opts): AgentService {
       },
     );
     list.push(proposeEmail, proposeSessions, proposeReminder);
+
+    // Hand bigger computer jobs to Claude on Peter's PC (only if the desktop app says it can).
+    const pc = hub.claudeDesktop();
+    if (pc && (pc.desktopApp || (pc.cli && pc.allowRun))) {
+      const targets = [...(pc.desktopApp ? (["cowork", "code"] as const) : []), ...(pc.cli && pc.allowRun ? (["code_run"] as const) : [])];
+      const folders = pc.workspaces;
+      list.push(
+        tool(
+          "hand_to_claude",
+          "Hand a bigger job to Claude on the student's computer, after they say yes. " +
+            "'cowork' opens Claude Cowork (documents, research, files) and 'code' opens Claude Code, both with the task typed in for the student to check and send. " +
+            (pc.cli && pc.allowRun
+              ? `'code_run' runs Claude Code right away in one of their project folders (${pc.runMode === "plan" ? "it can read and plan but not change files" : "it can edit files there"}); the computer asks them again first. `
+              : "") +
+            "Write the task as clear, complete instructions. Include only what the job needs: no passwords, no personal details, nothing from school emails unless the job is about them." +
+            (folders.length ? ` Folders set up: ${folders.join(", ")}.` : ""),
+          z.object({
+            target: z.enum(targets as unknown as [string, ...string[]]),
+            task: z.string().min(10).max(4000),
+            folder: (folders.length ? z.enum(folders as [string, ...string[]]) : z.string().max(0)).optional().describe("one of the folders set up on the computer"),
+            summary: z.string().min(1).max(60).describe("what it's for, in a few words"),
+          }),
+          "ask",
+          async (i) => {
+            if (i.target === "code_run" && !i.folder) return "error: code_run needs one of the folders";
+            step("hand it to claude");
+            const where = i.target === "cowork" ? "claude cowork" : i.target === "code" ? "claude code (you press send)" : `claude code runs it${pc.runMode === "plan" ? " (read-only)" : ""}`;
+            const ask = hub.createAsk({
+              kind: "claude",
+              head: "ON YOUR COMPUTER",
+              line: `hand to claude: ${i.summary.toLowerCase()}?`,
+              rows: [
+                { k: "WHERE", v: where },
+                ...(i.folder ? [{ k: "FOLDER", v: i.folder }] : []),
+                { k: "TASK", v: i.task.slice(0, 80) },
+              ],
+              payload: { target: i.target, task: i.task, workspace: i.folder ?? null, threadId: thread.id },
+              threadId: thread.id,
+            });
+            thread.askId = ask.id;
+            thread.status = "asking";
+            save(thread);
+            return "Proposed. Waiting for the student's OK; nothing has happened yet.";
+          },
+        ),
+      );
+    }
     return list;
   }
 
@@ -493,7 +558,7 @@ export function agentService(o: Opts): AgentService {
   }, 30_000).unref();
 
   const svc: AgentService = {
-    available: () => !!client,
+    available: () => !!client && (o.ready?.() ?? true),
     run({ prompt, mode, origin }) {
       const t = newThread(prompt, mode, origin);
       void execute(t);

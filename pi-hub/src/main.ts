@@ -15,6 +15,7 @@ import { PersonalIndex } from "./rag/index";
 import { loadEmbedder } from "./rag/embed";
 import { searchTool } from "./rag/tool";
 import { loadStt } from "./voice/stt";
+import { Keys } from "./keys";
 import { voiceService } from "./voice/wall";
 import { schoolReader, refreshTermDates } from "./school/reader";
 import { Vault } from "./school/vault";
@@ -67,6 +68,8 @@ async function main() {
   void loadEmbedder(process.env.NUDGE_EMBED_MODEL || path.join(cfg.dataDir, "models", "minilm"), log).then((e) => index.setEmbedder(e));
   // On-device speech-to-text (voice notes, and the voice fallback without Gemini).
   const stt = loadStt(process.env.NUDGE_STT_MODEL || path.join(cfg.dataDir, "models", "moonshine"), log);
+  const vault = new Vault(cfg.dataDir);
+  const keys = new Keys(hub, vault, { openrouter: cfg.openrouterKey });
   const apps = appsService({ hub, apiKey: cfg.composioKey, log });
   const ctx = {} as Ctx;
   Object.assign(ctx, {
@@ -77,7 +80,7 @@ async function main() {
     news: newsService(hub, false),
     school: schoolReader({
       hub,
-      vault: new Vault(cfg.dataDir),
+      vault,
       chromium: cfg.chromium,
       dev: cfg.dev,
       log,
@@ -86,12 +89,16 @@ async function main() {
     apps,
     index,
     stt: () => stt,
+    keys,
     agent: agentService({
       hub,
-      llm: cfg.openrouterKey ? openRouter(cfg.openrouterKey, { onCost: (usd) => addSpend(hub, usd) }) : null,
+      llm: openRouter(() => keys.openrouter(), { onCost: (usd) => addSpend(hub, usd), onRoute: (r) => log(`assistant: ${r}`) }),
+      ready: () => !!keys.openrouter(),
       extraTools: async (mode, gate) => [
         searchTool(index),
-        ...(mode === "ask" || mode === "watch" ? (await apps.tools()).filter((t) => t.kind === "read") : await apps.tools()).map(gate),
+        // Reading from an app runs straight away; anything that changes something waits for a yes
+        // (and isn't allowed at all outside "act" mode).
+        ...(await apps.tools()).map(gate),
       ],
       say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms),
       log,
@@ -114,7 +121,7 @@ async function main() {
     const { code } = auth.createCode("owner", "first-run");
     log(`no devices paired yet — first pairing code (owner): ${code}`);
   }
-  if (!cfg.openrouterKey) log("assistant off: set OPENROUTER_API_KEY in /etc/nudge/hub.env (sudo nudge key openrouter)");
+  if (!keys.openrouter()) log("assistant off: connect OpenRouter in the setup page, or sudo nudge key openrouter");
 
   /* -------------------------------- schedule -------------------------------- */
   const every = (ms: number, fn: () => void | Promise<void>, now = true) => {

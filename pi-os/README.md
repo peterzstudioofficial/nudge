@@ -64,6 +64,7 @@ It's applied once at boot, then wiped. The SSH user is `admin`. Its password is 
 ## After installing
 
 ```sh
+# The assistant: either press "connect openrouter" on the setup page (nothing to paste), or
 sudo nudge key openrouter   # paste your OpenRouter key → the assistant switches on
 sudo nudge key gemini       # optional: Gemini key → talk to the wall (Gemini Live)
 sudo nudge key composio     # optional: Composio key → connected apps (sign in from the app's setup page)

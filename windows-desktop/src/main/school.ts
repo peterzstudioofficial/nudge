@@ -60,7 +60,7 @@ export async function signInToSchool(client: HubClient, parent?: BrowserWindow):
 }
 
 /** Open an approved email draft in Outlook, filled in, for Peter to send himself. */
-export async function openDraft(client: HubClient, h: Handoff): Promise<void> {
+export async function openDraft(client: HubClient, h: Extract<Handoff, { kind: "compose" }>): Promise<void> {
   const q = new URLSearchParams({ to: h.payload.to, subject: h.payload.subject, body: h.payload.body });
   const win = new BrowserWindow({
     width: 980,
