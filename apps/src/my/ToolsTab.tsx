@@ -89,7 +89,7 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
           No tools yet. Ask the assistant ("build me a line-learner for my musical scenes, for later") or tap below. Big jobs always show their cost and wait for your yes.
         </div>
       )}
-      <button className="tap" onClick={() => setAsking(true)} style={{ ...btn(false), height: 46, marginTop: 4 }}>
+      <button className="tap" onClick={() => setAsking(true)} style={{ ...btn(false), flex: "none", height: 46, marginTop: 4 }}>
         <Ms style={{ fontSize: 16, verticalAlign: "-3px", marginRight: 6 }}>add</Ms>ask for a tool
       </button>
       <div style={{ fontSize: 9, color: "#5f5f67", lineHeight: 1.6, padding: "0 4px" }}>
@@ -157,7 +157,7 @@ function NewTool({ open, onClose }: { open: boolean; onClose: () => void }) {
           attach files (optional, e.g. a PDF of the topics)
           <input type="file" multiple style={{ display: "block", marginTop: 6, fontSize: 11 }} onChange={(e) => setFiles([...(e.target.files ?? [])])} />
         </label>
-        <button className="tap" disabled={busy} onClick={() => void submit()} style={{ ...btn(true), height: 44, opacity: busy ? 0.5 : 1 }}>{busy ? "sending…" : "check the cost"}</button>
+        <button className="tap" disabled={busy} onClick={() => void submit()} style={{ ...btn(true), flex: "none", height: 44, opacity: busy ? 0.5 : 1 }}>{busy ? "sending…" : "check the cost"}</button>
         <div style={{ fontSize: 9, color: "#5f5f67", lineHeight: 1.6 }}>
           Nothing starts until you say yes. Attached files are used for this build only, then deleted.
         </div>
