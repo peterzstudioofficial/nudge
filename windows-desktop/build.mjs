@@ -40,7 +40,7 @@ await vite({
     outDir: "dist-renderer",
     emptyOutDir: true,
     target: "chrome130",
-    rollupOptions: { input: { hud: "hud.html", agent: "agent.html", pair: "pair.html" } },
+    rollupOptions: { input: { hud: "hud.html", toast: "toast.html", pair: "pair.html" } },
   },
 });
 

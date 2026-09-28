@@ -1,4 +1,5 @@
-import { app, dialog, Notification, shell } from "electron";
+import { app, dialog, shell } from "electron";
+import { notify } from "./notify";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -69,7 +70,7 @@ export async function handleClaude(client: HubClient, h: ClaudeHandoff, p: Prefs
     const q = new URLSearchParams({ q: task.slice(0, 5000) });
     if (ws) q.append("folder", ws.path);
     await shell.openExternal(`claude://${target}/new?${q.toString().replace(/\+/g, "%20")}`);
-    new Notification({ title: "Nudge → Claude", body: `Opened Claude ${target === "cowork" ? "Cowork" : "Code"} with the task typed in. Check it, then press send.` }).show();
+    void notify({ icon: "terminal", line: `Opened Claude ${target === "cowork" ? "Cowork" : "Code"} with the task typed in. Check it, then press send.` });
     await done(client, h, true, `opened Claude ${target === "cowork" ? "Cowork" : "Code"} with the task ready to send`);
     return;
   }
@@ -89,9 +90,9 @@ export async function handleClaude(client: HubClient, h: ClaudeHandoff, p: Prefs
   });
   if (response !== 0) return void (await done(client, h, false, "cancelled on the computer"));
 
-  new Notification({ title: "Nudge → Claude Code", body: `Working in ${ws.name}…` }).show();
+  void notify({ icon: "terminal", line: `Working in ${ws.name}…` });
   const r = await runClaude(ws.path, task, mode);
-  new Notification({ title: "Nudge → Claude Code", body: r.ok ? `Done in ${ws.name}.` : `Didn't finish: ${r.text.slice(0, 80)}` }).show();
+  void notify({ icon: "terminal", line: r.ok ? `Done in ${ws.name}.` : `Didn't finish: ${r.text.slice(0, 80)}` });
   await done(client, h, r.ok, r.text, r.costUsd);
 }
 
@@ -151,7 +152,7 @@ async function buildTool(client: HubClient, h: ClaudeHandoff, p: Prefs): Promise
     detail: `${h.payload.task.slice(0, 1500)}\n\nIt works only in: ${dir}`,
   });
   if (response !== 0) return void (await done(client, h, false, "cancelled on the computer"));
-  new Notification({ title: "Nudge → Claude Code", body: `Building ${title}…` }).show();
+  void notify({ icon: "terminal", line: `Building ${title}…` });
   const r = await runClaude(dir, h.payload.task, "acceptEdits");
   const out = path.join(dir, "out");
   const files: Record<string, string> = {};
@@ -175,7 +176,7 @@ async function buildTool(client: HubClient, h: ClaudeHandoff, p: Prefs): Promise
   try {
     await client.request("POST", `/api/jobs/${jobId}/tool`, { files, summary: r.text.slice(0, 600) });
     await done(client, h, true, r.text, r.costUsd);
-    new Notification({ title: "Nudge", body: `${title} is ready in your Tools tab.` }).show();
+    void notify({ icon: "apps", line: `${title} is ready in your Tools tab.`, ms: 6000 });
   } catch (e) {
     await done(client, h, false, `couldn't send it to the wall: ${(e as Error).message}`);
   }

@@ -14,6 +14,10 @@ export interface Pairing {
 
 export interface Prefs {
   hudCorner: "br" | "bl" | "tr" | "tl";
+  /** 1 = the designed 268×242; drag its edge or pick a size in the tray */
+  hudScale: number;
+  /** tucked away from the tray icon */
+  hudHidden: boolean;
   launchAtLogin: boolean;
   watchApps: boolean;
   bedtimeSnoozeUntil: number;
@@ -81,7 +85,7 @@ export function savePairing(p: Pairing | null) {
 }
 
 export function prefs(): Prefs {
-  return { hudCorner: "br", launchAtLogin: true, watchApps: true, bedtimeSnoozeUntil: 0, claudeWorkspaces: [], claudeAllowRun: false, claudeCanEdit: false, ...read().prefs };
+  return { hudCorner: "br", hudScale: 1, hudHidden: false, launchAtLogin: true, watchApps: true, bedtimeSnoozeUntil: 0, claudeWorkspaces: [], claudeAllowRun: false, claudeCanEdit: false, ...read().prefs };
 }
 export function setPrefs(p: Partial<Prefs>) {
   const d = read();

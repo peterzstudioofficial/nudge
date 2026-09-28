@@ -25,10 +25,18 @@
 100%{transform:scale(.7) rotate(90deg);border-radius:50%}
 }
 
+@keyframes tInUp{0%{opacity:0;transform:translateY(18px) scale(.92)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes tInDown{0%{opacity:0;transform:translateY(-18px) scale(.92)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes tOutUp{to{opacity:0;transform:translateY(14px) scale(.94)}}
+@keyframes tOutDown{to{opacity:0;transform:translateY(-14px) scale(.94)}}
+@keyframes tBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+/* The on-task window scales with its window (drag a corner); everything inside scales with it. */
+.hudShell .hudGrip { position: absolute; top: 5px; left: 50%; width: 26px; height: 4px; margin-left: -13px; border-radius: 2px; background: #ffffff26; cursor: ew-resize; z-index: 9; opacity: 0; transition: opacity .25s ease; }
+.hudShell:hover .hudGrip { opacity: 1; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; font-family: "DM Mono", ui-monospace, monospace; color: #f4f3ef; -webkit-font-smoothing: antialiased; user-select: none; }
 body.hud { background: transparent; overflow: hidden; }
-body.agent { background: #0c0c0c; overflow: hidden; }
 body.pair { background: #0a0a0c; }
 .drag { -webkit-app-region: drag; }
 .nodrag { -webkit-app-region: no-drag; }

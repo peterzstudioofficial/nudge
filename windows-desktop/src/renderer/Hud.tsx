@@ -180,7 +180,6 @@ export function Hud() {
               <span style={{ width: 11, height: 11, borderRadius: 3, border: "2px solid #ff4d17" }} />
             </div>
             <span style={{ flex: 1 }} />
-            <span className="nodrag" title="assistant" onClick={() => bridge().open("agent")} style={{ cursor: "pointer" }}><Ms style={{ fontSize: 14, color: "#5f5f67" }}>smart_toy</Ms></span>
             <span className="nodrag" title="hide" onClick={() => bridge().win("hide")} style={{ cursor: "pointer" }}><Ms style={{ fontSize: 14, color: "#5f5f67" }}>remove</Ms></span>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -263,9 +262,29 @@ export function Hud() {
 }
 
 function Shell({ children, anim = "wIn .4s ease-out" }: { children: React.ReactNode; anim?: string }) {
+  // Scale the card: Ctrl+scroll anywhere on it, or drag the grip that shows on hover.
+  const scaleNow = () => window.innerWidth / 268;
+  const onWheel = (e: React.WheelEvent) => {
+    if (!e.ctrlKey) return;
+    void bridge().scale(scaleNow() * (e.deltaY < 0 ? 1.08 : 1 / 1.08));
+  };
+  const grip = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const x0 = e.screenX, k0 = scaleNow();
+    const fromLeft = window.screenX + window.innerWidth / 2 > screen.availWidth / 2; // docked right → grip grows leftwards
+    let raf = 0;
+    const mv = (ev: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => void bridge().scale(k0 + ((fromLeft ? x0 - ev.screenX : ev.screenX - x0) / 268) * k0));
+    };
+    const up = () => (window.removeEventListener("pointermove", mv), window.removeEventListener("pointerup", up));
+    window.addEventListener("pointermove", mv);
+    window.addEventListener("pointerup", up);
+  };
   return (
-    <div style={{ position: "relative", width: 268, height: 242, borderRadius: 16, background: "#0e0e13", boxShadow: "inset 0 0 0 1px #ffffff17", overflow: "hidden", animation: anim }}>
+    <div className="hudShell" onWheel={onWheel} style={{ position: "relative", width: 268, height: 242, borderRadius: 16, background: "#0e0e13", boxShadow: "inset 0 0 0 1px #ffffff17", overflow: "hidden", animation: anim }}>
       {children}
+      <span className="nodrag hudGrip" title="drag to resize" onPointerDown={grip} />
     </div>
   );
 }

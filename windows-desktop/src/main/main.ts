@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray, clipboard } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray, clipboard } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { HubClient, memoryKV, type Snapshot, type Handoff, hhmmToMinutes } from "@nudge/shared";
@@ -7,11 +7,11 @@ import { Watcher, distraction } from "./watch";
 import { signInToSchool, openDraft } from "./school";
 import { startBlocker, blockerKey, BLOCKER_PORT } from "./blocker";
 import { claudeCapabilities, handleClaude } from "./claude";
+import { notify, setupNotify, toastAction, toastDone } from "./notify";
 
 /**
  * Nudge for Windows.
  *  - the on-task HUD (small window, bottom right) that mirrors the wall's session
- *  - the Nudge agent window (the assistant, asks before anything is sent)
  *  - school sign-in for the wall, and finishing email drafts by hand
  *  - the local endpoint the browser blocker extension reads
  */
@@ -25,7 +25,6 @@ app.setAppUserModelId("studio.peterz.nudge");
 
 let tray: Tray | null = null;
 let hud: BrowserWindow | null = null;
-let agent: BrowserWindow | null = null;
 let pairWin: BrowserWindow | null = null;
 let client: HubClient | null = null;
 let pairing: Pairing | null = null;
@@ -54,59 +53,127 @@ function page(win: BrowserWindow, name: string) {
   });
 }
 
+const HUD_W = 268, HUD_H = 242;
+const clampScale = (k: number) => Math.min(2, Math.max(0.8, Number.isFinite(k) ? k : 1));
+
 function hudBounds() {
   const wa = screen.getPrimaryDisplay().workArea;
-  const w = 268, h = 242, m = 16;
+  const k = clampScale(prefs().hudScale);
+  const w = Math.round(HUD_W * k), h = Math.round(HUD_H * k), m = 16;
   const c = prefs().hudCorner;
   return { width: w, height: h, x: c.endsWith("r") ? wa.x + wa.width - w - m : wa.x + m, y: c.startsWith("b") ? wa.y + wa.height - h - m : wa.y + m };
 }
 
+/**
+ * The on-task window: a small rounded card in a corner of the screen.
+ * - stays on top of everything, including full-screen browsers and other desktops
+ * - drag it and it snaps to the nearest corner; Ctrl+scroll or its corner grip scales it, content and all
+ * - click the Nudge icon in the tray (hidden icons) to tuck it away and bring it back
+ */
 function openHud() {
   if (hud && !hud.isDestroyed()) {
     hud.showInactive();
+    setPrefs({ hudHidden: false });
     return;
   }
   hud = new BrowserWindow({
     ...hudBounds(),
     frame: false,
     transparent: true,
+    // Transparent windows can't be edge-resized on Windows; scaling is Ctrl+scroll, the corner grip or the tray.
     resizable: false,
+    minimizable: false,
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: true,
+    show: false,
+    hasShadow: false,
+    roundedCorners: true,
+    backgroundColor: "#00000000",
+    webPreferences: secure,
+  });
+  hud.setAlwaysOnTop(true, "screen-saver");
+  hud.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  page(hud, "hud");
+  hud.once("ready-to-show", () => {
+    if (!prefs().hudHidden) hud?.showInactive();
+  });
+  // Something else grabbed the top? Take it back (Windows can drop topmost when apps go full screen).
+  hud.on("blur", () => hud?.setAlwaysOnTop(true, "screen-saver"));
+  let settle: NodeJS.Timeout | null = null;
+  const snapToCorner = () => {
+    if (!hud || hud.isDestroyed()) return;
+    const b = hud.getBounds();
+    const wa = screen.getDisplayMatching(b).workArea;
+    const right = b.x + b.width / 2 > wa.x + wa.width / 2;
+    const lower = b.y + b.height / 2 > wa.y + wa.height / 2;
+    const corner = `${lower ? "b" : "t"}${right ? "r" : "l"}` as "br" | "bl" | "tr" | "tl";
+    const k = clampScale(b.width / HUD_W);
+    setPrefs({ hudCorner: corner, hudScale: k });
+    const m = 16;
+    const w = Math.round(HUD_W * k), h = Math.round(HUD_H * k);
+    hud.setBounds({ width: w, height: h, x: right ? wa.x + wa.width - w - m : wa.x + m, y: lower ? wa.y + wa.height - h - m : wa.y + m }, true);
+  };
+  const later = () => {
+    if (settle) clearTimeout(settle);
+    settle = setTimeout(snapToCorner, 260);
+  };
+  hud.on("moved", later);
+  hud.on("closed", () => (hud = null));
+}
+
+/** Tray click: tuck the on-task window away, or bring it back. */
+function toggleHud() {
+  if (!pairing) return openPair();
+  if (hud && !hud.isDestroyed() && hud.isVisible()) {
+    hud.hide();
+    setPrefs({ hudHidden: true });
+  } else {
+    setPrefs({ hudHidden: false });
+    openHud();
+  }
+}
+
+function toastWindow(): BrowserWindow {
+  const w = new BrowserWindow({
+    width: 300,
+    height: 96,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    focusable: false,
     alwaysOnTop: true,
     show: false,
     hasShadow: false,
     backgroundColor: "#00000000",
     webPreferences: secure,
   });
-  hud.setAlwaysOnTop(true, "floating");
-  page(hud, "hud");
-  hud.once("ready-to-show", () => hud?.showInactive());
-  hud.on("closed", () => (hud = null));
+  w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  page(w, "toast");
+  return w;
 }
 
-function openAgent() {
-  if (agent && !agent.isDestroyed()) {
-    agent.show();
-    agent.focus();
-    return;
-  }
-  agent = new BrowserWindow({
-    width: 720,
-    height: 500,
-    minWidth: 560,
-    minHeight: 400,
-    frame: false,
-    backgroundColor: "#0c0c0c",
-    title: "Nudge agent",
-    show: false,
-    webPreferences: secure,
-  });
-  page(agent, "agent");
-  agent.once("ready-to-show", () => agent?.show());
-  agent.on("closed", () => (agent = null));
-}
+setupNotify({
+  create: toastWindow,
+  anchor: () => {
+    if (!hud || hud.isDestroyed()) return null;
+    const b = hud.getBounds();
+    return { ...b, visible: hud.isVisible(), corner: prefs().hudCorner };
+  },
+  onAction: (a) => {
+    if (a === "tasks") openHubApp("index", "Nudge");
+    if (a === "notes") openHubApp("notes", "Nudge notes");
+    if (a === "hud") openHud();
+    if (a.startsWith("tool:")) void openToolInBrowser(a.slice(5));
+  },
+});
 
 function openPair() {
   if (pairWin && !pairWin.isDestroyed()) return pairWin.focus();
@@ -156,7 +223,7 @@ function buildTray() {
   if (!tray) {
     tray = new Tray(trayIcon());
     tray.setToolTip("Nudge");
-    tray.on("click", () => (pairing ? openHud() : openPair()));
+    tray.on("click", toggleHud);
   }
   const p = prefs();
   const sess = snap?.session;
@@ -165,8 +232,15 @@ function buildTray() {
     Menu.buildFromTemplate([
       { label: pairing ? (task ? `Focusing: ${task.name}` : snap ? `${snap.tasks.filter((t) => !t.done).length} tasks left today` : "Connecting…") : "Not connected", enabled: false },
       { type: "separator" },
-      { label: "On-task window", enabled: !!pairing, click: openHud },
-      { label: "Nudge agent", enabled: !!pairing, click: openAgent },
+      { label: "On-task window", type: "checkbox", checked: !!hud && !hud.isDestroyed() && hud.isVisible(), enabled: !!pairing, click: toggleHud },
+      {
+        label: "On-task size",
+        enabled: !!pairing,
+        submenu: ([["Small", 0.85], ["Medium", 1], ["Large", 1.3], ["Extra large", 1.6]] as const).map(([label, k]) => ({
+          label, type: "radio" as const, checked: Math.abs(clampScale(p.hudScale) - k) < 0.08,
+          click: () => { setPrefs({ hudScale: k }); if (hud && !hud.isDestroyed()) hud.setBounds(hudBounds(), true); },
+        })),
+      },
       { label: "My tasks", enabled: !!pairing, click: () => openHubApp("index", "Nudge") },
       { label: "Notes", enabled: !!pairing, click: () => openHubApp("notes", "Nudge notes") },
       { type: "separator" },
@@ -251,7 +325,6 @@ function connect(p: Pairing) {
   client.onStatus((on) => broadcast("online", on));
   client.onMessage((m) => {
     if (m.type === "changed" && m.topics.some((t) => t === "handoffs" || t === "asks")) void checkHandoffs();
-    if (m.type === "changed" && m.topics.includes("agent")) broadcast("agent-changed", m.rev);
   });
   client.connect();
   void client.snapshot().catch(() => {});
@@ -267,13 +340,12 @@ function unpair() {
   snap = null;
   savePairing(null);
   hud?.close();
-  agent?.close();
   buildTray();
   openPair();
 }
 
 function broadcast(channel: string, data: unknown) {
-  for (const w of [hud, agent, pairWin]) if (w && !w.isDestroyed()) w.webContents.send(channel, data);
+  for (const w of [hud, pairWin]) if (w && !w.isDestroyed()) w.webContents.send(channel, data);
 }
 
 async function checkHandoffs() {
@@ -300,7 +372,13 @@ let bedtimeShown = "";
 
 function onSnapshot(before: Snapshot | null, s: Snapshot) {
   const running = s.session?.state === "running";
-  if (running && !before?.session) openHud();
+  if (running && !before?.session && !prefs().hudHidden) openHud();
+  if (before) {
+    // Things from the wall worth a tap on the shoulder here (never during a session unless it's a question).
+    for (const r of s.reminders) if (!before.reminders.some((x) => x.id === r.id) && !running) void notify({ icon: "notifications", line: r.text, sub: r.line || undefined, ms: 6000, action: "tasks" });
+    for (const a of s.asks) if (!before.asks.some((x) => x.id === a.id)) void notify({ icon: "front_hand", line: a.line, sub: "answer on the wall or your phone", ms: 7000 });
+    for (const t of s.tools) if (!before.tools.some((x) => x.id === t.id) && !running) void notify({ icon: "apps", line: `${t.title} is ready`, sub: "tap to open", ms: 6000, action: `tool:${t.id}` });
+  }
   if (s.school.needsSignIn && Date.now() - lastSignPrompt > 6 * 3600_000) {
     lastSignPrompt = Date.now();
     openHud();
@@ -349,7 +427,7 @@ setInterval(() => {
 
 /* ----------------------------------- IPC ---------------------------------- */
 
-const ALLOWED = /^\/api\/(state|agent\/threads(\/[\w-]+(\/stop)?)?|asks\/[\w-]+\/answer|session\/(pause|resume|break|switch)|notes|school\/(status|refresh)|feed|stats)$/;
+const ALLOWED = /^\/api\/(state|session\/(pause|resume|break|switch)|school\/(status|refresh)|feed|stats)$/;
 
 ipcMain.handle("state", () => ({ snap, online: client?.online ?? false, paired: !!pairing, hub: pairing?.hub ?? null }));
 ipcMain.handle("hub", async (_e, method: string, p: string, body?: unknown) => {
@@ -382,11 +460,16 @@ ipcMain.handle("win", (e, action: "min" | "max" | "close" | "hide") => {
   if (action === "close") w.close();
   if (action === "hide") w.hide();
 });
-ipcMain.handle("open", (_e, what: "agent" | "notes" | "tasks") => {
-  if (what === "agent") openAgent();
+ipcMain.handle("open", (_e, what: "notes" | "tasks") => {
   if (what === "notes") openHubApp("notes", "Nudge notes");
   if (what === "tasks") openHubApp("index", "Nudge");
 });
+ipcMain.handle("toast-done", () => toastDone());
+ipcMain.handle("hud-scale", (_e, k: number) => {
+  setPrefs({ hudScale: Math.round(clampScale(Number(k)) * 100) / 100 });
+  if (hud && !hud.isDestroyed()) hud.setBounds(hudBounds());
+});
+ipcMain.handle("toast-action", (_e, a: string) => toastAction(String(a).slice(0, 80)));
 ipcMain.handle("snooze-bedtime", () => setPrefs({ bedtimeSnoozeUntil: Date.now() + 10 * 60_000 }));
 ipcMain.handle("copy", (_e, text: string) => clipboard.writeText(String(text).slice(0, 20_000)));
 
@@ -426,5 +509,4 @@ void app.whenReady().then(() => {
     openPair();
   }
   if (DEV) console.log("nudge desktop (dev) — renderer:", RENDERER);
-  void Notification.isSupported();
 });

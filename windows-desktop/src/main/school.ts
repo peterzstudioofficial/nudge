@@ -1,4 +1,5 @@
-import { BrowserWindow, Notification, session, shell } from "electron";
+import { BrowserWindow, session, shell } from "electron";
+import { notify } from "./notify";
 import type { HubClient, Handoff } from "@nudge/shared";
 
 /**
@@ -45,10 +46,10 @@ export async function signInToSchool(client: HubClient, parent?: BrowserWindow):
       const cookies = all.filter((c) => c.domain && MS_DOMAINS.test(c.domain.replace(/^\./, "")));
       try {
         await client.request("POST", "/api/school/session", { cookies, userAgent: win.webContents.getUserAgent() });
-        new Notification({ title: "Nudge", body: "You're in. The wall is reading school now." }).show();
+        void notify({ icon: "check_circle", line: "You're in. The wall is reading school now." });
         resolve(true);
       } catch {
-        new Notification({ title: "Nudge", body: "Couldn't reach the wall to finish signing in." }).show();
+        void notify({ icon: "wifi_off", line: "Couldn't reach the wall to finish signing in." });
         resolve(false);
       }
       setTimeout(() => !win.isDestroyed() && win.close(), 1200);
@@ -72,5 +73,5 @@ export async function openDraft(client: HubClient, h: Extract<Handoff, { kind: "
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   await win.loadURL(`https://outlook.office.com/mail/deeplink/compose?${q.toString()}`);
   await client.request("POST", `/api/handoffs/${h.id}/done`).catch(() => {});
-  new Notification({ title: "Nudge", body: `Email to ${h.payload.to} is ready. Check it, then press send.` }).show();
+  void notify({ icon: "send", line: `Email to ${h.payload.to} is ready. Check it, then press send.`, sub: "nothing is sent until you do", ms: 6000 });
 }

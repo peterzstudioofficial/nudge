@@ -7,10 +7,13 @@ interface NudgeBridge {
   pair(hub: string, code: string, name: string): Promise<boolean>;
   signIn(): Promise<boolean>;
   win(action: "min" | "max" | "close" | "hide"): Promise<void>;
-  open(what: "agent" | "notes" | "tasks"): Promise<void>;
+  open(what: "notes" | "tasks"): Promise<void>;
+  toastDone(): Promise<void>;
+  scale(k: number): Promise<void>;
+  toastAction(a: string): Promise<void>;
   snoozeBedtime(): Promise<void>;
   copy(text: string): Promise<void>;
-  on(channel: "snapshot" | "online" | "nudge" | "sign" | "bedtime" | "agent-changed", cb: (data: unknown) => void): () => void;
+  on(channel: "snapshot" | "online" | "nudge" | "sign" | "bedtime" | "toast" | "scale", cb: (data: unknown) => void): () => void;
 }
 
 declare global {
