@@ -32,14 +32,14 @@ jobs:
       - run: npm run build
       - name: icon font has every icon the code uses
         run: pip install -q fonttools brotli && python3 scripts/subset-icons.py --check
+      - name: every app colour has a light and dark value
+        run: node scripts/theme-palette.mjs --check
 
   pi:
     name: Pi bundle
     needs: check
     runs-on: ubuntu-latest
     steps:
-      - name: every app colour has a light and dark value
-        run: node scripts/theme-palette.mjs --check
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
