@@ -14,6 +14,8 @@ export interface Slab {
   rows?: { k: string; v: string }[];
   wave?: boolean;
   spin?: boolean;
+  /** bedtime: no orange at all */
+  mono?: boolean;
   leaving?: boolean;
   /** reminder id to ack when it leaves */
   reminderId?: string;

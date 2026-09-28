@@ -515,7 +515,7 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
                 ) : slab.spin ? (
                   <span style={{ width: 15, height: 15, flex: "none", borderRadius: "50%", border: "3px solid #dcd8d0", borderTopColor: "#ff4d17", animation: "sSpin 1s linear infinite" }} />
                 ) : (
-                  <Ms style={{ fontSize: slab.ask ? 22 : 17, flex: "none", color: vm.mode === "sleep" ? "#6d6d77" : "#ff4d17" }}>{slab.icon}</Ms>
+                  <Ms style={{ fontSize: slab.ask ? 22 : 17, flex: "none", color: vm.mode === "sleep" || slab.mono ? "#6d6d77" : "#ff4d17" }}>{slab.icon}</Ms>
                 )}
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
                   <span style={{ fontSize: slab.ask ? 12 : 10, lineHeight: 1.25, color: "#111114" }}>{slab.line}</span>

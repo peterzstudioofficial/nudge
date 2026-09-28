@@ -269,6 +269,12 @@ export class Device {
       const whose = /^(mum|dad|mom|nan|gran|grandma|grandad)$/i.test(who) ? `your ${who.toLowerCase()}'s` : `${who}'s`;
       return this.say({ icon: "cake", line: `it's ${whose} birthday` }, 4000);
     }
+    // Bedtime: once a night, monochrome, leaves on its own (Nudge Popups: "time to sleep", 5s).
+    const bed = hhmmToMinutes(snap.settings.bedtime);
+    const m = this.minsOfDay();
+    if (m >= bed && m < bed + 120 && !snap.session && once("bed")) {
+      return this.say({ icon: "bedtime", line: "time to sleep", mono: true }, 5000);
+    }
     const left = snap.reward.goal - snap.bank;
     const oneTask = snap.settings.pointsStart + snap.settings.pointsClaim;
     if (mode === "standby" && left > 0 && left <= oneTask && once(`reward:${snap.bank}`)) {
@@ -335,6 +341,12 @@ export class Device {
   };
 
   say(slab: Slab, ms = 4200) {
+    // During a session a passive slab carries the countdown and leaves within three seconds.
+    const v = this.snap?.session?.state === "running" ? this.view() : null;
+    if (v && !slab.ask && !slab.wave && !slab.spin && !slab.tail) {
+      slab = { ...slab, tail: mmss(v.remaining) };
+      ms = Math.min(ms, 3000);
+    }
     this.set({ slab });
     this.later("slab", ms, () => this.dropSlab());
   }
