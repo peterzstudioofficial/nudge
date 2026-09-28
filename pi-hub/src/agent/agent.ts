@@ -310,7 +310,7 @@ export function agentService(o: Opts): AgentService {
     list.push(
       tool(
         "remember",
-        "Remember a lasting fact about the student for next time (a role, goal, preference, how they like help, a regular commitment). One short third-person line, e.g. 'plays Fagin in the senior production'. Never secrets, money, health or addresses.",
+        "Remember a lasting fact about the student for next time (a role, goal, preference, how they like help, a regular commitment). One short third-person line, e.g. 'revises best before school'. Never secrets, money, health or addresses.",
         z.object({ fact: z.string().min(4).max(200), they_said_it: z.boolean().describe("true if they told you directly") }),
         "save",
         async ({ fact, they_said_it }) => {

@@ -2,7 +2,7 @@ import type { Memory } from "@nudge/shared";
 import { type Hub, newId } from "../hub";
 
 /**
- * The assistant's memory of its owner: short facts it was told ("I'm Fagin in Oliver") or picked
+ * The assistant's memory of its owner: short facts it was told ("I revise best before school") or picked
  * up ("likes revision in 25-minute blocks"). It lives on the Pi only, the owner can read, add and
  * delete every line from the app, and nothing sensitive is ever kept.
  *
