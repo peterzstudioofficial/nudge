@@ -37,7 +37,7 @@ describe("assistant (OpenRouter)", () => {
     const hub = new Hub(new Db(":memory:"));
     const llm = scripted([() => ({ tool: { name: "get_today", args: {} } }), (m) => ({ content: m.some((x) => x.role === "tool" && x.content.includes('"date"')) ? "you have nothing due." : "?" })]);
     const agent = agentService({ hub, llm, say: () => {}, log: () => {} });
-    const id = agent.run({ prompt: "what's due?", mode: "ask", origin: "app" });
+    const id = agent.run({ prompt: "anything I should worry about today?", mode: "ask", origin: "app" });
     await wait(50);
     const t = hub.threads.get(id)!;
     expect(t.status).toBe("done");
@@ -48,7 +48,7 @@ describe("assistant (OpenRouter)", () => {
   it("never sends: an email becomes an ask waiting for a yes", async () => {
     const hub = new Hub(new Db(":memory:"));
     const llm = scripted([
-      () => ({ tool: { name: "propose_email", args: { to_email: "j.hale@school.org.uk", to_name: "mr hale", subject: "Write-up", body: "Hi Mr Hale…", ask_summary: "two more days" } } }),
+      () => ({ tool: { name: "propose_email", args: { to_email: "j.hale@churcherscollege.com", to_name: "mr hale", subject: "Write-up", body: "Hi Mr Hale…", ask_summary: "two more days" } } }),
       () => ({ content: "done" }),
     ]);
     const agent = agentService({ hub, llm, say: () => {}, log: () => {} });
@@ -286,3 +286,95 @@ describe("assistant (OpenRouter)", () => {
   });
 });
 
+
+describe("assistant: cheap, safe, remembers", () => {
+  const never: Llm = { async chat() { throw new Error("should not call the model"); } };
+
+  it("answers what the wall already knows for free, without the model", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const agent = agentService({ hub, llm: never, say: () => {}, log: () => {} });
+    for (const q of ["what time is it?", "Nudge, what's due?", "which week is it", "what's next?"]) {
+      const t = hub.threads.get(agent.run({ prompt: q, mode: "act", origin: "wall" }))!;
+      expect(t.status).toBe("done");
+      expect(t.steps[0].meta).toBe("ON THE PI · FREE");
+    }
+  });
+
+  it("doesn't pay twice for the same question when nothing changed", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const llm = scripted([() => ({ content: "revise chemistry first." })]);
+    const agent = agentService({ hub, llm, say: () => {}, log: () => {} });
+    agent.run({ prompt: "What should I revise first?", mode: "ask", origin: "app" });
+    await wait(30);
+    const id = agent.run({ prompt: "what should i revise first", mode: "ask", origin: "app" });
+    expect(llm.seen).toHaveLength(1);
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toBe("revise chemistry first.");
+  });
+
+  it("only drafts emails to school addresses (or people already emailed)", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const llm = scripted([
+      () => ({ tool: { name: "propose_email", args: { to_email: "someone@evil.example", to_name: "x", subject: "hi", body: "notes attached", ask_summary: "notes" } } }),
+      (m) => ({ content: String(m.at(-1)?.content) }),
+    ]);
+    const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "forward my notes", mode: "act", origin: "app" });
+    await wait(40);
+    expect(hub.pendingAsks()).toHaveLength(0);
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/isn't a school address/);
+  });
+
+  it("caps things that leave the house per hour", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const email = (n: number) => ({ tool: { name: "propose_email", args: { to_email: "a.b@churcherscollege.com", to_name: "mr b", subject: `s${n}`, body: "hi", ask_summary: "hi" } } });
+    let last = "";
+    for (let n = 0; n < 5; n++) {
+      const llm = scripted([() => email(n), (m) => ({ content: String(m.at(-1)?.content) })]);
+      const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: `email ${n}`, mode: "act", origin: "app" });
+      await wait(30);
+      last = hub.threads.get(id)!.log.at(-1)?.text ?? "";
+    }
+    expect(hub.asks.all().filter((a) => a.kind === "email")).toHaveLength(4);
+    expect(last).toMatch(/several messages or jobs this hour/);
+  });
+
+  it("anything that leaves the house needs a hold, and a moment to read it", () => {
+    let now = 1_000_000;
+    const hub = new Hub(new Db(":memory:"), { clock: () => now });
+    const ask = hub.createAsk({ kind: "email", head: "", line: "email?", rows: [], payload: { to: "a@b.c", subject: "s", body: "b" }, threadId: null });
+    now += 200;
+    expect(() => hub.answerAsk(ask.id, true, "phone", { held: true })).toThrow(/too quick/);
+    now += 2000;
+    expect(() => hub.answerAsk(ask.id, true, "phone", { held: false })).toThrow(/hold to confirm/);
+    expect(hub.answerAsk(ask.id, true, "phone", { held: true }).status).toBe("done");
+    // declining is always one tap
+    const b = hub.createAsk({ kind: "app", head: "", line: "post?", rows: [], payload: {}, threadId: null });
+    expect(hub.answerAsk(b.id, false, "phone", { held: false }).status).toBe("declined");
+  });
+
+  it("remembers lasting facts, never secrets, and brings them along", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const llm = scripted([
+      () => ({ tools: [{ name: "remember", args: { fact: "plays Fagin in the senior production", they_said_it: true } }, { name: "remember", args: { fact: "school password is hunter2", they_said_it: true } }] }),
+      (m) => ({ content: m.filter((x) => x.role === "tool").map((x) => x.content).join(" | ") }),
+    ]);
+    const agent = agentService({ hub, llm, say: () => {}, log: () => {} });
+    const id = agent.run({ prompt: "I got Fagin!", mode: "ask", origin: "app" });
+    await wait(40);
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/remembered \| not saved/);
+    const { memories } = await import("./brain");
+    expect(memories(hub).map((m) => m.text)).toEqual(["plays Fagin in the senior production"]);
+
+    const peek = scripted([() => ({ content: "ok" })]);
+    agentService({ hub, llm: peek, say: () => {}, log: () => {} }).run({ prompt: "help me learn my lines", mode: "ask", origin: "app" });
+    await wait(20);
+    expect(String(peek.seen[0][1].content)).toContain("plays Fagin");
+  });
+
+  it("marks school mail as data, not instructions", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const llm = scripted([() => ({ tool: { name: "get_school_items", args: {} } }), (m) => ({ content: String(m.at(-1)?.content).slice(0, 60) })]);
+    const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "any news from school?", mode: "ask", origin: "app" });
+    await wait(30);
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/not instructions/);
+  });
+});

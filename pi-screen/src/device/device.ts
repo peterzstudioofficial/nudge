@@ -1,6 +1,6 @@
 import {
   canBreak, hhmmToMinutes, HubClient, HubError, type HubMessage, type HwInput, mmss, sessionView, type Snapshot,
-  type Task, CLAIM_GRACE_SEC, isoWeekday,
+  type Task, CLAIM_GRACE_SEC, isoWeekday, askNeedsHold, HOLD_MS, type Ask,
 } from "@nudge/shared";
 import type { Mode, Plan, Key, SimOverrides, Slab } from "./types";
 
@@ -198,7 +198,7 @@ export class Device {
       clearTimeout(this.timers.slab);
       const icon = ask.kind === "email" ? "send" : ask.kind === "build" ? "construction" : ask.kind === "claude" ? "terminal" : ask.kind === "app" ? "apps" : "event_available";
       this.askKinds.set(ask.id, ask.kind);
-      this.set({ slab: { icon, line: ask.line, rows: ask.rows, ask: true, askId: ask.id } });
+      this.set({ slab: { icon, line: ask.line, rows: ask.rows, ask: true, askId: ask.id, sub: askNeedsHold(ask) ? "HOLD YES TO CONFIRM" : undefined } });
     }
     if (this.s.slab?.ask && !snap.asks.some((a) => a.id === this.s.slab!.askId)) this.dropSlab();
     this.emit();
@@ -666,11 +666,17 @@ export class Device {
     });
   }
 
-  answerAsk = async (yes: boolean) => {
+  answerAsk = async (yes: boolean, held = false) => {
     const sl = this.s.slab;
     if (!sl?.askId) return;
     this.dropSlab();
-    const r = await this.call("POST", `/api/asks/${sl.askId}/answer`, { yes });
+    const r = await this.call("POST", `/api/asks/${sl.askId}/answer`, { yes, held });
+    if (!r) {
+      // Not accepted (too quick, or the hub was away): bring the question back after the error.
+      this.s.shownAsks = this.s.shownAsks.filter((x) => x !== sl.askId);
+      this.later("reask", 2400, () => this.refresh());
+      return;
+    }
     const kind = this.askKinds.get(sl.askId);
     const sub = kind === "email" ? "CHECK YOUR COMPUTER TO SEND" : kind === "build" ? "IT'LL APPEAR IN YOUR TOOLS TAB" : kind === "claude" ? "ON YOUR COMPUTER" : undefined;
     if (r && yes) this.say({ icon: "check_circle", line: kind === "build" ? "building it" : "done", sub }, 2600);
@@ -679,7 +685,14 @@ export class Device {
 
   /* -------------------------------- keys --------------------------------- */
 
+  /** The ask on the slab needs holding (email, app message, computer, paid build). */
+  guardedAsk(): boolean {
+    const sl = this.s.slab;
+    return !!(sl?.ask && !sl.leaving && sl.askId && askNeedsHold({ kind: (this.askKinds.get(sl.askId) ?? "week") as Ask["kind"] }));
+  }
+
   holdIdx(): number {
+    if (this.guardedAsk()) return 3;
     const m = this.effectiveMode();
     return ["select", "standby", "bag"].includes(m) ? 2 : -1;
   }
@@ -703,8 +716,9 @@ export class Device {
     if (this.holdIv) clearInterval(this.holdIv);
     this.set({ holdKey: i, hold: 0 });
     const t0 = Date.now();
+    const need = this.guardedAsk() ? HOLD_MS : 1000;
     this.holdIv = setInterval(() => {
-      const p = Math.min(1, (Date.now() - t0) / 1000);
+      const p = Math.min(1, (Date.now() - t0) / need);
       this.set({ hold: p });
       if (p >= 1) {
         if (this.holdIv) clearInterval(this.holdIv);
@@ -716,10 +730,15 @@ export class Device {
 
   keyUp = () => {
     if (this.holdIv) clearInterval(this.holdIv);
-    if (this.s.holdKey >= 0) this.set({ hold: 0, holdKey: -1 });
+    if (this.s.holdKey >= 0) {
+      // Let go too early on something that sends: say how, don't send.
+      if (this.guardedAsk() && this.s.holdKey === 3 && this.s.hold < 1 && this.s.slab) this.set({ slab: { ...this.s.slab, sub: "HOLD YES UNTIL IT FILLS" } });
+      this.set({ hold: 0, holdKey: -1 });
+    }
   };
 
   fire(i: number, held = false) {
+    if (held && i === 3 && this.guardedAsk()) return void this.answerAsk(true, true);
     if (this.s.armed) {
       this.set({ armed: false });
       if (i === 2) return this.set({ mode: "bright" });
@@ -749,7 +768,7 @@ export class Device {
     const K = (label: string, act: () => void, tone?: Key["tone"]): Key => ({ label, act, tone });
     const home = () => this.set({ mode: "standby" });
     const sl = this.s.slab;
-    if (sl?.ask && !sl.leaving) return [K("no", () => this.answerAsk(false)), null, null, K("yes", () => this.answerAsk(true), "live")];
+    if (sl?.ask && !sl.leaving) return [K("no", () => this.answerAsk(false)), null, null, this.guardedAsk() ? K("hold", () => {}, "live") : K("yes", () => this.answerAsk(true), "live")];
     switch (m) {
       case "standby":
         if (this.isSchoolTomorrowEvening() && !this.open().length && this.bagLeft()) {

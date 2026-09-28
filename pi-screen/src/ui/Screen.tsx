@@ -594,11 +594,12 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
               onPointerCancel={onKeyUp}
               style={{
                 position: "absolute", left: 11 + i * (tabW + 9), bottom: -8, width: tabW, height: 40, borderRadius: k.r, background: k.bg, boxShadow: k.ring,
-                display: "flex", justifyContent: "center", paddingTop: 6, animation: "sTab .3s cubic-bezier(.22,1,.28,1)", touchAction: "none",
+                display: "flex", justifyContent: "center", paddingTop: 6, overflow: "hidden", animation: "sTab .3s cubic-bezier(.22,1,.28,1)", touchAction: "none",
                 transition: "background-color .5s cubic-bezier(.4,0,.2,1),border-radius .5s cubic-bezier(.4,0,.2,1)",
               }}
             >
-              <span style={{ fontFamily: vm.kFont, fontSize: vm.kSize, letterSpacing: ".1em", lineHeight: 1, color: k.fg, transition: "color .4s cubic-bezier(.4,0,.2,1)" }}>{k.l}</span>
+              {!!k.fill && <span style={{ position: "absolute", inset: 0, borderRadius: k.r, background: "#f4f3ef", transformOrigin: "0 50%", transform: `scaleX(${k.fill})`, transition: "transform .06s linear" }} />}
+              <span style={{ position: "relative", fontFamily: vm.kFont, fontSize: vm.kSize, letterSpacing: ".1em", lineHeight: 1, color: k.fill ? "#0b0b0d" : k.fg, transition: "color .4s cubic-bezier(.4,0,.2,1)" }}>{k.l}</span>
             </div>
           ))}
         </div>

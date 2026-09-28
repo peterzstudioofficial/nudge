@@ -8,6 +8,8 @@ import { D, DOTO, Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
 import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 import { ToolsTab } from "./ToolsTab";
+import { AskCard } from "./AskCard";
+import { BrainSheet } from "./Brain";
 import { setThemePref, themePref, type ThemePref } from "../lib/theme";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
@@ -110,6 +112,8 @@ function Today({ snap }: { snap: Snapshot }) {
           <span>{snap.heads}</span>
         </div>
       )}
+
+      {snap.asks.filter((a) => a.kind !== "build").map((a) => <AskCard key={a.id} a={a} />)}
 
       <SchoolStrip snap={snap} />
 
@@ -407,6 +411,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   const { data: cfg, reload } = useHubGet<{ birthdays: Birthday[] }>(client, "/api/config");
   const bdays = cfg?.birthdays;
   const [bdOpen, setBdOpen] = useState(false);
+  const [brainOpen, setBrainOpen] = useState(false);
   const nat = native();
   const [lock, setLock] = useState(false);
   const refreshLock = async () => {
@@ -427,6 +432,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
     { head: "ASSISTANT", rows: [
       { name: "assistant", meta: s.ai ? "ON" : "OFF", on: s.ai, go: () => set({ ai: !s.ai, ...(s.ai ? { wakeWord: false } : {}) }) },
       { name: "wake word", meta: s.ai && s.wakeWord ? "NUDGE" : "OFF", on: s.ai && s.wakeWord, locked: !s.ai, go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
+      { name: "what it knows about you", meta: "SEE ALL", on: true, go: () => setBrainOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
       { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
@@ -477,6 +483,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       </div>
       <div style={{ fontSize: 9, color: "var(--c-43434c)", marginTop: 14 }}>{snap.termLabel.toLowerCase()} · nudge 0.1.0</div>
       <Birthdays open={bdOpen} onClose={() => setBdOpen(false)} list={bdays ?? []} saved={reload} />
+      <BrainSheet open={brainOpen} onClose={() => setBrainOpen(false)} />
     </div>
   );
 }

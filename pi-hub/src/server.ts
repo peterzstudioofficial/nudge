@@ -18,6 +18,7 @@ import { spend } from "./agent/spend";
 import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
 import { estimateBuild, iconFor } from "./builder/builder";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
+import { forget, memories, remember } from "./agent/brain";
 import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
 import { HttpError } from "./errors";
@@ -592,11 +593,32 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const id = ctx.agent.run({ prompt: b.prompt, mode: b.mode, origin: c.role === "screen" ? "wall" : c.role === "desktop" ? "desktop" : "app" });
     return { id };
   });
+  // The assistant's memory: owner's phone and computer only (never the parent app, not the wall).
+  const brainCaller = (req: FastifyRequest) => {
+    const c = need(req, "agent");
+    if (c.role === "screen") throw new HttpError(403, "not here");
+    return c;
+  };
+  app.get("/api/brain", async (req) => (brainCaller(req), [...memories(hub)].sort((a, b) => b.createdAt - a.createdAt)));
+  app.post("/api/brain", async (req) => {
+    brainCaller(req);
+    const b = parse(z.object({ text: z.string().min(4).max(200) }), req.body);
+    const r = remember(hub, b.text, "told");
+    if (!r.ok) throw new HttpError(400, r.why);
+    return r.memory;
+  });
+  app.delete("/api/brain/:id", async (req) => (brainCaller(req), { removed: forget(hub, (req.params as { id: string }).id) }));
+  app.delete("/api/brain", async (req) => {
+    brainCaller(req);
+    hub.db.kvSet("brain", []);
+    hub.bus.changed("brain");
+    return { ok: true };
+  });
   app.post("/api/agent/threads/:id/stop", async (req) => (need(req, "agent"), ctx.agent.stop((req.params as { id: string }).id), { ok: true }));
   app.post("/api/asks/:id/answer", async (req) => {
     const c = need(req, "asks.answer");
-    const b = parse(z.object({ yes: z.boolean() }), req.body);
-    return hub.answerAsk((req.params as { id: string }).id, b.yes, c.name);
+    const b = parse(z.object({ yes: z.boolean(), held: z.boolean().default(false) }), req.body);
+    return hub.answerAsk((req.params as { id: string }).id, b.yes, c.name, { held: b.held });
   });
   app.get("/api/handoffs", async (req) => (need(req, "handoff"), hub.pendingHandoffs()));
   app.post("/api/handoffs/:id/done", async (req) => (need(req, "handoff"), hub.doneHandoff((req.params as { id: string }).id), { ok: true }));

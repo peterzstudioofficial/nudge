@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { z } from "zod";
 import { Activity, Birthday, CalEvent, FormTime, HomeworkPlan, SchoolDay, Settings, Teacher, TermDate, Timetable } from "@nudge/shared";
 import { type Hub, newId } from "./hub";
+import { remember } from "./agent/brain";
 
 /** A setup file: everything personal that isn't in the code (timetable, staff, birthdays…). */
 export const SetupPack = z.object({
@@ -15,6 +16,8 @@ export const SetupPack = z.object({
   events: z.array(CalEvent.omit({ id: true, source: true })).max(1000).optional(),
   activities: z.array(Activity.omit({ id: true })).max(40).optional(),
   settings: Settings.pick({ ownerName: true, yearGroup: true, house: true, profile: true, interests: true }).partial().optional(),
+  /** starting lines for the assistant's memory ("what Nudge knows about you") */
+  memories: z.array(z.string().min(4).max(200)).max(60).optional(),
 });
 export type SetupPack = z.infer<typeof SetupPack>;
 
@@ -29,6 +32,10 @@ export function applySetup(hub: Hub, pack: SetupPack): string[] {
   if (pack.birthdays) (hub.setBirthdays(pack.birthdays), done.push(`${pack.birthdays.length} birthdays`));
   if (pack.teachers) (hub.setTeachers(pack.teachers), done.push(`${pack.teachers.length} staff`));
   if (pack.activities) (hub.setActivities(pack.activities.map((a) => ({ ...a, id: newId() }))), done.push(`${pack.activities.length} weekly activities`));
+  if (pack.memories) {
+    const kept = pack.memories.filter((m) => remember(hub, m, "told").ok).length;
+    done.push(`${kept} things to remember`);
+  }
   if (pack.events) {
     for (const e of hub.events.all()) if (e.source === "calendar") hub.events.del(e.id);
     for (const e of pack.events) hub.events.put({ ...e, id: `cal:${newId().slice(0, 12)}`, source: "calendar" });

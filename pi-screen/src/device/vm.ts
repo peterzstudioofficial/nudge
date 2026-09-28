@@ -12,7 +12,7 @@ const PH = ["home", "study", "mine", "bag"] as const;
 const ICON: Record<string, string> = {
   start: "play_arrow", resume: "play_arrow", pause: "pause", break: "coffee", switch: "swap_horiz", tasks: "list",
   skip: "keyboard_double_arrow_down", back: "arrow_back", stop: "close", claim: "check", "got it": "check", done: "check",
-  ok: "check", up: "wb_sunny", next: "arrow_forward", reward: "redeem", later: "schedule", no: "close", yes: "check",
+  ok: "check", up: "wb_sunny", next: "arrow_forward", reward: "redeem", later: "schedule", no: "close", yes: "check", hold: "touch_app",
   list: "backpack", pair: "qr_code_2", parent: "family_restroom", phone: "smartphone", retry: "refresh", dimmer: "brightness_low", brighter: "brightness_high",
 };
 
@@ -22,6 +22,8 @@ export interface Tab {
   fg: string;
   r: string;
   ring: string;
+  /** 0–1 while this key is being held down (hold-to-confirm) */
+  fill?: number;
 }
 
 export interface LedCell {
@@ -106,6 +108,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
       fg: onLight ? accent : flash ? "#0b0b0d" : live || prim ? "#0b0b0d" : "#b9b8b2",
       r: "13px 13px 0 0",
       ring,
+      fill: s.holdKey === i ? s.hold : 0,
     };
   };
 

@@ -84,7 +84,7 @@ describe("wall voice", () => {
 
     // The model tries to send an email: that only becomes an ask.
     live.cb!.onmessage({ serverContent: { inputTranscription: { text: "email mr hale I'm ill" } } });
-    live.cb!.onmessage({ toolCall: { functionCalls: [{ id: "1", name: "propose_email", args: { to_email: "j.hale@school.org.uk", to_name: "mr hale", subject: "ill", body: "I'm ill today", ask_summary: "off ill" } }] } });
+    live.cb!.onmessage({ toolCall: { functionCalls: [{ id: "1", name: "propose_email", args: { to_email: "j.hale@churcherscollege.com", to_name: "mr hale", subject: "ill", body: "I'm ill today", ask_summary: "off ill" } }] } });
     await wait();
     expect(live.toolResponses).toHaveLength(1);
     expect(hub.asks.all().some((a) => a.kind === "email")).toBe(true);

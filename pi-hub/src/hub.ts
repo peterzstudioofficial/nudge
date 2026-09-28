@@ -7,7 +7,7 @@ import {
   termInfo, Timetable, CHURCHERS_2026_27, workedNow, Ask, AgentThread, SchoolItem, relativeDay, dueLabel,
   CalEvent, Activity, CHURCHERS_DAY, DEFAULT_FORM_TIME, DEFAULT_HOMEWORK, FormTime, HomeworkPlan, SchoolDay, Teacher,
   homeworkMins, homeworkSetOn, lessonTimes, nextLesson, periodsFor, weekLetter, type Lesson, type Period,
-  type SchoolCtx, type WeekLetter, DAY_LONG,
+  type SchoolCtx, type WeekLetter, DAY_LONG, askNeedsHold, HOLD_MIN_SHOWN_MS,
 } from "@nudge/shared";
 import type { z } from "zod";
 import { Bus } from "./bus";
@@ -897,10 +897,19 @@ export class Hub {
   /** Set by the connected-apps service: runs an approved app action. */
   onAppApproved?: (a: Ask) => Promise<void>;
 
-  answerAsk(id: string, yes: boolean, by: string): Ask {
+  /**
+   * `from` is set when a person answers from a device: then anything that leaves the house must
+   * have been held down (not tapped) and on screen long enough to read. Internal calls (stop,
+   * tests) pass nothing.
+   */
+  answerAsk(id: string, yes: boolean, by: string, from?: { held: boolean }): Ask {
     const a = this.asks.get(id);
     if (!a) throw notFound("no such question");
     if (a.status !== "pending") return a;
+    if (yes && from && askNeedsHold(a)) {
+      if (!from.held) throw new HttpError(428, "hold to confirm", { icon: "touch_app", line: "hold yes to confirm", sub: "SO NOTHING GOES BY ACCIDENT" });
+      if (this.now() - a.createdAt < HOLD_MIN_SHOWN_MS) throw new HttpError(425, "too quick", { icon: "visibility", line: "read it first", sub: "THEN HOLD YES" });
+    }
     if (!yes) {
       const r = this.asks.put({ ...a, status: "declined", answeredAt: this.now(), answeredBy: by });
       this.bus.changed("asks");

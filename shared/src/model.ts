@@ -248,6 +248,27 @@ export const Ask = z.object({
 });
 export type Ask = z.infer<typeof Ask>;
 
+/**
+ * Anything that leaves the house (an email, a message or post in a connected app, work on the
+ * computer, a paid build) can't be approved with a tap: it has to be held down, and not in the
+ * first moment it appears. The hub enforces this; the wall and the apps show a fill-to-hold key.
+ */
+export const HOLD_KINDS: readonly Ask["kind"][] = ["email", "app", "claude", "build"];
+export const HOLD_MS = 1200;
+export const HOLD_MIN_SHOWN_MS = 1500;
+export const askNeedsHold = (a: Pick<Ask, "kind">): boolean => HOLD_KINDS.includes(a.kind);
+
+/** Something the assistant has learned about the owner (their "brain"). Owner-only; editable. */
+export const Memory = z.object({
+  id: z.string(),
+  text: z.string().min(2).max(200),
+  /** "told": they said it; "noticed": the assistant picked it up from what they asked */
+  source: z.enum(["told", "noticed"]),
+  createdAt: z.number(),
+  usedAt: z.number(),
+});
+export type Memory = z.infer<typeof Memory>;
+
 export const AgentMode = z.enum(["ask", "act", "watch"]);
 export type AgentMode = z.infer<typeof AgentMode>;
 

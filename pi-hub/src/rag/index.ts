@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { addDays, SUBJECT_NAMES, matchTeacher } from "@nudge/shared";
 import type { Hub } from "../hub";
 import { cosine, type Embedder } from "./embed";
+import { memories } from "../agent/brain";
 
 /**
  * Private search over everything on the wall: notes and voice-note transcripts, school mail
@@ -72,6 +73,7 @@ export class PersonalIndex {
       out.push({ id: `task:${t.id}`, kind: "task", title: t.name, text: `${t.name} ${SUBJECT_NAMES[t.subject] ?? t.subject} ${t.note}${t.done ? " done" : ""}${t.due ? " due " + t.due : ""}`, date: t.date });
     }
     for (const a of h.activities()) out.push({ id: `activity:${a.id}`, kind: "weekly commitment", title: a.name, text: `${a.name} ${a.where} ${a.start}-${a.end} days ${a.days.join(",")}`, date: null });
+    for (const m of memories(h)) out.push({ id: `memory:${m.id}`, kind: "about the student", title: m.text.slice(0, 60), text: m.text, date: null });
     for (const b of h.birthdays()) out.push({ id: `bday:${b.name}:${b.date}`, kind: "birthday", title: `${b.name}'s birthday`, text: `${b.name} birthday ${b.date}`, date: null });
     const staff = h.teachers();
     const codes = new Set<string>();

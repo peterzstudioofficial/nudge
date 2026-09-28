@@ -3,6 +3,7 @@ import type { Snapshot, ToolInfo } from "@nudge/shared";
 import { getClient, useHubGet } from "../lib/hub";
 import { Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
 import { openTool } from "../lib/native";
+import { AskCard } from "./AskCard";
 
 /**
  * Tools the assistant built for you. Tap one to open it; on Android it opens in Chrome, which
@@ -16,15 +17,6 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
   const builds = snap.asks.filter((a) => a.kind === "build");
   const jobs = snap.jobs.filter((j) => j.status !== "done" || Date.now() - j.updatedAt < 3600_000);
 
-  const answer = async (id: string, yes: boolean) => {
-    try {
-      await client.send("POST", `/api/asks/${id}/answer`, { yes });
-      toast(yes ? "rocket_launch" : "close", yes ? "started" : "cancelled");
-      void client.snapshot();
-    } catch (e) {
-      toastError(e);
-    }
-  };
   const open = (t: ToolInfo) => data && void openTool(`${data.origin}/t/${t.id}/`).catch(toastError);
   const remove = async (t: ToolInfo) => {
     if (!confirm(`Delete "${t.title}"? If it's installed, uninstall it from your home screen too.`)) return;
@@ -34,22 +26,7 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
 
   return (
     <div style={{ padding: "4px 14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-      {builds.map((a) => (
-        <div key={a.id} style={{ padding: 14, borderRadius: 16, background: "var(--c-17110d)", boxShadow: "inset 0 0 0 1px var(--c-ff4d1755)" }}>
-          <div style={{ fontSize: 9, letterSpacing: ".14em", color: "var(--c-ff4d17)" }}>{a.head}</div>
-          <div style={{ fontSize: 15, margin: "6px 0 8px" }}>{a.line}</div>
-          {a.rows.map((r) => (
-            <div key={r.k} style={{ display: "flex", gap: 10, fontSize: 11, lineHeight: "20px" }}>
-              <span style={{ width: 54, color: "var(--c-8e8e97)", letterSpacing: ".1em", fontSize: 9 }}>{r.k}</span>
-              <span style={{ color: "var(--c-c9c8c2)" }}>{r.v}</span>
-            </div>
-          ))}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button className="tap" onClick={() => void answer(a.id, true)} style={btn(true)}>yes, build it</button>
-            <button className="tap" onClick={() => void answer(a.id, false)} style={btn(false)}>no</button>
-          </div>
-        </div>
-      ))}
+      {builds.map((a) => <AskCard key={a.id} a={a} />)}
 
       {jobs.map((j) => (
         <div key={j.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--c-101017)" }}>
