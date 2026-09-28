@@ -30,6 +30,8 @@ interface Opts {
   /** extra tools from connected apps (Composio) and the private search index */
   extraTools?: (mode: AgentMode, gate: (t: GatedTool) => Tool) => Promise<Tool[]>;
   say: (icon: string, line: string, sub?: string, ms?: number) => void;
+  /** read a short wall answer out loud (if spoken replies are on) */
+  speak?: (text: string) => void;
   log: (m: string) => void;
 }
 
@@ -570,7 +572,7 @@ export function agentService(o: Opts): AgentService {
   }
 
   /** What happens with the final answer: DEFER / REFUSE mapped to their slabs, long answers to notes. */
-  function finish(thread: AgentThread, text: string) {
+  function finish(thread: AgentThread, text: string, alreadySpoken = false) {
     thread.steps.forEach((x) => (x.done = true));
     if (text === "DEFER") {
       hub.db.kvSet("deferred", [...hub.db.kvGet<string[]>("deferred", []), thread.prompt].slice(-5));
@@ -606,6 +608,7 @@ export function agentService(o: Opts): AgentService {
         o.say("bookmark_added", "saved to your notes", "READ IT AFTER THIS SESSION", 3000);
       } else if (text) {
         o.say("lightbulb", text.toLowerCase(), undefined, 5000);
+        if (!alreadySpoken) o.speak?.(text);
       }
     }
     hub.feed("agent", `Asked the agent: ${thread.prompt.slice(0, 60)}`);
@@ -804,8 +807,8 @@ export function agentService(o: Opts): AgentService {
         context: contextFor(thread),
         tools: await allTools(thread),
         finish: (heard: string, text: string) => {
-          thread.prompt = heard.slice(0, 300) || "(voice)";
-          finish(thread, text.trim());
+          thread.prompt = heard.slice(0, 300) || VOICE;
+          finish(thread, text.trim(), true);
         },
         fail: (msg: string) => {
           thread.status = "error";

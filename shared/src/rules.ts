@@ -50,6 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
   aiBudgetUsd: 5,
   voiceModel: "gemini-3.8-live",
   voiceReplies: false,
+  voiceName: "Puck",
+  ttsModel: "gemini-3.8-flash-lite-tts",
   yearGroup: "",
   house: "",
   profile: "",

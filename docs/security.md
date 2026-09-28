@@ -43,13 +43,26 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 - It can *read* tasks, notes, school items and the timetable. Anything that changes things (new
   tasks, reminders, email drafts, anything in a connected app) becomes an **ask** that Peter
   approves on the wall or phone. The model never gets a tool that acts directly.
+- **Nothing leaves the house by accident.** Emails, connected-app actions (messages, posts,
+  anything that changes something), computer hand-offs and paid builds need a **press-and-hold**
+  on the wall ("hold" key fills) or phone, and the hub refuses a yes in the first 1.5 s after the
+  question appears or without a hold. "No" is always one tap. Voice can never say yes.
+- At most 4 of those per hour, and at most 40 questions an hour (nothing can loop and burn
+  credit). Emails can only be drafted to school addresses or people Peter already approved an
+  email to — and they're only ever drafts he sends himself.
+- School mail, app data, notes and web results reach the model marked as "information, not
+  instructions"; the model is told to report, not follow, anything in them that asks it to act.
+- **Memory**: short facts it's told or picks up, kept on the Pi only, visible and deletable from
+  the phone ("what it knows about you"). Passwords, money, health, addresses and numbers are
+  refused by the hub, whatever the model asks.
 - It won't interrupt a focus session. Questions asked mid-session are answered after it.
 - Keys live only on the hub: `/etc/nudge/hub.env` (root-only), or, for OpenRouter connected from
   the setup page, encrypted in the hub's database with the same vault as the school sign-in.
   Phones and the PC never see them. Connecting with OAuth means a key is never typed or pasted
   anywhere; set a spend limit on it at openrouter.ai.
 - In your OpenRouter account: keep **Input & Output Logging off**, turn on the account-wide
-  **ZDR** guardrail, and give the key a monthly limit. Response caching isn't used (it would keep
+  **ZDR** guardrail with the model allowlist in `docs/openrouter-guardrail.md`, and give the key a
+  monthly limit. Response caching isn't used (it would keep
   answers on OpenRouter for a while). Router metadata only puts the provider's name in the Pi's
   log.
 - Connected apps run in a Composio session with its code sandbox switched off. Only actions from
@@ -94,6 +107,7 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 | Voice notes → text | **on the Pi** (Moonshine, sherpa-onnx) | nothing |
 | Talking to the wall | Gemini Live, if a Gemini key is set. Otherwise speech is turned into text **on the Pi** and goes to the text assistant as above. | the audio of that one question. Google's paid tier doesn't train on it but may keep it for a short time for abuse checks, so this isn't zero-retention. Leave the Gemini key out if that matters. |
 | Connected apps (Google Calendar, Notion, Spotify…) | Composio holds the sign-ins (OAuth tokens) and makes the calls | the search query for finding an action, then whatever the approved or read-only action needs |
+| Answers read out loud (only if spoken replies are on) | Gemini text-to-speech (Flash-Lite), same voice as Live; each phrase cached on the Pi | the answer's text, once per new phrase |
 | Claude on the computer | Claude Desktop / Claude Code on Peter's PC, under his own Claude account | the task the assistant wrote (shown before the yes) |
 
 - Mic audio is streamed to the hub over loopback and never written to disk.

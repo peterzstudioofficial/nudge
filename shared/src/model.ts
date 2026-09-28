@@ -457,6 +457,10 @@ export const Settings = z.object({
   voiceModel: z.string().max(60),
   /** speak voice replies out loud (needs a speaker on the Pi) */
   voiceReplies: z.boolean(),
+  /** one of Gemini's prebuilt voices; the same voice for live chat and read-out answers */
+  voiceName: z.string().regex(/^[A-Z][a-z]+$/).max(20),
+  /** Gemini text-to-speech model for answers that weren't spoken live */
+  ttsModel: z.string().max(60),
   /** e.g. "5th Year" — picks out the calendar events that matter */
   yearGroup: z.string().max(20),
   /** house name, e.g. "Grenville" (optional) */
@@ -479,7 +483,7 @@ export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
   "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
-  "voiceModel", "voiceReplies", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
+  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
 ];
 
 export const Device = z.object({

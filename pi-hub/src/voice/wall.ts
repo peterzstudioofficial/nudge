@@ -118,6 +118,7 @@ export function voiceService(o: { ctx: Ctx; geminiKey: string | null; stt: () =>
         systemInstruction: `${vt.system}\n\nYou are speaking out loud through a small wall device. Keep answers to one or two short sentences.\n\n${vt.context}`,
         tools: [{ functionDeclarations: vt.tools.map((x) => ({ name: x.name, description: x.description, parametersJsonSchema: x.parameters })) }],
         inputAudioTranscription: {},
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: s.voiceName || "Puck" } } },
         outputAudioTranscription: {},
       },
       callbacks: {

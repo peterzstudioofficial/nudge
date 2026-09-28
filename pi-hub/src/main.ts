@@ -28,6 +28,7 @@ import { weatherService } from "./services/weather";
 import { buildServer, sayOnWall } from "./server";
 import { seedDemo } from "./seed";
 import { loadPrivateSetup } from "./setup";
+import { geminiSynth, ttsService } from "./voice/tts";
 
 process.removeAllListeners("warning");
 process.on("warning", (w) => {
@@ -75,6 +76,8 @@ async function main() {
   const vault = new Vault(cfg.dataDir);
   const keys = new Keys(hub, vault, { openrouter: cfg.openrouterKey });
   const apps = appsService({ hub, apiKey: cfg.composioKey, log });
+  // Short wall answers read out in the live voice (cached per phrase; only if spoken replies are on).
+  const tts = ttsService({ hub, synth: cfg.geminiKey ? geminiSynth(cfg.geminiKey) : null, dir: path.join(cfg.dataDir, "tts"), log });
   const ctx = {} as Ctx;
   Object.assign(ctx, {
     cfg,
@@ -105,6 +108,7 @@ async function main() {
         ...(await apps.tools()).map(gate),
       ],
       say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms),
+      speak: (text) => void tts.speak(text),
       log,
     }),
     hw: {

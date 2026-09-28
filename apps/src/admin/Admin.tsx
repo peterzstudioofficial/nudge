@@ -614,8 +614,12 @@ function Wall({ snap, cfg, reload, disabled }: { snap: Snapshot; cfg: Config; re
           <input disabled={disabled} style={{ ...inp, width: 200 }} value={voiceModel} onChange={(e) => setVoiceModel(e.target.value)} />
           {!disabled && <Btn dark style={{ width: 90, height: 38 }} onClick={() => set({ voiceModel: voiceModel.trim() || "gemini-3.8-live" })}>save</Btn>}
           {!disabled && <Chip icon={s.voiceReplies ? "volume_up" : "volume_off"} label={s.voiceReplies ? "spoken replies on" : "spoken replies off"} go={() => set({ voiceReplies: !s.voiceReplies })} />}
+          <span style={{ fontSize: 11, color: "var(--c-8e8e97)" }}>voice</span>
+          <select disabled={disabled} style={{ ...inp, width: 150 }} value={s.voiceName} onChange={(e) => set({ voiceName: e.target.value })}>
+            {GEMINI_VOICES.map(([n, d]) => <option key={n} value={n}>{n} · {d}</option>)}
+          </select>
         </div>
-        <div style={{ fontSize: 10, color: "var(--c-5f5f67)", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Every text request is routed to zero-data-retention providers that don't collect data; if none is free for the model it fails rather than falling back to one that keeps data. Web search and page reading run on OpenRouter (a few tenths of a penny a search, capped per question); searches only ever contain the topic, never your name or school, and sites blocked by a parent stay blocked. The tutor is a stronger model the assistant can ask on hard questions; it only sees the question. Big, expensive models (Claude, "pro" tiers) are blocked here: heavy jobs go to Claude Code on your computer instead. The monthly limit stops all cloud AI until next month (or until you raise it). Search over your notes, school stuff and calendar runs on the hub; only the few results a question needs go out with it. Voice notes are turned into text on the hub too. Talking to the wall uses Gemini Live when a key is set (Google keeps paid-tier requests briefly for abuse checks only, and doesn't train on them); without it, speech is turned into text on the hub and goes to the text model.</div>
+        <div style={{ fontSize: 10, color: "var(--c-5f5f67)", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Every text request is routed to zero-data-retention providers that don't collect data; if none is free for the model it fails rather than falling back to one that keeps data. Web search and page reading run on OpenRouter (a few tenths of a penny a search, capped per question); searches only ever contain the topic, never your name or school, and sites blocked by a parent stay blocked. The tutor is a stronger model the assistant can ask on hard questions; it only sees the question. Big, expensive models (Claude, "pro" tiers) are blocked here: heavy jobs go to Claude Code on your computer instead. The monthly limit stops all cloud AI until next month (or until you raise it). Search over your notes, school stuff and calendar runs on the hub; only the few results a question needs go out with it. Voice notes are turned into text on the hub too. Spoken answers use the same voice as live chat (Gemini's cheapest speech model, about a tenth of a penny per answer, and each phrase is only paid for once). Talking to the wall uses Gemini Live when a key is set (Google keeps paid-tier requests briefly for abuse checks only, and doesn't train on them); without it, speech is turned into text on the hub and goes to the text model.</div>
       </Section>
       {!disabled && <Apps />}
     </>
@@ -764,3 +768,12 @@ function Devices({ app }: { app: AppKey }) {
     </Section>
   );
 }
+
+/** Gemini's prebuilt voices (the same set for Live and text-to-speech). */
+const GEMINI_VOICES: [string, string][] = [
+  ["Puck", "upbeat"], ["Zephyr", "bright"], ["Charon", "informative"], ["Kore", "firm"], ["Fenrir", "excitable"], ["Leda", "youthful"],
+  ["Orus", "firm"], ["Aoede", "breezy"], ["Callirrhoe", "easy-going"], ["Autonoe", "bright"], ["Enceladus", "breathy"], ["Iapetus", "clear"],
+  ["Umbriel", "easy-going"], ["Algieba", "smooth"], ["Despina", "smooth"], ["Erinome", "clear"], ["Algenib", "gravelly"], ["Rasalgethi", "informative"],
+  ["Laomedeia", "upbeat"], ["Achernar", "soft"], ["Alnilam", "firm"], ["Schedar", "even"], ["Gacrux", "mature"], ["Pulcherrima", "forward"],
+  ["Achird", "friendly"], ["Zubenelgenubi", "casual"], ["Vindemiatrix", "gentle"], ["Sadachbia", "lively"], ["Sadaltager", "knowledgeable"], ["Sulafat", "warm"],
+];
