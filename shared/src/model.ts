@@ -604,7 +604,9 @@ export type HubMessage =
   | { type: "say"; icon: string; line: string; sub?: string; ms?: number }
   | { type: "leds"; frame: LedFrame }
   /** spoken reply audio for the speaker (16-bit mono PCM, base64) — hardware daemon only */
-  | { type: "play"; pcm: string; rate: number };
+  | { type: "play"; pcm: string; rate: number }
+  /** dev tools (only while switched on at the Pi): reload the wall */
+  | { type: "dev"; action: "reload" };
 
 /** Physical inputs from the GPIO daemon (or the simulator). */
 export type HwInput =

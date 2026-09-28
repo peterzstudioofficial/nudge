@@ -123,6 +123,8 @@ make_users() {
 
 # ───────────────────────────── the Nudge software ─────────────────────────────
 install_app() {
+  # A fresh install or update never carries dev tools over.
+  rm -f /etc/nudge/devtools
   say "Installing the Nudge software"
   local stage; stage=$(mktemp -d /opt/nudge/.new.XXXX)
   cp -a "$HERE/hub" "$stage/hub"

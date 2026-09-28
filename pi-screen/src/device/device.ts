@@ -206,6 +206,7 @@ export class Device {
 
   private onMessage(m: HubMessage) {
     if (m.type === "input") this.input(m.input);
+    if (m.type === "dev" && m.action === "reload") location.reload();
     if (m.type === "say") {
       if (this.s.listening) this.set({ listening: false });
       if (this.s.slab?.ask) return; // never cover a question

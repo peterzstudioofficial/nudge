@@ -40,7 +40,12 @@ function firstExisting(paths: string[]): string | null {
 }
 
 export function loadConfig(): Config {
-  const dev = process.argv.includes("--dev") || process.env.NUDGE_DEV === "1";
+  let dev = process.argv.includes("--dev") || process.env.NUDGE_DEV === "1";
+  // Dev mode relaxes the network checks, so it can never run on an installed wall.
+  if (dev && fs.existsSync("/opt/nudge/hub/hub.mjs") && !process.env.NUDGE_DATA?.includes("tmp")) {
+    console.warn("[nudge] dev mode is not allowed on an installed wall; ignoring it (use: sudo nudge dev on)");
+    dev = false;
+  }
   const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
   const dataDir = path.resolve(arg("data") || process.env.NUDGE_DATA || (dev ? path.join(root, "data") : "/var/lib/nudge"));
   fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });

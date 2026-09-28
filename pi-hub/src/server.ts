@@ -12,6 +12,7 @@ import {
 } from "@nudge/shared";
 import { importCalendarText, pdfToRows } from "./school/calendar";
 import { newId } from "./hub";
+import { registerDevtools } from "./devtools";
 import { applySetup, SetupPack } from "./setup";
 import { spend } from "./agent/spend";
 import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
@@ -744,6 +745,8 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
       unsub?.();
     });
   });
+
+  registerDevtools(app, ctx);
 
   /* ------------------------------ static apps ------------------------------- */
   if (cfg.screenDir) {

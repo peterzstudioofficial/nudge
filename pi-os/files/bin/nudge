@@ -10,6 +10,8 @@
 #   nudge backup [DIR]        copy the database + secrets to DIR (default: ~)
 #   nudge import FILE.json    load a setup file (timetable, homework plan, birthdays, staff…)
 #   nudge calendar FILE.pdf   read a term's school calendar PDF
+#   nudge dev on [HOURS]      switch on the dev tools page (/dev) for a few hours (max 24)
+#   nudge dev off             switch them off now (an update or reinstall also removes them)
 set -e
 [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
 
@@ -47,6 +49,21 @@ case "$1" in
     echo "$VAR=$KEY" >> "$TMP"
     install -m 600 -o root -g root "$TMP" /etc/nudge/hub.env; rm -f "$TMP"
     systemctl restart nudge-hub; echo "saved"
+    ;;
+  dev)
+    case "$2" in
+      on)
+        H=${3:-4}; case "$H" in *[!0-9]*|'') echo "hours must be a number"; exit 1 ;; esac
+        [ "$H" -ge 1 ] && [ "$H" -le 24 ] || { echo "1 to 24 hours"; exit 1; }
+        CODE=$(od -An -N4 -tu4 /dev/urandom | tr -dc 0-9 | cut -c1-6)
+        UNTIL=$(( ($(date +%s) + H * 3600) * 1000 ))
+        printf '{"until":%s,"code":"%s"}\n' "$UNTIL" "$CODE" > /etc/nudge/devtools
+        chown root:nudge /etc/nudge/devtools; chmod 640 /etc/nudge/devtools
+        echo "dev tools on for $H h: open http://<wall>:8787/dev (code for a phone: $CODE)"
+        ;;
+      off) rm -f /etc/nudge/devtools; echo "dev tools off" ;;
+      *) [ -f /etc/nudge/devtools ] && echo "dev tools: on (sudo nudge dev off)" || echo "dev tools: off" ;;
+    esac
     ;;
   logs)
     exec journalctl -u "nudge-${2:-hub}" -n 200 -f

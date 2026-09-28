@@ -19,6 +19,7 @@ import { Keys } from "./keys";
 import { builderService } from "./builder/builder";
 import { orClient } from "./builder/openrouter";
 import { buildToolsServer } from "./tools-server";
+import { devLog } from "./devtools";
 import { voiceService } from "./voice/wall";
 import { schoolReader, refreshTermDates } from "./school/reader";
 import { Vault } from "./school/vault";
@@ -38,7 +39,7 @@ async function main() {
   const db = new Db(cfg.dataDir);
   const hub = new Hub(db);
   const auth = new Auth(db);
-  const log = (m: string) => console.log(`[nudge] ${m}`);
+  const log = (m: string) => (console.log(`[nudge] ${m}`), devLog(m));
 
   // `node hub.mjs pair --role owner|parent` — make a pairing code from the Pi's terminal.
   if (process.argv[2] === "pair") {
