@@ -150,6 +150,25 @@ public class NudgePlugin extends Plugin {
     }
 
     /** Send a note to Google Keep (Google has no Keep API for personal accounts, so it's a share). */
+    /** Status and navigation bars follow the app's light/dark theme (dark icons on light, light on dark). */
+    @PluginMethod
+    public void setBars(PluginCall call) {
+        final boolean light = Boolean.TRUE.equals(call.getBoolean("light", false));
+        final String css = call.getString("color", "");
+        getActivity().runOnUiThread(() -> {
+            android.view.Window w = getActivity().getWindow();
+            int color = light ? 0xFFF4F3EF : 0xFF0A0A0C;
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)").matcher(css);
+            if (m.find()) color = android.graphics.Color.rgb(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3)));
+            w.setStatusBarColor(color);
+            w.setNavigationBarColor(color);
+            androidx.core.view.WindowInsetsControllerCompat c = androidx.core.view.WindowCompat.getInsetsController(w, w.getDecorView());
+            c.setAppearanceLightStatusBars(light);
+            c.setAppearanceLightNavigationBars(light);
+            call.resolve();
+        });
+    }
+
     /** Opens a built tool in Chrome (not the app's web view), so Android can install it as an app. */
     @PluginMethod
     public void openInBrowser(PluginCall call) {

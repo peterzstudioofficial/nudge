@@ -51,15 +51,15 @@ export function Toaster({ dark = false }: { dark?: boolean }) {
     };
   }, []);
   if (!t) return null;
-  const bg = dark ? "#f4f3ef" : "#17171b";
-  const fg = dark ? "#111114" : "#f4f3ef";
+  const bg = dark ? "var(--c-f4f3ef)" : "var(--c-17171b)";
+  const fg = dark ? "var(--c-111114)" : "var(--c-f4f3ef)";
   return (
     <div style={{ position: "fixed", left: 0, right: 0, top: 0, display: "flex", justifyContent: "center", pointerEvents: "none", zIndex: 100 }}>
-      <div style={{ position: "relative", animation: t.leaving ? "aLift .4s cubic-bezier(.5,0,.75,0) both" : "aDrop .52s cubic-bezier(.32,.72,0,1)", transformOrigin: "50% 0", filter: "drop-shadow(0 8px 18px #00000066)" }}>
+      <div style={{ position: "relative", animation: t.leaving ? "aLift .4s cubic-bezier(.5,0,.75,0) both" : "aDrop .52s cubic-bezier(.32,.72,0,1)", transformOrigin: "50% 0", filter: "drop-shadow(0 8px 18px var(--c-00000066))" }}>
         <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, maxWidth: "min(86vw, 360px)", padding: "calc(11px + env(safe-area-inset-top)) 16px 13px", borderRadius: "0 0 21px 21px", background: bg, color: fg }}>
           <span style={{ position: "absolute", left: -15, top: 0, width: 15, height: 16, background: bg, mask: "radial-gradient(circle at 0 100%,transparent 14.6px,#000 15px)", WebkitMask: "radial-gradient(circle at 0 100%,transparent 14.6px,#000 15px)" }} />
           <span style={{ position: "absolute", right: -15, top: 0, width: 15, height: 16, background: bg, mask: "radial-gradient(circle at 100% 100%,transparent 14.6px,#000 15px)", WebkitMask: "radial-gradient(circle at 100% 100%,transparent 14.6px,#000 15px)" }} />
-          <Ms style={{ fontSize: 17, flex: "none", color: "#ff4d17" }}>{t.icon}</Ms>
+          <Ms style={{ fontSize: 17, flex: "none", color: "var(--c-ff4d17)" }}>{t.icon}</Ms>
           <span style={{ fontSize: 11, lineHeight: 1.3 }}>{t.line}</span>
         </div>
       </div>
@@ -83,15 +83,15 @@ export function Sheet({ open, onClose, title, children, dark = false }: { open: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   if (!shown) return null;
-  const bg = dark ? "#101015" : "#f4f3ef";
-  const fg = dark ? "#f4f3ef" : "#17171b";
+  const bg = dark ? "var(--c-101015)" : "var(--c-f4f3ef)";
+  const fg = dark ? "var(--c-f4f3ef)" : "var(--c-17171b)";
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "#17171b59", animation: closing ? "scrimOut .24s ease both" : "scrimIn .28s ease both" }} />
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "var(--c-17171b59)", animation: closing ? "scrimOut .24s ease both" : "scrimIn .28s ease both" }} />
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 51, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-        <div style={{ width: "min(100%, 520px)", maxHeight: "88vh", overflow: "auto", borderRadius: "26px 26px 0 0", background: bg, color: fg, pointerEvents: "auto", padding: "0 18px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 -20px 50px -20px #00000073", animation: closing ? "sheetDown .24s cubic-bezier(.4,0,1,1) both" : "sheetUp .42s cubic-bezier(.32,.72,0,1) both" }}>
+        <div style={{ width: "min(100%, 520px)", maxHeight: "88vh", overflow: "auto", borderRadius: "26px 26px 0 0", background: bg, color: fg, pointerEvents: "auto", padding: "0 18px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 -20px 50px -20px var(--c-00000073)", animation: closing ? "sheetDown .24s cubic-bezier(.4,0,1,1) both" : "sheetUp .42s cubic-bezier(.32,.72,0,1) both" }}>
           <div style={{ display: "flex", alignItems: "center", height: 54, position: "sticky", top: 0, background: bg, zIndex: 1 }}>
-            <span onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: dark ? "#1d1d24" : "#e9e8e3" }}>
+            <span onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: dark ? "var(--c-1d1d24)" : "var(--c-e9e8e3)" }}>
               <Ms style={{ fontSize: 18 }}>close</Ms>
             </span>
             <span style={{ flex: 1, textAlign: "center", fontFamily: D, fontSize: 18 }}>{title}</span>
@@ -115,13 +115,13 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export const inputStyle = (dark: boolean): CSSProperties => ({
   height: 44, borderRadius: 12, border: 0, outline: 0, padding: "0 14px", fontFamily: MONO, fontSize: 14,
-  background: dark ? "#17171d" : "#ffffff", color: dark ? "#f4f3ef" : "#17171b",
-  boxShadow: dark ? "inset 0 0 0 1px #26262e" : "inset 0 0 0 1.5px #e2e0d9",
+  background: dark ? "var(--c-17171d)" : "var(--c-ffffff)", color: dark ? "var(--c-f4f3ef)" : "var(--c-17171b)",
+  boxShadow: dark ? "inset 0 0 0 1px var(--c-26262e)" : "inset 0 0 0 1.5px var(--c-e2e0d9)",
 });
 
 export function Btn({ children, onClick, dark = false, primary = false, disabled = false, style }: { children: ReactNode; onClick?: () => void; dark?: boolean; primary?: boolean; disabled?: boolean; style?: CSSProperties }) {
-  const bg = disabled ? (dark ? "#13131a" : "#eae7e1") : primary ? "#ff4d17" : dark ? "#f4f3ef" : "#111114";
-  const fg = disabled ? (dark ? "#5c5c66" : "#a5a5ad") : primary ? "#0b0b0d" : dark ? "#0b0b0d" : "#f4f3ef";
+  const bg = disabled ? (dark ? "var(--c-13131a)" : "var(--c-eae7e1)") : primary ? "var(--c-ff4d17)" : dark ? "var(--c-f4f3ef)" : "var(--c-111114)";
+  const fg = disabled ? (dark ? "var(--c-5c5c66)" : "var(--c-a5a5ad)") : primary ? "var(--c-0b0b0d)" : dark ? "var(--c-0b0b0d)" : "var(--c-f4f3ef)";
   return (
     <button
       disabled={disabled}

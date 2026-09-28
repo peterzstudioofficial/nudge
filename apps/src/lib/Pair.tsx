@@ -3,7 +3,7 @@ import { type AppKey, defaultHub, pair } from "./hub";
 import { Btn, D, inputStyle, Ms } from "./ui";
 
 /** First run: connect this device to the wall with the 6-digit code it shows. */
-export function Pair({ app, dark, title, onDone }: { app: AppKey; dark: boolean; title: string; onDone: () => void }) {
+export function Pair({ app, dark, title, onDone, onLocal }: { app: AppKey; dark: boolean; title: string; onDone: () => void; onLocal?: () => void }) {
   const [hub, setHub] = useState(defaultHub());
   const [code, setCode] = useState("");
   const [name, setName] = useState(guessName());
@@ -27,13 +27,13 @@ export function Pair({ app, dark, title, onDone }: { app: AppKey; dark: boolean;
     }
   };
 
-  const muted = dark ? "#8e8e97" : "#6f6f78";
+  const muted = dark ? "var(--c-8e8e97)" : "var(--c-6f6f78)";
   return (
     <div className="page" style={{ padding: "calc(40px + env(safe-area-inset-top)) 22px 40px", display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontFamily: D, fontSize: 44, lineHeight: 0.9 }}>{title}</span>
         <span style={{ flex: 1 }} />
-        <Ms style={{ fontSize: 22, color: "#ff4d17" }}>link</Ms>
+        <Ms style={{ fontSize: 22, color: "var(--c-ff4d17)" }}>link</Ms>
       </div>
       <span style={{ fontSize: 11, lineHeight: 1.55, color: muted }}>{how}</span>
       {!defaultHub() && (
@@ -48,13 +48,18 @@ export function Pair({ app, dark, title, onDone }: { app: AppKey; dark: boolean;
         autoFocus
       />
       <input style={inputStyle(dark)} value={name} onChange={(e) => setName(e.target.value)} placeholder="name this device" />
-      {err && <span style={{ fontSize: 11, color: "#ff4d17" }}>{err}</span>}
+      {err && <span style={{ fontSize: 11, color: "var(--c-ff4d17)" }}>{err}</span>}
       <Btn primary disabled={busy || code.replace(/\D/g, "").length !== 6} onClick={go}>
         {busy ? "connecting…" : "connect to the wall"}
       </Btn>
       <span style={{ fontSize: 9, lineHeight: 1.5, color: muted }}>
         The code works once and only for ten minutes. This device gets its own key, which you can remove from the wall's device list any time.
       </span>
+      {onLocal && (
+        <span className="tap" onClick={onLocal} style={{ alignSelf: "center", marginTop: 6, fontSize: 11, color: muted, textDecoration: "underline", textUnderlineOffset: 3 }}>
+          no wall yet? keep notes on this phone
+        </span>
+      )}
     </div>
   );
 }

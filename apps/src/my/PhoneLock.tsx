@@ -54,35 +54,35 @@ export function PhoneLock({ snap, onHide }: { snap: Snapshot; onHide: () => void
     }
   };
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "#0a0a0c", display: "flex", flexDirection: "column", padding: "max(22px, env(safe-area-inset-top)) 18px 24px", animation: "aFade .3s ease-out" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 9, height: 44, borderBottom: "1px solid #16161c", marginBottom: 18 }}>
-        <Ms style={{ fontSize: 15, color: "#8e8e97" }}>smartphone</Ms>
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "var(--c-0a0a0c)", display: "flex", flexDirection: "column", padding: "max(22px, env(safe-area-inset-top)) 18px 24px", animation: "aFade .3s ease-out" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, height: 44, borderBottom: "1px solid var(--c-16161c)", marginBottom: 18 }}>
+        <Ms style={{ fontSize: 15, color: "var(--c-8e8e97)" }}>smartphone</Ms>
         <span style={{ fontSize: 10 }}>phone lock</span>
         <span style={{ flex: 1 }} />
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ff4d17", animation: "aBreath 3s ease-in-out infinite" }} />
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--c-ff4d17)", animation: "aBreath 3s ease-in-out infinite" }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 22 }}>
         <span style={{ fontFamily: D, fontSize: 40, lineHeight: 0.9 }}>not now :)</span>
-        {task && <span style={{ fontSize: 11, color: "#8e8e97" }}>{task.name} is on the wall</span>}
+        {task && <span style={{ fontSize: 11, color: "var(--c-8e8e97)" }}>{task.name} is on the wall</span>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 11, marginBottom: 17 }}>
         {OPEN.map((a) => (
-          <div key={a.which} className="tap" onClick={() => void go(a.which)} style={{ aspectRatio: "1", borderRadius: 11, background: "#13131a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Ms style={{ fontSize: 20, color: "#c9c8c2" }}>{a.icon}</Ms>
+          <div key={a.which} className="tap" onClick={() => void go(a.which)} style={{ aspectRatio: "1", borderRadius: 11, background: "var(--c-13131a)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Ms style={{ fontSize: 20, color: "var(--c-c9c8c2)" }}>{a.icon}</Ms>
           </div>
         ))}
         {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} style={{ aspectRatio: "1", borderRadius: 11, background: "#101015", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.55 }}>
-            <Ms style={{ fontSize: 20, color: "#5a2a1e" }}>lock</Ms>
+          <div key={i} style={{ aspectRatio: "1", borderRadius: 11, background: "var(--c-101015)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.55 }}>
+            <Ms style={{ fontSize: 20, color: "var(--c-5a2a1e)" }}>lock</Ms>
           </div>
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-        <Ms style={{ fontSize: 13, lineHeight: 1.3, color: "#43434c" }}>call</Ms>
-        <span style={{ fontSize: 9, lineHeight: 1.45, color: "#8e8e97" }}>Calls, messages and maps never lock. Nothing here can be turned off from the phone during a session.</span>
+        <Ms style={{ fontSize: 13, lineHeight: 1.3, color: "var(--c-43434c)" }}>call</Ms>
+        <span style={{ fontSize: 9, lineHeight: 1.45, color: "var(--c-8e8e97)" }}>Calls, messages and maps never lock. Nothing here can be turned off from the phone during a session.</span>
       </div>
       <span style={{ flex: 1 }} />
-      <div className="tap" onClick={onHide} style={{ height: 44, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", background: "#13131a", color: "#8e8e97", fontSize: 10 }}>
+      <div className="tap" onClick={onHide} style={{ height: 44, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-13131a)", color: "var(--c-8e8e97)", fontSize: 10 }}>
         see today's list
       </div>
       <span style={{ display: "none", fontFamily: DOTO }} />

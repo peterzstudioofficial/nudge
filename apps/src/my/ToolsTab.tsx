@@ -35,13 +35,13 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
   return (
     <div style={{ padding: "4px 14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
       {builds.map((a) => (
-        <div key={a.id} style={{ padding: 14, borderRadius: 16, background: "#17110d", boxShadow: "inset 0 0 0 1px #ff4d1755" }}>
-          <div style={{ fontSize: 9, letterSpacing: ".14em", color: "#ff4d17" }}>{a.head}</div>
+        <div key={a.id} style={{ padding: 14, borderRadius: 16, background: "var(--c-17110d)", boxShadow: "inset 0 0 0 1px var(--c-ff4d1755)" }}>
+          <div style={{ fontSize: 9, letterSpacing: ".14em", color: "var(--c-ff4d17)" }}>{a.head}</div>
           <div style={{ fontSize: 15, margin: "6px 0 8px" }}>{a.line}</div>
           {a.rows.map((r) => (
             <div key={r.k} style={{ display: "flex", gap: 10, fontSize: 11, lineHeight: "20px" }}>
-              <span style={{ width: 54, color: "#8e8e97", letterSpacing: ".1em", fontSize: 9 }}>{r.k}</span>
-              <span style={{ color: "#c9c8c2" }}>{r.v}</span>
+              <span style={{ width: 54, color: "var(--c-8e8e97)", letterSpacing: ".1em", fontSize: 9 }}>{r.k}</span>
+              <span style={{ color: "var(--c-c9c8c2)" }}>{r.v}</span>
             </div>
           ))}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -52,47 +52,47 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
       ))}
 
       {jobs.map((j) => (
-        <div key={j.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "#101017" }}>
-          <Ms style={{ fontSize: 18, color: j.status === "failed" ? "#e5484d" : j.status === "done" ? "#6fcf97" : "#ff4d17", animation: ["running", "waiting", "queued"].includes(j.status) ? "aBreath 2.4s ease-in-out infinite" : "none" }}>
+        <div key={j.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--c-101017)" }}>
+          <Ms style={{ fontSize: 18, color: j.status === "failed" ? "var(--c-e5484d)" : j.status === "done" ? "var(--c-6fcf97)" : "var(--c-ff4d17)", animation: ["running", "waiting", "queued"].includes(j.status) ? "aBreath 2.4s ease-in-out infinite" : "none" }}>
             {j.status === "failed" ? "error" : j.status === "done" ? "check_circle" : j.status === "waiting" ? "schedule" : "construction"}
           </Ms>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12 }}>{j.title}</div>
-            <div style={{ fontSize: 10, color: "#8e8e97" }}>{j.error ?? j.note}</div>
+            <div style={{ fontSize: 10, color: "var(--c-8e8e97)" }}>{j.error ?? j.note}</div>
           </div>
           {["queued", "waiting", "running"].includes(j.status) && (
             <span className="tap" onClick={() => void client.send("POST", `/api/jobs/${j.id}/cancel`).then(() => client.snapshot()).catch(toastError)}>
-              <Ms style={{ fontSize: 16, color: "#5f5f67" }}>close</Ms>
+              <Ms style={{ fontSize: 16, color: "var(--c-5f5f67)" }}>close</Ms>
             </span>
           )}
         </div>
       ))}
 
       {snap.tools.map((t) => (
-        <div key={t.id} className="tap" onClick={() => open(t)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 14px", borderRadius: 16, background: "#101017" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 13, background: "#ff4d17", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Ms style={{ fontSize: 22, color: "#0b0b0d" }}>{t.icon}</Ms>
+        <div key={t.id} className="tap" onClick={() => open(t)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 14px", borderRadius: 16, background: "var(--c-101017)" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 13, background: "var(--c-ff4d17)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Ms style={{ fontSize: 22, color: "var(--c-0b0b0d)" }}>{t.icon}</Ms>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14 }}>{t.title}</div>
-            <div style={{ fontSize: 10, color: "#8e8e97", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</div>
-            <div style={{ fontSize: 8, letterSpacing: ".14em", color: "#5f5f67", marginTop: 3 }}>{t.target === "school" ? "FOR SCHOOL" : t.target === "phone" ? "FOR YOUR PHONE" : "PHONE + LAPTOP"} · V{t.version}</div>
+            <div style={{ fontSize: 10, color: "var(--c-8e8e97)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</div>
+            <div style={{ fontSize: 8, letterSpacing: ".14em", color: "var(--c-5f5f67)", marginTop: 3 }}>{t.target === "school" ? "FOR SCHOOL" : t.target === "phone" ? "FOR YOUR PHONE" : "PHONE + LAPTOP"} · V{t.version}</div>
           </div>
           <span className="tap" onClick={(e) => (e.stopPropagation(), void remove(t))}>
-            <Ms style={{ fontSize: 16, color: "#43434c" }}>delete</Ms>
+            <Ms style={{ fontSize: 16, color: "var(--c-43434c)" }}>delete</Ms>
           </span>
         </div>
       ))}
 
       {!snap.tools.length && !jobs.length && !builds.length && (
-        <div style={{ padding: "26px 8px", fontSize: 11, color: "#8e8e97", lineHeight: 1.6 }}>
+        <div style={{ padding: "26px 8px", fontSize: 11, color: "var(--c-8e8e97)", lineHeight: 1.6 }}>
           No tools yet. Ask the assistant ("build me a line-learner for my musical scenes, for later") or tap below. Big jobs always show their cost and wait for your yes.
         </div>
       )}
       <button className="tap" onClick={() => setAsking(true)} style={{ ...btn(false), flex: "none", height: 46, marginTop: 4 }}>
         <Ms style={{ fontSize: 16, verticalAlign: "-3px", marginRight: 6 }}>add</Ms>ask for a tool
       </button>
-      <div style={{ fontSize: 9, color: "#5f5f67", lineHeight: 1.6, padding: "0 4px" }}>
+      <div style={{ fontSize: 9, color: "var(--c-5f5f67)", lineHeight: 1.6, padding: "0 4px" }}>
         Tools run on your wall, work offline and can't reach the internet. Tap one, then "Install app" to put it on your home screen.
       </div>
       <NewTool open={asking} onClose={() => setAsking(false)} />
@@ -102,7 +102,7 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
 
 const btn = (primary: boolean) => ({
   flex: 1, height: 40, borderRadius: 12, border: 0, fontFamily: "inherit", fontSize: 12, letterSpacing: ".04em",
-  background: primary ? "#ff4d17" : "#1a1a22", color: primary ? "#0b0b0d" : "#e9e8e3",
+  background: primary ? "var(--c-ff4d17)" : "var(--c-1a1a22)", color: primary ? "var(--c-0b0b0d)" : "var(--c-e9e8e3)",
 });
 
 function NewTool({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -140,7 +140,7 @@ function NewTool({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pick = <T extends string>(v: T, set: (x: T) => void, opts: [T, string][]) => (
     <div style={{ display: "flex", gap: 6 }}>
       {opts.map(([k, label]) => (
-        <span key={k} className="tap" onClick={() => set(k)} style={{ flex: 1, textAlign: "center", padding: "9px 4px", borderRadius: 10, fontSize: 11, background: v === k ? "#ff4d17" : "#1a1a22", color: v === k ? "#0b0b0d" : "#c9c8c2" }}>{label}</span>
+        <span key={k} className="tap" onClick={() => set(k)} style={{ flex: 1, textAlign: "center", padding: "9px 4px", borderRadius: 10, fontSize: 11, background: v === k ? "var(--c-ff4d17)" : "var(--c-1a1a22)", color: v === k ? "var(--c-0b0b0d)" : "var(--c-c9c8c2)" }}>{label}</span>
       ))}
     </div>
   );
@@ -153,12 +153,12 @@ function NewTool({ open, onClose }: { open: boolean; onClose: () => void }) {
         {pick(target, setTarget, [["phone", "phone"], ["school", "school"], ["any", "both"]])}
         {pick(when, setWhen, [["later", "later · half price"], ["now", "now"]])}
         {pick(where, setWhere, [["pi", "the wall builds it"], ["computer", "claude code on pc"]])}
-        <label style={{ fontSize: 11, color: "#8e8e97" }}>
+        <label style={{ fontSize: 11, color: "var(--c-8e8e97)" }}>
           attach files (optional, e.g. a PDF of the topics)
           <input type="file" multiple style={{ display: "block", marginTop: 6, fontSize: 11 }} onChange={(e) => setFiles([...(e.target.files ?? [])])} />
         </label>
         <button className="tap" disabled={busy} onClick={() => void submit()} style={{ ...btn(true), flex: "none", height: 44, opacity: busy ? 0.5 : 1 }}>{busy ? "sending…" : "check the cost"}</button>
-        <div style={{ fontSize: 9, color: "#5f5f67", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 9, color: "var(--c-5f5f67)", lineHeight: 1.6 }}>
           Nothing starts until you say yes. Attached files are used for this build only, then deleted.
         </div>
       </div>

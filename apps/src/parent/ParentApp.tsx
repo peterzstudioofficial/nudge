@@ -19,8 +19,8 @@ export function ParentApp({ onUnpair }: { onUnpair: () => void }) {
   const [rules, setRules] = useState(false);
   const title = tab === "tasks" ? "tasks" : tab === "reward" ? "reward" : "today";
   return (
-    <div className="page" style={{ background: "#f4f3ef", color: "#111114", paddingBottom: 40 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 34, padding: "0 18px", fontSize: 8, letterSpacing: ".1em", color: "#b2ada3" }}>
+    <div className="page" style={{ background: "var(--c-f4f3ef)", color: "var(--c-111114)", paddingBottom: 40 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 34, padding: "0 18px", fontSize: 8, letterSpacing: ".1em", color: "var(--c-b2ada3)" }}>
         <span>{online ? "CONNECTED TO THE WALL" : "OFFLINE · SHOWING LAST SYNC"}</span>
         <Ms style={{ fontSize: 12 }}>{online ? "wifi" : "wifi_off"}</Ms>
       </div>
@@ -28,12 +28,12 @@ export function ParentApp({ onUnpair }: { onUnpair: () => void }) {
         <span style={{ fontFamily: D, fontSize: 30, lineHeight: 0.9, letterSpacing: -1 }}>{title}</span>
         <span style={{ flex: 1 }} />
         {([["redeem", "reward"], ["checklist", "tasks"], ["timeline", "feed"]] as const).map(([icon, id]) => (
-          <div key={id} className="tap" onClick={() => setTab(id)} style={{ width: 38, height: 38, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: tab === id ? "#111114" : "#eae7e1", transition: "background-color .35s cubic-bezier(.4,0,.2,1)" }}>
-            <Ms style={{ fontSize: 18, color: tab === id ? "#f4f3ef" : "#8a8a92", transition: "color .35s" }}>{icon}</Ms>
+          <div key={id} className="tap" onClick={() => setTab(id)} style={{ width: 38, height: 38, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: tab === id ? "var(--c-111114)" : "var(--c-eae7e1)", transition: "background-color .35s cubic-bezier(.4,0,.2,1)" }}>
+            <Ms style={{ fontSize: 18, color: tab === id ? "var(--c-f4f3ef)" : "var(--c-8a8a92)", transition: "color .35s" }}>{icon}</Ms>
           </div>
         ))}
       </div>
-      {!snap && <div style={{ padding: "30px 18px", fontSize: 11, color: "#8a8a92" }}>connecting…</div>}
+      {!snap && <div style={{ padding: "30px 18px", fontSize: 11, color: "var(--c-8a8a92)" }}>connecting…</div>}
       {snap && tab === "reward" && <RewardTab snap={snap} openRules={() => setRules(true)} />}
       {snap && tab === "tasks" && <TasksTab snap={snap} />}
       {snap && tab === "feed" && <FeedTab snap={snap} />}
@@ -64,20 +64,20 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
   };
   return (
     <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
-      <div className="tap" onClick={() => setEdit(true)} style={{ padding: 18, borderRadius: 18, background: "#111114", color: "#f4f3ef", marginBottom: 16 }}>
+      <div className="tap" onClick={() => setEdit(true)} style={{ padding: 18, borderRadius: 18, background: "var(--c-111114)", color: "var(--c-f4f3ef)", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 9, marginBottom: 15 }}>
-          <span style={{ fontFamily: D, fontSize: 52, lineHeight: 0.82, color: "#ff4d17" }}>{snap.bank}</span>
+          <span style={{ fontFamily: D, fontSize: 52, lineHeight: 0.82, color: "var(--c-ff4d17)" }}>{snap.bank}</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingBottom: 4 }}>
-            <span style={{ fontSize: 9, color: "#6d6d77" }}>of {r.goal}</span>
-            <span style={{ fontSize: 7, letterSpacing: ".16em", color: "#43434c" }}>{Math.max(0, r.goal - snap.bank)} TO GO</span>
+            <span style={{ fontSize: 9, color: "var(--c-6d6d77)" }}>of {r.goal}</span>
+            <span style={{ fontSize: 7, letterSpacing: ".16em", color: "var(--c-43434c)" }}>{Math.max(0, r.goal - snap.bank)} TO GO</span>
           </div>
           <span style={{ flex: 1 }} />
-          <Ms style={{ fontSize: 22, color: "#3a3a42" }}>{r.icon}</Ms>
+          <Ms style={{ fontSize: 22, color: "var(--c-3a3a42)" }}>{r.icon}</Ms>
         </div>
         <div style={{ fontFamily: D, fontSize: 25, lineHeight: 1, marginBottom: 14 }}>{r.name}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 4 }}>
           {Array.from({ length: blocks }, (_, i) => (
-            <span key={i} style={{ height: 17, borderRadius: i === 0 ? "8px 4px 4px 8px" : i === 5 ? "4px 8px 8px 4px" : i === 6 ? "8px 4px 4px 8px" : i === 11 ? "4px 8px 8px 4px" : 4, background: i < lit ? "#ff4d17" : "#2a2a33", animation: "aCell .4s cubic-bezier(.2,.9,.25,1) both", animationDelay: (i * 0.035).toFixed(2) + "s", transition: "background-color .5s ease" }} />
+            <span key={i} style={{ height: 17, borderRadius: i === 0 ? "8px 4px 4px 8px" : i === 5 ? "4px 8px 8px 4px" : i === 6 ? "8px 4px 4px 8px" : i === 11 ? "4px 8px 8px 4px" : 4, background: i < lit ? "var(--c-ff4d17)" : "var(--c-2a2a33)", animation: "aCell .4s cubic-bezier(.2,.9,.25,1) both", animationDelay: (i * 0.035).toFixed(2) + "s", transition: "background-color .5s ease" }} />
           ))}
         </div>
       </div>
@@ -88,16 +88,16 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
       )}
       <div style={{ display: "flex", gap: 7, marginBottom: 16 }}>
         {[{ v: String(stats?.claimed ?? "–"), k: "CLAIMED" }, { v: stats ? (hours >= 1 ? `${Math.round(hours * 10) / 10}h` : `${Math.round(hours * 60)}m`) : "–", k: "FOCUSED" }, { v: String(stats?.switched ?? "–"), k: "SWITCHED" }].map((w) => (
-          <div key={w.k} style={{ flex: 1, padding: "13px 12px", borderRadius: 14, background: "#eae7e1", display: "flex", flexDirection: "column", gap: 4 }}>
+          <div key={w.k} style={{ flex: 1, padding: "13px 12px", borderRadius: 14, background: "var(--c-eae7e1)", display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 21, lineHeight: 1 }}>{w.v}</span>
-            <span style={{ fontSize: 7, letterSpacing: ".14em", color: "#8a8a92" }}>{w.k}</span>
+            <span style={{ fontSize: 7, letterSpacing: ".14em", color: "var(--c-8a8a92)" }}>{w.k}</span>
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "#a5a5ad", marginBottom: 9 }}>POINTS PER TASK · THIS WEEK</div>
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", marginBottom: 9 }}>POINTS PER TASK · THIS WEEK</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
         {[{ k: "starting a session", v: snap.settings.pointsStart, key: "pointsStart" as const }, { k: "finishing and claiming", v: snap.settings.pointsClaim, key: "pointsClaim" as const }].map((row) => (
-          <div key={row.k} style={{ display: "flex", alignItems: "center", height: 44, padding: "0 8px 0 15px", borderRadius: 13, background: "#eae7e1" }}>
+          <div key={row.k} style={{ display: "flex", alignItems: "center", height: 44, padding: "0 8px 0 15px", borderRadius: 13, background: "var(--c-eae7e1)" }}>
             <span style={{ fontSize: 10 }}>{row.k}</span>
             <span style={{ flex: 1 }} />
             <Stepper value={row.v} min={0} max={row.key === "pointsStart" ? 10 : 20} onChange={(v) => void client.send("PATCH", "/api/settings", { [row.key]: v }).then(() => client.snapshot()).catch(toastError)} prefix="+" />
@@ -105,13 +105,13 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 9, marginBottom: 20 }}>
-        <Ms style={{ fontSize: 14, color: "#a5a5ad" }}>lock</Ms>
-        <span style={{ fontSize: 9, lineHeight: 1.45, color: "#8a8a92" }}>Banked points cannot be taken away, and the start point is only given once per task.</span>
+        <Ms style={{ fontSize: 14, color: "var(--c-a5a5ad)" }}>lock</Ms>
+        <span style={{ fontSize: 9, lineHeight: 1.45, color: "var(--c-8a8a92)" }}>Banked points cannot be taken away, and the start point is only given once per task.</span>
       </div>
-      <div className="tap" onClick={openRules} style={{ display: "flex", alignItems: "center", gap: 10, height: 48, padding: "0 15px", borderRadius: 14, boxShadow: "inset 0 0 0 1.5px #dcd8d0" }}>
-        <Ms style={{ fontSize: 17, color: "#8a8a92" }}>tune</Ms>
+      <div className="tap" onClick={openRules} style={{ display: "flex", alignItems: "center", gap: 10, height: 48, padding: "0 15px", borderRadius: 14, boxShadow: "inset 0 0 0 1.5px var(--c-dcd8d0)" }}>
+        <Ms style={{ fontSize: 17, color: "var(--c-8a8a92)" }}>tune</Ms>
         <span style={{ fontSize: 11, flex: 1 }}>rules, blocks and devices</span>
-        <Ms style={{ fontSize: 16, color: "#a5a5ad" }}>chevron_right</Ms>
+        <Ms style={{ fontSize: 16, color: "var(--c-a5a5ad)" }}>chevron_right</Ms>
       </div>
       <RewardSheet open={edit} onClose={() => setEdit(false)} snap={snap} />
     </div>
@@ -121,9 +121,9 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
 function Stepper({ value, min, max, onChange, prefix = "" }: { value: number; min: number; max: number; onChange: (v: number) => void; prefix?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <span className="tap" onClick={() => value > min && onChange(value - 1)} style={{ width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f3ef" }}><Ms style={{ fontSize: 15 }}>remove</Ms></span>
+      <span className="tap" onClick={() => value > min && onChange(value - 1)} style={{ width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-f4f3ef)" }}><Ms style={{ fontSize: 15 }}>remove</Ms></span>
       <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 15, minWidth: 34, textAlign: "center" }}>{prefix}{value}</span>
-      <span className="tap" onClick={() => value < max && onChange(value + 1)} style={{ width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f3ef" }}><Ms style={{ fontSize: 15 }}>add</Ms></span>
+      <span className="tap" onClick={() => value < max && onChange(value + 1)} style={{ width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-f4f3ef)" }}><Ms style={{ fontSize: 15 }}>add</Ms></span>
     </div>
   );
 }
@@ -149,12 +149,12 @@ function RewardSheet({ open, onClose, snap }: { open: boolean; onClose: () => vo
       <Field label="points needed">
         <div style={{ display: "flex", gap: 6 }}>
           {[30, 45, 60, 90, 120].map((g) => (
-            <span key={g} className="tap" onClick={() => setGoal(g)} style={{ flex: 1, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DOTO, fontWeight: 900, background: goal === g ? "#111114" : "#eae7e1", color: goal === g ? "#f4f3ef" : "#111114" }}>{g}</span>
+            <span key={g} className="tap" onClick={() => setGoal(g)} style={{ flex: 1, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DOTO, fontWeight: 900, background: goal === g ? "var(--c-111114)" : "var(--c-eae7e1)", color: goal === g ? "var(--c-f4f3ef)" : "var(--c-111114)" }}>{g}</span>
           ))}
         </div>
       </Field>
       <Field label="after that"><input style={inputStyle(false)} value={next} onChange={(e) => setNext(e.target.value)} placeholder="the next reward" /></Field>
-      <span style={{ display: "block", fontSize: 9, color: "#8a8a92", lineHeight: 1.5, marginBottom: 14 }}>About 3–4 points a task. A month of normal days reaches 60.</span>
+      <span style={{ display: "block", fontSize: 9, color: "var(--c-8a8a92)", lineHeight: 1.5, marginBottom: 14 }}>About 3–4 points a task. A month of normal days reaches 60.</span>
       <Btn onClick={save}>save</Btn>
     </Sheet>
   );
@@ -193,18 +193,18 @@ function TasksTab({ snap }: { snap: Snapshot }) {
     <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
       <div style={{ display: "flex", gap: 5, marginBottom: 18 }}>
         {(["tomorrow", "weekly", "later"] as When[]).map((w) => (
-          <div key={w} className="tap" onClick={() => setWhen(w)} style={{ flex: 1, height: 36, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: when === w ? "#111114" : "#eae7e1", color: when === w ? "#f4f3ef" : "#8a8a92", fontSize: 10, transition: "background-color .3s" }}>{w}</div>
+          <div key={w} className="tap" onClick={() => setWhen(w)} style={{ flex: 1, height: 36, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: when === w ? "var(--c-111114)" : "var(--c-eae7e1)", color: when === w ? "var(--c-f4f3ef)" : "var(--c-8a8a92)", fontSize: 10, transition: "background-color .3s" }}>{w}</div>
         ))}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 16 }}>
-        {list.length === 0 && <span style={{ fontSize: 10, color: "#8a8a92", padding: "8px 2px" }}>nothing yet</span>}
+        {list.length === 0 && <span style={{ fontSize: 10, color: "var(--c-8a8a92)", padding: "8px 2px" }}>nothing yet</span>}
         {list.map((r) => (
-          <div key={r.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, height: 52, padding: "0 12px 0 16px", borderRadius: 15, overflow: "hidden", background: "#eae7e1", animation: "aSlide .28s ease-out" }}>
+          <div key={r.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, height: 52, padding: "0 12px 0 16px", borderRadius: 15, overflow: "hidden", background: "var(--c-eae7e1)", animation: "aSlide .28s ease-out" }}>
             <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 5, background: r.tint }} />
             <span style={{ fontSize: 12, paddingLeft: 5, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span>
             <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 9, letterSpacing: ".06em", flex: "none", color: "#8a8a92" }}>{r.meta}</span>
-            <span className="tap" onClick={() => remove(r.id, r.kind)} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center" }}><Ms style={{ fontSize: 18, color: "#a5a5ad" }}>close</Ms></span>
+            <span style={{ fontSize: 9, letterSpacing: ".06em", flex: "none", color: "var(--c-8a8a92)" }}>{r.meta}</span>
+            <span className="tap" onClick={() => remove(r.id, r.kind)} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center" }}><Ms style={{ fontSize: 18, color: "var(--c-a5a5ad)" }}>close</Ms></span>
           </div>
         ))}
       </div>
@@ -213,8 +213,8 @@ function TasksTab({ snap }: { snap: Snapshot }) {
         {full ? "that is enough for one day" : "add a task"}
       </Btn>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 9, marginTop: 18 }}>
-        <Ms style={{ fontSize: 14, color: "#a5a5ad" }}>info</Ms>
-        <span style={{ fontSize: 9, lineHeight: 1.45, color: "#8a8a92" }}>
+        <Ms style={{ fontSize: 14, color: "var(--c-a5a5ad)" }}>info</Ms>
+        <span style={{ fontSize: 9, lineHeight: 1.45, color: "var(--c-8a8a92)" }}>
           {when === "weekly" ? "Weekly tasks repeat on the days you pick." : `Short lists get finished. Long ones get abandoned, so the day has a limit of ${cap}.`}
         </span>
       </div>
@@ -257,7 +257,7 @@ function AddTask({ open, onClose, when, tomorrow, onAdded }: { open: boolean; on
       <Field label="subject">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {subjects.map((s) => (
-            <span key={s} className="tap" onClick={() => setSubject(s)} style={{ display: "flex", alignItems: "center", gap: 6, height: 34, padding: "0 11px", borderRadius: 10, fontSize: 10, background: subject === s ? "#111114" : "#eae7e1", color: subject === s ? "#f4f3ef" : "#111114" }}>
+            <span key={s} className="tap" onClick={() => setSubject(s)} style={{ display: "flex", alignItems: "center", gap: 6, height: 34, padding: "0 11px", borderRadius: 10, fontSize: 10, background: subject === s ? "var(--c-111114)" : "var(--c-eae7e1)", color: subject === s ? "var(--c-f4f3ef)" : "var(--c-111114)" }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: tint(s) }} />{SUBJECT_NAMES[s]}
             </span>
           ))}
@@ -266,7 +266,7 @@ function AddTask({ open, onClose, when, tomorrow, onAdded }: { open: boolean; on
       <Field label="how long">
         <div style={{ display: "flex", gap: 6 }}>
           {[10, 20, 25, 40, 60].map((m) => (
-            <span key={m} className="tap" onClick={() => setMins(m)} style={{ flex: 1, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DOTO, fontWeight: 900, fontSize: 13, background: mins === m ? "#111114" : "#eae7e1", color: mins === m ? "#f4f3ef" : "#111114" }}>{m}m</span>
+            <span key={m} className="tap" onClick={() => setMins(m)} style={{ flex: 1, height: 40, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DOTO, fontWeight: 900, fontSize: 13, background: mins === m ? "var(--c-111114)" : "var(--c-eae7e1)", color: mins === m ? "var(--c-f4f3ef)" : "var(--c-111114)" }}>{m}m</span>
           ))}
         </div>
       </Field>
@@ -276,7 +276,7 @@ function AddTask({ open, onClose, when, tomorrow, onAdded }: { open: boolean; on
           <div style={{ display: "flex", gap: 5 }}>
             {WD.map((d, i) => {
               const on = days.includes(i + 1);
-              return <span key={d} className="tap" onClick={() => setDays(on ? days.filter((x) => x !== i + 1) : [...days, i + 1])} style={{ flex: 1, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, background: on ? "#111114" : "#eae7e1", color: on ? "#f4f3ef" : "#8a8a92" }}>{d.slice(0, 2)}</span>;
+              return <span key={d} className="tap" onClick={() => setDays(on ? days.filter((x) => x !== i + 1) : [...days, i + 1])} style={{ flex: 1, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, background: on ? "var(--c-111114)" : "var(--c-eae7e1)", color: on ? "var(--c-f4f3ef)" : "var(--c-8a8a92)" }}>{d.slice(0, 2)}</span>;
             })}
           </div>
         </Field>
@@ -310,24 +310,24 @@ function FeedTab({ snap }: { snap: Snapshot }) {
   const done = snap.tasks.filter((t) => t.done).length;
   return (
     <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, height: 52, padding: "0 15px", borderRadius: 14, background: "#111114", color: "#f4f3ef", marginBottom: 8 }}>
-        <span style={{ width: 5, height: 22, borderRadius: 3, background: "#ff4d17" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, height: 52, padding: "0 15px", borderRadius: 14, background: "var(--c-111114)", color: "var(--c-f4f3ef)", marginBottom: 8 }}>
+        <span style={{ width: 5, height: 22, borderRadius: 3, background: "var(--c-ff4d17)" }} />
         <span style={{ fontSize: 11, flex: 1 }}>today{snap.today.sick ? " · resting" : ""}</span>
         <span style={{ fontSize: 10 }}>{done}/{snap.tasks.length}</span>
       </div>
       {sess && task && v && (
-        <div style={{ padding: 14, borderRadius: 14, boxShadow: "inset 0 0 0 1.5px #111114", marginBottom: 14 }}>
+        <div style={{ padding: 14, borderRadius: 14, boxShadow: "inset 0 0 0 1.5px var(--c-111114)", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff4d17", animation: "aBreath 3s ease-in-out infinite" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--c-ff4d17)", animation: "aBreath 3s ease-in-out infinite" }} />
             <span style={{ fontSize: 11, flex: 1 }}>{sess.state === "running" ? "focusing on" : sess.state === "paused" ? "paused on" : "on a break from"} {task.name}</span>
             <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 15 }}>{mmss(v.remaining)}</span>
           </div>
           {!confirm ? (
-            <div className="tap" onClick={() => setConfirm(true)} style={{ marginTop: 10, fontSize: 10, color: "#8a8a92" }}>end this session…</div>
+            <div className="tap" onClick={() => setConfirm(true)} style={{ marginTop: 10, fontSize: 10, color: "var(--c-8a8a92)" }}>end this session…</div>
           ) : (
             <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
               <Btn onClick={end} style={{ height: 40 }}>end it, keep progress</Btn>
-              <Btn onClick={() => setConfirm(false)} style={{ height: 40, background: "#eae7e1", color: "#111114" }}>cancel</Btn>
+              <Btn onClick={() => setConfirm(false)} style={{ height: 40, background: "var(--c-eae7e1)", color: "var(--c-111114)" }}>cancel</Btn>
             </div>
           )}
         </div>
@@ -336,11 +336,11 @@ function FeedTab({ snap }: { snap: Snapshot }) {
         {(stats?.history ?? []).slice(0, 5).map((h) => {
           const full = h.total > 0 && h.done === h.total;
           return (
-            <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, padding: "0 15px", borderRadius: 14, background: "#eae7e1" }}>
-              <span style={{ width: 5, height: 22, borderRadius: 3, flex: "none", background: full ? "#111114" : "#c9c5bd" }} />
+            <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, padding: "0 15px", borderRadius: 14, background: "var(--c-eae7e1)" }}>
+              <span style={{ width: 5, height: 22, borderRadius: 3, flex: "none", background: full ? "var(--c-111114)" : "var(--c-c9c5bd)" }} />
               <span style={{ fontSize: 11, flex: 1, minWidth: 0 }}>{h.label}</span>
-              <span style={{ fontSize: 10, flex: "none", color: full ? "#111114" : "#8a8a92" }}>{h.done}/{h.total}</span>
-              <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 14, flex: "none", color: "#ff4d17" }}>+{h.pts}</span>
+              <span style={{ fontSize: 10, flex: "none", color: full ? "var(--c-111114)" : "var(--c-8a8a92)" }}>{h.done}/{h.total}</span>
+              <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 14, flex: "none", color: "var(--c-ff4d17)" }}>+{h.pts}</span>
             </div>
           );
         })}
@@ -349,12 +349,12 @@ function FeedTab({ snap }: { snap: Snapshot }) {
         {(feed ?? []).map((f, i) => (
           <div key={f.id} style={{ display: "flex", gap: 13, animation: "aSlide .3s ease-out both", animationDelay: `${Math.min(i, 8) * 0.06}s` }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 11, flex: "none" }}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", marginTop: 5, flex: "none", background: ["claim", "unlock", "sick"].includes(f.type) ? "#ff4d17" : "#c2beb6" }} />
-              <span style={{ width: 1, flex: 1, background: "#dcd8d0" }} />
+              <span style={{ width: 9, height: 9, borderRadius: "50%", marginTop: 5, flex: "none", background: ["claim", "unlock", "sick"].includes(f.type) ? "var(--c-ff4d17)" : "var(--c-c2beb6)" }} />
+              <span style={{ width: 1, flex: 1, background: "var(--c-dcd8d0)" }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingBottom: 19, minWidth: 0 }}>
               <span style={{ fontSize: 11, lineHeight: 1.35 }}>{f.text}</span>
-              <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#a5a5ad" }}>{dateKey(f.ts) === today ? new Date(f.ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : relativeDay(dateKey(f.ts), today)}</span>
+              <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-a5a5ad)" }}>{dateKey(f.ts) === today ? new Date(f.ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : relativeDay(dateKey(f.ts), today)}</span>
             </div>
           </div>
         ))}
@@ -381,28 +381,28 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
     }
   };
   const row = (label: string, value: number, min: number, max: number, key: keyof Settings, suffix = "") => (
-    <div style={{ display: "flex", alignItems: "center", height: 48, boxShadow: "inset 0 -1px 0 #e2e0d9" }}>
+    <div style={{ display: "flex", alignItems: "center", height: 48, boxShadow: "inset 0 -1px 0 var(--c-e2e0d9)" }}>
       <span style={{ fontSize: 11, flex: 1 }}>{label}</span>
       <Stepper value={value} min={min} max={max} onChange={(v) => set({ [key]: v } as Partial<Settings>)} />
-      <span style={{ fontSize: 9, color: "#8a8a92", width: 26 }}>{suffix}</span>
+      <span style={{ fontSize: 9, color: "var(--c-8a8a92)", width: 26 }}>{suffix}</span>
     </div>
   );
   return (
     <Sheet open={open} onClose={onClose} title="rules">
-      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "#a5a5ad", margin: "4px 0 4px" }}>THE DAY</div>
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "4px 0 4px" }}>THE DAY</div>
       {row("tasks a day, at most", s.maxTasksPerDay, 1, 12, "maxTasksPerDay")}
       {row("skips a day", s.skipsPerDay, 0, 5, "skipsPerDay")}
       {row("break length", s.breakMins, 1, 30, "breakMins", "min")}
       {row("default session", s.defaultMins, 5, 120, "defaultMins", "min")}
-      <div style={{ display: "flex", alignItems: "center", height: 48, boxShadow: "inset 0 -1px 0 #e2e0d9" }}>
+      <div style={{ display: "flex", alignItems: "center", height: 48, boxShadow: "inset 0 -1px 0 var(--c-e2e0d9)" }}>
         <span style={{ fontSize: 11, flex: 1 }}>bedtime</span>
         <input type="time" value={s.bedtime} onChange={(e) => set({ bedtime: e.target.value })} style={{ ...inputStyle(false), height: 36, width: 110 }} />
       </div>
-      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "#a5a5ad", margin: "18px 0 8px" }}>BLOCKED DURING A SESSION (COMPUTER)</div>
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "18px 0 8px" }}>BLOCKED DURING A SESSION (COMPUTER)</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
         {s.blockList.map((b) => (
-          <span key={b} className="tap" onClick={() => set({ blockList: s.blockList.filter((x) => x !== b) })} style={{ display: "flex", alignItems: "center", gap: 5, height: 30, padding: "0 10px", borderRadius: 9, background: "#eae7e1", fontSize: 10 }}>
-            {b}<Ms style={{ fontSize: 13, color: "#a5a5ad" }}>close</Ms>
+          <span key={b} className="tap" onClick={() => set({ blockList: s.blockList.filter((x) => x !== b) })} style={{ display: "flex", alignItems: "center", gap: 5, height: 30, padding: "0 10px", borderRadius: 9, background: "var(--c-eae7e1)", fontSize: 10 }}>
+            {b}<Ms style={{ fontSize: 13, color: "var(--c-a5a5ad)" }}>close</Ms>
           </span>
         ))}
       </div>
@@ -410,23 +410,23 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
         <input style={{ ...inputStyle(false), flex: 1 }} value={block} onChange={(e) => setBlock(e.target.value)} placeholder="add a site, e.g. roblox.com" autoCapitalize="off" />
         <Btn style={{ width: 80, height: 44 }} onClick={() => { const b = block.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""); if (b) { set({ blockList: [...new Set([...s.blockList, b])] }); setBlock(""); } }}>add</Btn>
       </div>
-      <span style={{ display: "block", fontSize: 9, color: "#8a8a92", lineHeight: 1.5, marginBottom: 18 }}>Study-only: {s.studyOnlySites.join(", ") || "none"} — open for videos that match today's tasks.</span>
+      <span style={{ display: "block", fontSize: 9, color: "var(--c-8a8a92)", lineHeight: 1.5, marginBottom: 18 }}>Study-only: {s.studyOnlySites.join(", ") || "none"} — open for videos that match today's tasks.</span>
 
-      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "#a5a5ad", margin: "4px 0 8px" }}>DEVICES</div>
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "4px 0 8px" }}>DEVICES</div>
       {(devices ?? []).map((d) => (
-        <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 46, boxShadow: "inset 0 -1px 0 #e2e0d9" }}>
-          <Ms style={{ fontSize: 16, color: "#8a8a92" }}>{d.role === "parent" ? "family_restroom" : d.role === "desktop" ? "desktop_windows" : "smartphone"}</Ms>
+        <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 46, boxShadow: "inset 0 -1px 0 var(--c-e2e0d9)" }}>
+          <Ms style={{ fontSize: 16, color: "var(--c-8a8a92)" }}>{d.role === "parent" ? "family_restroom" : d.role === "desktop" ? "desktop_windows" : "smartphone"}</Ms>
           <span style={{ fontSize: 11, flex: 1 }}>{d.name}</span>
-          <span style={{ fontSize: 8, letterSpacing: ".12em", color: "#a5a5ad" }}>{d.role.toUpperCase()}</span>
-          <span className="tap" onClick={() => void client.send("DELETE", `/api/devices/${d.id}`).then(reload).catch(toastError)}><Ms style={{ fontSize: 17, color: "#a5a5ad" }}>link_off</Ms></span>
+          <span style={{ fontSize: 8, letterSpacing: ".12em", color: "var(--c-a5a5ad)" }}>{d.role.toUpperCase()}</span>
+          <span className="tap" onClick={() => void client.send("DELETE", `/api/devices/${d.id}`).then(reload).catch(toastError)}><Ms style={{ fontSize: 17, color: "var(--c-a5a5ad)" }}>link_off</Ms></span>
         </div>
       ))}
       <div style={{ display: "flex", gap: 6, margin: "12px 0" }}>
         <Btn onClick={() => makeCode("parent")} style={{ height: 42 }}>pair a parent</Btn>
-        <Btn onClick={() => makeCode("owner")} style={{ height: 42, background: "#eae7e1", color: "#111114" }}>pair peter's device</Btn>
+        <Btn onClick={() => makeCode("owner")} style={{ height: 42, background: "var(--c-eae7e1)", color: "var(--c-111114)" }}>pair peter's device</Btn>
       </div>
-      {code && <div style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 24, textAlign: "center", padding: 12, borderRadius: 12, background: "#111114", color: "#ff4d17", marginBottom: 12 }}>{code}</div>}
-      <div className="tap" onClick={() => { savePairing("parent", null); onUnpair(); }} style={{ textAlign: "center", fontSize: 10, color: "#8a8a92", padding: 12 }}>unpair this phone</div>
+      {code && <div style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 24, textAlign: "center", padding: 12, borderRadius: 12, background: "var(--c-111114)", color: "var(--c-ff4d17)", marginBottom: 12 }}>{code}</div>}
+      <div className="tap" onClick={() => { savePairing("parent", null); onUnpair(); }} style={{ textAlign: "center", fontSize: 10, color: "var(--c-8a8a92)", padding: 12 }}>unpair this phone</div>
     </Sheet>
   );
 }

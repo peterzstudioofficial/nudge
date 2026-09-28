@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { HubClient, localKV, type Snapshot, type Role } from "@nudge/shared";
+import { localMode, localNotesClient, setLocalMode, uploadLocalNotes } from "./localNotes";
 
 /**
  * Connection to the Nudge hub for the phone / desktop apps.
@@ -45,7 +46,7 @@ export function savePairing(app: AppKey, p: Stored | null) {
 
 export function getClient(app: AppKey): HubClient | null {
   const p = loadPairing(app);
-  if (!p) return null;
+  if (!p) return app === "owner" && localMode() ? localNotesClient() : null;
   let c = clients.get(app);
   if (!c) {
     c = new HubClient({ baseUrl: p.hub, token: p.token, kv: localKV(`nudge-${app}:`) });
@@ -71,6 +72,11 @@ export async function pair(app: AppKey, hub: string, code: string, name: string)
   if (app === "parent" && data.device.role !== "parent") throw new Error("that code is for Peter's devices — make a parent code on the wall");
   const stored = { hub: base, token: data.token, role: data.device.role, name: data.device.name };
   savePairing(app, stored);
+  // Notes kept on this phone before pairing move to the wall now.
+  if (app === "owner") {
+    setLocalMode(false);
+    void uploadLocalNotes(base, data.token).catch(() => {});
+  }
   return stored;
 }
 
@@ -93,14 +99,32 @@ export function useSnapshot(client: HubClient | null): { snap: Snapshot | null; 
 
 /** Fetch a GET endpoint and re-fetch whenever the hub says something changed. */
 export function useHubGet<T>(client: HubClient | null, path: string | null, deps: unknown[] = []): { data: T | null; reload: () => void } {
-  const [data, setData] = useState<T | null>(null);
+  // Last good answer is kept on the device, so screens open instantly and still work offline.
+  const key = path ? `nudge-cache:${path}` : "";
+  const [data, setData] = useState<T | null>(() => {
+    try {
+      return key ? (JSON.parse(localStorage.getItem(key) || "null") as T | null) : null;
+    } catch {
+      return null;
+    }
+  });
   const [n, setN] = useState(0);
   useEffect(() => {
     if (!client || !path) return;
     let alive = true;
-    client.get<T>(path).then((d) => alive && setData(d)).catch(() => {});
+    const got = (d: T) => {
+      if (!alive) return;
+      setData(d);
+      try {
+        const s = JSON.stringify(d);
+        if (s.length < 400_000) localStorage.setItem(key, s);
+      } catch {
+        /* storage full: fine */
+      }
+    };
+    client.get<T>(path).then(got).catch(() => {});
     const off = client.onMessage((m) => {
-      if (m.type === "changed") client.get<T>(path).then((d) => alive && setData(d)).catch(() => {});
+      if (m.type === "changed") client.get<T>(path).then(got).catch(() => {});
     });
     return () => {
       alive = false;

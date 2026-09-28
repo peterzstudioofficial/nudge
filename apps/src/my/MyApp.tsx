@@ -8,6 +8,7 @@ import { D, DOTO, Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
 import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 import { ToolsTab } from "./ToolsTab";
+import { setThemePref, themePref, type ThemePref } from "../lib/theme";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
 
@@ -30,32 +31,32 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const now = new Date();
 
   return (
-    <div className="page" style={{ background: "#0a0a0c", paddingBottom: 40 }}>
+    <div className="page" style={{ background: "var(--c-0a0a0c)", paddingBottom: 40 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9, height: 44, padding: "0 18px" }}>
         <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 13, letterSpacing: 0.5 }}>{hhmm(now.getHours() * 60 + now.getMinutes())}</span>
         <span style={{ flex: 1 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 9px", borderRadius: 9, background: "#101017" }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: online ? "#ff4d17" : "#43434c", animation: online ? "none" : "aBreath 3s ease-in-out infinite" }} />
-          <span style={{ fontSize: 8, letterSpacing: ".14em", color: "#8e8e97" }}>{online ? (snap?.session ? "WALL · FOCUS" : "WALL ON") : "OFFLINE"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 9px", borderRadius: 9, background: "var(--c-101017)" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: online ? "var(--c-ff4d17)" : "var(--c-43434c)", animation: online ? "none" : "aBreath 3s ease-in-out infinite" }} />
+          <span style={{ fontSize: 8, letterSpacing: ".14em", color: "var(--c-8e8e97)" }}>{online ? (snap?.session ? "WALL · FOCUS" : "WALL ON") : "OFFLINE"}</span>
         </div>
-        <Ms style={{ fontSize: 13, color: "#5f5f67" }}>{online ? "wifi" : "wifi_off"}</Ms>
+        <Ms style={{ fontSize: 13, color: "var(--c-5f5f67)" }}>{online ? "wifi" : "wifi_off"}</Ms>
       </div>
 
       <div style={{ position: "relative", padding: "2px 14px 16px" }}>
-        <div style={{ position: "relative", height: 40, borderRadius: 13, background: "#101017", padding: 3 }}>
-          <span style={{ position: "absolute", top: 3, height: 34, borderRadius: 10, background: "#ff4d17", left: `calc(3px + (100% - 6px) * ${i / ORDER.length})`, right: `calc(3px + (100% - 6px) * ${(ORDER.length - 1 - i) / ORDER.length})`, transition: `left ${fwd ? ".56s" : ".32s"} cubic-bezier(.32,.72,0,1),right ${fwd ? ".32s" : ".56s"} cubic-bezier(.32,.72,0,1)` }} />
+        <div style={{ position: "relative", height: 40, borderRadius: 13, background: "var(--c-101017)", padding: 3 }}>
+          <span style={{ position: "absolute", top: 3, height: 34, borderRadius: 10, background: "var(--c-ff4d17)", left: `calc(3px + (100% - 6px) * ${i / ORDER.length})`, right: `calc(3px + (100% - 6px) * ${(ORDER.length - 1 - i) / ORDER.length})`, transition: `left ${fwd ? ".56s" : ".32s"} cubic-bezier(.32,.72,0,1),right ${fwd ? ".32s" : ".56s"} cubic-bezier(.32,.72,0,1)` }} />
           <div style={{ position: "relative", display: "flex", height: "100%" }}>
             {([["checklist", "tasks", "today"], ["calendar_month", "plan", "plan"], ["apps", "tools", "tools"], ["sick", "unwell", "sick"], ["settings", "settings", "settings"]] as const).map(([icon, label, id]) => (
               <div key={id} onClick={() => go(id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", zIndex: 1 }}>
-                <Ms style={{ fontSize: 16, color: tab === id ? "#0b0b0d" : "#7a7a84", transition: "color .4s" }}>{icon}</Ms>
-                {tab === id && <span style={{ fontSize: 10, letterSpacing: ".06em", whiteSpace: "nowrap", color: "#0b0b0d", animation: "aFade .4s ease-out .12s both" }}>{label}</span>}
+                <Ms style={{ fontSize: 16, color: tab === id ? "var(--c-0b0b0d)" : "var(--c-7a7a84)", transition: "color .4s" }}>{icon}</Ms>
+                {tab === id && <span style={{ fontSize: 10, letterSpacing: ".06em", whiteSpace: "nowrap", color: "var(--c-0b0b0d)", animation: "aFade .4s ease-out .12s both" }}>{label}</span>}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {!snap && <div style={{ padding: "40px 22px", fontSize: 11, color: "#8e8e97" }}>connecting to the wall…</div>}
+      {!snap && <div style={{ padding: "40px 22px", fontSize: 11, color: "var(--c-8e8e97)" }}>connecting to the wall…</div>}
       {snap && tab === "today" && <Today snap={snap} />}
       {snap && tab === "plan" && <Plan />}
       {snap && tab === "tools" && <ToolsTab snap={snap} />}
@@ -90,21 +91,21 @@ function Today({ snap }: { snap: Snapshot }) {
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 15 }}>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span style={{ fontFamily: D, fontSize: 58, lineHeight: 0.8, letterSpacing: -2 }}>{DAY_SHORT[dk.getDay()]}</span>
-          <span style={{ fontSize: 8, letterSpacing: ".22em", color: "#8e8e97", marginTop: 4 }}>{dk.getDate()} {MONTH_SHORT[dk.getMonth()]} · {kindLabel(snap.today)}</span>
+          <span style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-8e8e97)", marginTop: 4 }}>{dk.getDate()} {MONTH_SHORT[dk.getMonth()]} · {kindLabel(snap.today)}</span>
         </div>
         <span style={{ flex: 1 }} />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-          <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 34, lineHeight: 0.9, color: "#ff4d17" }}>{done}/{tasks.length}</span>
+          <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 34, lineHeight: 0.9, color: "var(--c-ff4d17)" }}>{done}/{tasks.length}</span>
           <div style={{ display: "flex", gap: 3 }}>
             {tasks.map((t, i) => (
-              <span key={t.id} style={{ width: 7, height: 7, borderRadius: i < done ? "50%" : 2, background: i < done ? "#ff4d17" : "#f4f3ef", transition: "border-radius .4s cubic-bezier(.4,0,.2,1),background-color .4s ease" }} />
+              <span key={t.id} style={{ width: 7, height: 7, borderRadius: i < done ? "50%" : 2, background: i < done ? "var(--c-ff4d17)" : "var(--c-f4f3ef)", transition: "border-radius .4s cubic-bezier(.4,0,.2,1),background-color .4s ease" }} />
             ))}
           </div>
         </div>
       </div>
 
       {snap.heads && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 12, background: "#ff4d17", color: "#0b0b0d", marginBottom: 12, fontSize: 11, lineHeight: 1.3 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 12, background: "var(--c-ff4d17)", color: "var(--c-0b0b0d)", marginBottom: 12, fontSize: 11, lineHeight: 1.3 }}>
           <Ms style={{ fontSize: 15 }}>push_pin</Ms>
           <span>{snap.heads}</span>
         </div>
@@ -113,18 +114,18 @@ function Today({ snap }: { snap: Snapshot }) {
       <SchoolStrip snap={snap} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 16 }}>
-        {rows.length === 0 && <span style={{ fontSize: 11, color: "#8e8e97", padding: "14px 2px" }}>nothing set for today{snap.today.kind === "sick" ? " — rest up" : ""}.</span>}
+        {rows.length === 0 && <span style={{ fontSize: 11, color: "var(--c-8e8e97)", padding: "14px 2px" }}>nothing set for today{snap.today.kind === "sick" ? " — rest up" : ""}.</span>}
         {rows.map((t, i) => (
-          <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: t.now ? 50 : 40, padding: "0 13px", borderRadius: t.now ? 13 : i === 0 ? "12px 12px 5px 5px" : i === rows.length - 1 ? "5px 5px 12px 12px" : 5, overflow: "hidden", background: t.now ? "#1e1e26" : "#13131a", transition: "background-color .4s ease" }}>
+          <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: t.now ? 50 : 40, padding: "0 13px", borderRadius: t.now ? 13 : i === 0 ? "12px 12px 5px 5px" : i === rows.length - 1 ? "5px 5px 12px 12px" : 5, overflow: "hidden", background: t.now ? "var(--c-1e1e26)" : "var(--c-13131a)", transition: "background-color .4s ease" }}>
             <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: tint(t.subject) }} />
-            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, flex: "none", width: 36, paddingLeft: 5, color: t.now ? "#ff4d17" : "#8e8e97" }}>{t.time}</span>
-            <span style={{ fontSize: 12, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: t.done ? "#7a7a84" : t.now ? "#ffffff" : "#dedad4", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
-            {t.due && !t.done && !t.now && <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#8e8e97", flex: "none" }}>DUE {t.due.toUpperCase()}</span>}
+            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, flex: "none", width: 36, paddingLeft: 5, color: t.now ? "var(--c-ff4d17)" : "var(--c-8e8e97)" }}>{t.time}</span>
+            <span style={{ fontSize: 12, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: t.done ? "var(--c-7a7a84)" : t.now ? "var(--c-ffffff)" : "var(--c-dedad4)", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
+            {t.due && !t.done && !t.now && <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-8e8e97)", flex: "none" }}>DUE {t.due.toUpperCase()}</span>}
             {t.expected && !t.done && !t.now && (
-              <span className="tap" onClick={() => void notSet(t.id, t.name)} style={{ fontSize: 8, letterSpacing: ".1em", padding: "5px 7px", borderRadius: 7, background: "#26262e", color: "#c9c8c2", flex: "none" }}>NOT SET?</span>
+              <span className="tap" onClick={() => void notSet(t.id, t.name)} style={{ fontSize: 8, letterSpacing: ".1em", padding: "5px 7px", borderRadius: 7, background: "var(--c-26262e)", color: "var(--c-c9c8c2)", flex: "none" }}>NOT SET?</span>
             )}
-            {t.now && t.left && <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 12, color: "#ff4d17" }}>{t.left}</span>}
-            {(t.done || t.now) && <Ms style={{ fontSize: 15, flex: "none", color: t.done ? "#6d6d77" : "#ff4d17" }}>{t.done ? "check" : "play_arrow"}</Ms>}
+            {t.now && t.left && <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 12, color: "var(--c-ff4d17)" }}>{t.left}</span>}
+            {(t.done || t.now) && <Ms style={{ fontSize: 15, flex: "none", color: t.done ? "var(--c-6d6d77)" : "var(--c-ff4d17)" }}>{t.done ? "check" : "play_arrow"}</Ms>}
           </div>
         ))}
       </div>
@@ -133,7 +134,7 @@ function Today({ snap }: { snap: Snapshot }) {
         <Stat v={String(snap.bank)} k={`OF ${snap.reward.goal} · ${snap.reward.name.toUpperCase()}`} />
         <Stat v={String(snap.bag.filter((b) => !b.got && !b.kept).length)} k="TO PACK" />
       </div>
-      <div style={{ fontSize: 9, lineHeight: 1.5, color: "#5f5f67", marginTop: 14 }}>
+      <div style={{ fontSize: 9, lineHeight: 1.5, color: "var(--c-5f5f67)", marginTop: 14 }}>
         Tasks are started and claimed on the wall. This app plans and looks — nothing else.
       </div>
       <span style={{ display: "none" }}>{now.getSeconds()}</span>
@@ -155,24 +156,24 @@ function SchoolStrip({ snap }: { snap: Snapshot }) {
   return (
     <div style={{ marginBottom: 12 }}>
       {lessons.length > 0 && (
-        <div className="tap" onClick={() => setOpen(!open)} style={{ padding: "10px 12px", borderRadius: 12, background: "#13131a", marginBottom: 5 }}>
+        <div className="tap" onClick={() => setOpen(!open)} style={{ padding: "10px 12px", borderRadius: 12, background: "var(--c-13131a)", marginBottom: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Ms style={{ fontSize: 15, color: "#8e8e97" }}>school</Ms>
-            <span style={{ fontSize: 11, flex: 1, color: "#dedad4" }}>
+            <Ms style={{ fontSize: 15, color: "var(--c-8e8e97)" }}>school</Ms>
+            <span style={{ fontSize: 11, flex: 1, color: "var(--c-dedad4)" }}>
               {cur ? `now: ${SUBJECT_NAMES[cur.subject] ?? cur.subject}${cur.room ? " · " + cur.room : ""}` : next ? `next: ${SUBJECT_NAMES[next.subject] ?? next.subject} ${next.start}${next.room ? " · " + next.room : ""}` : "school's done"}
             </span>
-            <span style={{ fontSize: 8, letterSpacing: ".12em", color: "#8e8e97" }}>{snap.formTime ? snap.formTime.toUpperCase() : ""}</span>
-            <Ms style={{ fontSize: 15, color: "#5f5f67" }}>{open ? "expand_less" : "expand_more"}</Ms>
+            <span style={{ fontSize: 8, letterSpacing: ".12em", color: "var(--c-8e8e97)" }}>{snap.formTime ? snap.formTime.toUpperCase() : ""}</span>
+            <Ms style={{ fontSize: 15, color: "var(--c-5f5f67)" }}>{open ? "expand_less" : "expand_more"}</Ms>
           </div>
           {open && (
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 9 }}>
-              <div style={{ display: "flex", gap: 10, fontSize: 10, color: "#8e8e97" }}><span style={{ fontFamily: DOTO, fontWeight: 700, width: 36 }}>08:30</span><span>{snap.formTime || "registration"}</span></div>
+              <div style={{ display: "flex", gap: 10, fontSize: 10, color: "var(--c-8e8e97)" }}><span style={{ fontFamily: DOTO, fontWeight: 700, width: 36 }}>08:30</span><span>{snap.formTime || "registration"}</span></div>
               {lessons.map((l, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: l === cur ? "#ff4d17" : "#c9c8c2" }}>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: l === cur ? "var(--c-ff4d17)" : "var(--c-c9c8c2)" }}>
                   <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, width: 36 }}>{l.start}</span>
                   <span style={{ width: 3, height: l.span > 1 ? 22 : 12, borderRadius: 2, background: tint(l.subject) }} />
                   <span style={{ flex: 1 }}>{SUBJECT_NAMES[l.subject] ?? l.subject}{l.span > 1 ? " ×2" : ""}</span>
-                  <span style={{ fontSize: 9, color: "#8e8e97" }}>{[l.room, l.teacher].filter(Boolean).join(" · ")}</span>
+                  <span style={{ fontSize: 9, color: "var(--c-8e8e97)" }}>{[l.room, l.teacher].filter(Boolean).join(" · ")}</span>
                 </div>
               ))}
             </div>
@@ -180,10 +181,10 @@ function SchoolStrip({ snap }: { snap: Snapshot }) {
         </div>
       )}
       {acts.map((a) => (
-        <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "#dedad4" }}>
-          <Ms style={{ fontSize: 14, color: "#ff4d17" }}>theater_comedy</Ms>
+        <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "var(--c-dedad4)" }}>
+          <Ms style={{ fontSize: 14, color: "var(--c-ff4d17)" }}>theater_comedy</Ms>
           <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}{a.where ? ` · ${a.where}` : ""}</span>
-          <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#8e8e97", flex: "none" }}>{a.start}–{a.end}</span>
+          <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-8e8e97)", flex: "none" }}>{a.start}–{a.end}</span>
         </div>
       ))}
       {soon.map((e) => <EventRow key={e.id} e={e} today={snap.today.date} />)}
@@ -194,19 +195,19 @@ function SchoolStrip({ snap }: { snap: Snapshot }) {
 function EventRow({ e, today }: { e: CalEvent; today: string }) {
   const hot = e.tags.includes("exam") || e.tags.includes("term");
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "#b6b5af" }}>
-      <Ms style={{ fontSize: 14, color: hot ? "#ff4d17" : "#6d6d77" }}>{e.tags.includes("exam") ? "edit_note" : e.tags.includes("term") ? "event" : e.tags.includes("creative") ? "palette" : e.tags.includes("parents") ? "family_restroom" : "campaign"}</Ms>
+    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "var(--c-b6b5af)" }}>
+      <Ms style={{ fontSize: 14, color: hot ? "var(--c-ff4d17)" : "var(--c-6d6d77)" }}>{e.tags.includes("exam") ? "edit_note" : e.tags.includes("term") ? "event" : e.tags.includes("creative") ? "palette" : e.tags.includes("parents") ? "family_restroom" : "campaign"}</Ms>
       <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
-      <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#6d6d77", flex: "none" }}>{relativeDay(e.date, today).toUpperCase()}{e.time ? " " + e.time : ""}</span>
+      <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-6d6d77)", flex: "none" }}>{relativeDay(e.date, today).toUpperCase()}{e.time ? " " + e.time : ""}</span>
     </div>
   );
 }
 
 function Stat({ v, k }: { v: string; k: string }) {
   return (
-    <div style={{ flex: 1, padding: "13px 12px", borderRadius: 14, background: "#13131a", display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+    <div style={{ flex: 1, padding: "13px 12px", borderRadius: 14, background: "var(--c-13131a)", display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
       <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 21, lineHeight: 1 }}>{v}</span>
-      <span style={{ fontSize: 7, letterSpacing: ".14em", color: "#8e8e97", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k}</span>
+      <span style={{ fontSize: 7, letterSpacing: ".14em", color: "var(--c-8e8e97)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k}</span>
     </div>
   );
 }
@@ -282,13 +283,13 @@ function Plan() {
     <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <span style={{ fontFamily: D, fontSize: 30, lineHeight: 0.9, letterSpacing: -1 }}>{MONTH_LONG[m - 1]}</span>
-        <span style={{ fontSize: 9, color: "#5f5f67" }}>{y}</span>
+        <span style={{ fontSize: 9, color: "var(--c-5f5f67)" }}>{y}</span>
         <span style={{ flex: 1 }} />
-        <Ms style={{ fontSize: 22, cursor: "pointer", color: "#8e8e97" }}><span onClick={() => shift(-1)}>chevron_left</span></Ms>
-        <Ms style={{ fontSize: 22, cursor: "pointer", color: "#8e8e97" }}><span onClick={() => shift(1)}>chevron_right</span></Ms>
+        <Ms style={{ fontSize: 22, cursor: "pointer", color: "var(--c-8e8e97)" }}><span onClick={() => shift(-1)}>chevron_left</span></Ms>
+        <Ms style={{ fontSize: 22, cursor: "pointer", color: "var(--c-8e8e97)" }}><span onClick={() => shift(1)}>chevron_right</span></Ms>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 6 }}>
-        {["M", "T", "W", "T", "F", "S", "S"].map((h, i) => <span key={i} style={{ fontSize: 8, letterSpacing: ".1em", textAlign: "center", color: "#5c5c66" }}>{h}</span>)}
+        {["M", "T", "W", "T", "F", "S", "S"].map((h, i) => <span key={i} style={{ fontSize: 8, letterSpacing: ".1em", textAlign: "center", color: "var(--c-5c5c66)" }}>{h}</span>)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 16 }}>
         {Array.from({ length: lead }, (_, i) => <span key={"x" + i} />)}
@@ -299,37 +300,37 @@ function Plan() {
           const off = info && ["away", "holiday", "halfterm"].includes(info.day.kind);
           const isToday = key === today;
           return (
-            <div key={key} onClick={() => setSel(key)} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: isSel ? "#ff4d17" : off ? "#2a1420" : "#13131a", boxShadow: isToday && !isSel ? "inset 0 0 0 1.5px #ff4d17" : "none", transition: "background-color .3s" }}>
-              <span style={{ fontSize: 11, color: isSel ? "#0b0b0d" : off ? "#c98aa8" : info?.day.kind === "weekend" ? "#8e8e97" : "#c9c8c2" }}>{i + 1}</span>
-              {info && info.tasks.length > 0 && !isSel && <span style={{ position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%", background: "#ff4d17" }} />}
-              {info?.events?.some((e) => e.tags.includes("exam") || e.tags.includes("year")) && !isSel && <span style={{ position: "absolute", top: 3, right: 4, width: 4, height: 4, borderRadius: 1, background: "#f4f3ef" }} />}
+            <div key={key} onClick={() => setSel(key)} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: isSel ? "var(--c-ff4d17)" : off ? "var(--c-2a1420)" : "var(--c-13131a)", boxShadow: isToday && !isSel ? "inset 0 0 0 1.5px var(--c-ff4d17)" : "none", transition: "background-color .3s" }}>
+              <span style={{ fontSize: 11, color: isSel ? "var(--c-0b0b0d)" : off ? "var(--c-c98aa8)" : info?.day.kind === "weekend" ? "var(--c-8e8e97)" : "var(--c-c9c8c2)" }}>{i + 1}</span>
+              {info && info.tasks.length > 0 && !isSel && <span style={{ position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%", background: "var(--c-ff4d17)" }} />}
+              {info?.events?.some((e) => e.tags.includes("exam") || e.tags.includes("year")) && !isSel && <span style={{ position: "absolute", top: 3, right: 4, width: 4, height: 4, borderRadius: 1, background: "var(--c-f4f3ef)" }} />}
             </div>
           );
         })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9 }}>
         <span style={{ fontSize: 11 }}>{MONTH_LONG[Number(sel.slice(5, 7)) - 1]} {Number(sel.slice(8))}</span>
-        <span style={{ flex: 1, height: 1, background: "#1c1c23" }} />
-        <span style={{ fontSize: 8, letterSpacing: ".14em", color: selDay?.kind === "away" ? "#8a2f5c" : "#8e8e97" }}>{kindText}{selDay?.week && selDay.kind === "school" ? ` · WEEK ${selDay.week}` : ""}</span>
+        <span style={{ flex: 1, height: 1, background: "var(--c-1c1c23)" }} />
+        <span style={{ fontSize: 8, letterSpacing: ".14em", color: selDay?.kind === "away" ? "var(--c-8a2f5c)" : "var(--c-8e8e97)" }}>{kindText}{selDay?.week && selDay.kind === "school" ? ` · WEEK ${selDay.week}` : ""}</span>
       </div>
       {(selInfo?.events ?? []).map((e) => <EventRow key={e.id} e={e} today={today} />)}
       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
         {(selInfo?.tasks ?? []).map((t) => (
-          <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: 42, padding: "0 14px", borderRadius: 12, overflow: "hidden", background: "#13131a", animation: "aSlide .26s ease-out" }}>
+          <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: 42, padding: "0 14px", borderRadius: 12, overflow: "hidden", background: "var(--c-13131a)", animation: "aSlide .26s ease-out" }}>
             <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: tint(t.subject) }} />
-            <span style={{ fontSize: 11, paddingLeft: 4, minWidth: 0, color: t.done ? "#7a7a84" : "#f4f3ef", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
+            <span style={{ fontSize: 11, paddingLeft: 4, minWidth: 0, color: t.done ? "var(--c-7a7a84)" : "var(--c-f4f3ef)", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
             <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 9, color: "#8e8e97" }}>{t.mins >= 60 ? `${t.mins / 60}h` : `${t.mins}m`}</span>
+            <span style={{ fontSize: 9, color: "var(--c-8e8e97)" }}>{t.mins >= 60 ? `${t.mins / 60}h` : `${t.mins}m`}</span>
           </div>
         ))}
-        {selInfo && !selInfo.tasks.length && <span style={{ fontSize: 10, color: "#5f5f67", padding: "6px 2px" }}>nothing planned</span>}
+        {selInfo && !selInfo.tasks.length && <span style={{ fontSize: 10, color: "var(--c-5f5f67)", padding: "6px 2px" }}>nothing planned</span>}
       </div>
       {sel >= today && (
         <div style={{ display: "flex", gap: 8 }}>
           {([["event_busy", "away", "away"], ["beach_access", "day off", "holiday"]] as const).map(([icon, label, kind]) => {
             const on = kind === "away" ? selDay?.kind === "away" : selDay?.kind === "holiday" && selDay.baseKind === "school";
             return (
-              <div key={kind} className="tap" onClick={() => mark(kind)} style={{ flex: 1, height: 44, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: on ? "#ff4d17" : "#13131a", color: on ? "#0b0b0d" : "#c9c8c2" }}>
+              <div key={kind} className="tap" onClick={() => mark(kind)} style={{ flex: 1, height: 44, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: on ? "var(--c-ff4d17)" : "var(--c-13131a)", color: on ? "var(--c-0b0b0d)" : "var(--c-c9c8c2)" }}>
                 <Ms style={{ fontSize: 16 }}>{icon}</Ms>
                 <span style={{ fontSize: 10 }}>{label}</span>
               </div>
@@ -337,7 +338,7 @@ function Plan() {
           })}
         </div>
       )}
-      <div style={{ fontSize: 9, color: "#5f5f67", marginTop: 12, lineHeight: 1.5 }}>Term dates and weeks A/B: Churcher's College calendar. A white corner mark means a school date for your year.</div>
+      <div style={{ fontSize: 9, color: "var(--c-5f5f67)", marginTop: 12, lineHeight: 1.5 }}>Term dates and weeks A/B: Churcher's College calendar. A white corner mark means a school date for your year.</div>
       <span style={{ display: "none" }}>{addDays(today, 0)}</span>
     </div>
   );
@@ -363,8 +364,8 @@ function Sick({ snap }: { snap: Snapshot }) {
     return (
       <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
         <div style={{ fontFamily: D, fontSize: 34, lineHeight: 1.02, marginBottom: 8 }}>resting today</div>
-        <div style={{ fontSize: 10, lineHeight: 1.5, color: "#8e8e97", marginBottom: 22 }}>Tasks are paused and nothing counts against you. {cap(parent)} knows.</div>
-        <div className="tap" onClick={() => send(null)} style={{ height: 50, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f3ef", color: "#0b0b0d", fontSize: 11 }}>feeling better</div>
+        <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--c-8e8e97)", marginBottom: 22 }}>Tasks are paused and nothing counts against you. {cap(parent)} knows.</div>
+        <div className="tap" onClick={() => send(null)} style={{ height: 50, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-f4f3ef)", color: "var(--c-0b0b0d)", fontSize: 11 }}>feeling better</div>
       </div>
     );
   }
@@ -372,16 +373,16 @@ function Sick({ snap }: { snap: Snapshot }) {
   return (
     <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
       <div style={{ fontFamily: D, fontSize: 34, lineHeight: 1.02, marginBottom: 8 }}>not well<br />today?</div>
-      <div style={{ fontSize: 10, lineHeight: 1.5, color: "#8e8e97", marginBottom: 22 }}>Tasks pause. Nothing counts against you. {cap(parent)} is told straight away.</div>
+      <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--c-8e8e97)", marginBottom: 22 }}>Tasks pause. Nothing counts against you. {cap(parent)} is told straight away.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 22 }}>
         {opts.map(([icon, name, id]) => (
-          <div key={id} className="tap" onClick={() => setPick(id)} style={{ display: "flex", alignItems: "center", gap: 12, height: 50, padding: "0 15px", borderRadius: 13, background: pick === id ? "#1e1e26" : "#13131a", boxShadow: pick === id ? "inset 0 0 0 1px #ff4d17" : "none", transition: "background-color .3s" }}>
-            <Ms style={{ fontSize: 19, color: pick === id ? "#ff4d17" : "#5c5c66" }}>{icon}</Ms>
-            <span style={{ fontSize: 12, color: pick === id ? "#f4f3ef" : "#8e8e97" }}>{name}</span>
+          <div key={id} className="tap" onClick={() => setPick(id)} style={{ display: "flex", alignItems: "center", gap: 12, height: 50, padding: "0 15px", borderRadius: 13, background: pick === id ? "var(--c-1e1e26)" : "var(--c-13131a)", boxShadow: pick === id ? "inset 0 0 0 1px var(--c-ff4d17)" : "none", transition: "background-color .3s" }}>
+            <Ms style={{ fontSize: 19, color: pick === id ? "var(--c-ff4d17)" : "var(--c-5c5c66)" }}>{icon}</Ms>
+            <span style={{ fontSize: 12, color: pick === id ? "var(--c-f4f3ef)" : "var(--c-8e8e97)" }}>{name}</span>
           </div>
         ))}
       </div>
-      <div className={pick ? "tap" : ""} onClick={() => pick && send(pick)} style={{ height: 50, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: pick ? "#ff4d17" : "#13131a", color: pick ? "#0b0b0d" : "#5c5c66", fontSize: 11, letterSpacing: ".06em", transition: "background-color .3s" }}>
+      <div className={pick ? "tap" : ""} onClick={() => pick && send(pick)} style={{ height: 50, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: pick ? "var(--c-ff4d17)" : "var(--c-13131a)", color: pick ? "var(--c-0b0b0d)" : "var(--c-5c5c66)", fontSize: 11, letterSpacing: ".06em", transition: "background-color .3s" }}>
         {pick ? `tell ${parent} and pause today` : "pick one first"}
       </div>
     </div>
@@ -401,6 +402,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       toastError(e);
     }
   };
+  const [theme, setTheme] = useState<ThemePref>(themePref);
   const [notify, setNotify] = useState(() => typeof Notification !== "undefined" && Notification.permission === "granted");
   const { data: cfg, reload } = useHubGet<{ birthdays: Birthday[] }>(client, "/api/config");
   const bdays = cfg?.birthdays;
@@ -426,6 +428,9 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "assistant", meta: s.ai ? "ON" : "OFF", on: s.ai, go: () => set({ ai: !s.ai, ...(s.ai ? { wakeWord: false } : {}) }) },
       { name: "wake word", meta: s.ai && s.wakeWord ? "NUDGE" : "OFF", on: s.ai && s.wakeWord, locked: !s.ai, go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
     ] },
+    { head: "THIS PHONE", rows: [
+      { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
+    ] },
     { head: "THE WALL", rows: [
       { name: "icon keys", meta: s.iconKeys ? "SYMBOLS" : "WORDS", on: s.iconKeys, go: () => set({ iconKeys: !s.iconKeys }) },
       { name: "dim at night", meta: s.dimAtNight ? "AUTO" : "OFF", on: s.dimAtNight, go: () => set({ dimAtNight: !s.dimAtNight }) },
@@ -449,28 +454,28 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
     <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
       {groups.map((g) => (
         <div key={g.head} style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 8, letterSpacing: ".24em", color: "#6d6d77", paddingBottom: 4 }}>{g.head}</div>
+          <div style={{ fontSize: 8, letterSpacing: ".24em", color: "var(--c-6d6d77)", paddingBottom: 4 }}>{g.head}</div>
           {g.rows.map((r) => (
-            <div key={r.name} onClick={r.go} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, boxShadow: "inset 0 -1px 0 #17171d", cursor: r.locked ? "default" : "pointer" }}>
-              <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: r.on ? "#f4f3ef" : r.locked ? "#4a4a54" : "#b6b5af", transition: "color .3s" }}>{r.name}</span>
-              <span style={{ fontSize: 9, letterSpacing: ".1em", flex: "none", color: r.on ? "#8e8e97" : "#5c5c66" }}>{r.meta}</span>
-              <span style={{ width: 30, height: 4, borderRadius: 2, flex: "none", overflow: "hidden", background: "#22222a" }}>
-                <span style={{ display: "block", width: 15, height: 4, borderRadius: 2, background: r.on ? "#ff4d17" : r.locked ? "#33333c" : "#8e8e97", transform: `translateX(${r.on ? 15 : 0}px)`, transition: "transform .42s cubic-bezier(.22,1,.28,1),background-color .35s" }} />
+            <div key={r.name} onClick={r.go} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, boxShadow: "inset 0 -1px 0 var(--c-17171d)", cursor: r.locked ? "default" : "pointer" }}>
+              <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: r.on ? "var(--c-f4f3ef)" : r.locked ? "var(--c-4a4a54)" : "var(--c-b6b5af)", transition: "color .3s" }}>{r.name}</span>
+              <span style={{ fontSize: 9, letterSpacing: ".1em", flex: "none", color: r.on ? "var(--c-8e8e97)" : "var(--c-5c5c66)" }}>{r.meta}</span>
+              <span style={{ width: 30, height: 4, borderRadius: 2, flex: "none", overflow: "hidden", background: "var(--c-22222a)" }}>
+                <span style={{ display: "block", width: 15, height: 4, borderRadius: 2, background: r.on ? "var(--c-ff4d17)" : r.locked ? "var(--c-33333c)" : "var(--c-8e8e97)", transform: `translateX(${r.on ? 15 : 0}px)`, transition: "transform .42s cubic-bezier(.22,1,.28,1),background-color .35s" }} />
               </span>
             </div>
           ))}
         </div>
       ))}
-      <div style={{ padding: 14, borderRadius: 14, background: "#13131a", marginBottom: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <Ms style={{ fontSize: 16, color: school.needsSignIn ? "#ff4d17" : "#5c5c66" }}>school</Ms>
-        <div style={{ fontSize: 10, lineHeight: 1.5, color: "#8e8e97" }}>
+      <div style={{ padding: 14, borderRadius: 14, background: "var(--c-13131a)", marginBottom: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <Ms style={{ fontSize: 16, color: school.needsSignIn ? "var(--c-ff4d17)" : "var(--c-5c5c66)" }}>school</Ms>
+        <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--c-8e8e97)" }}>
           {school.signedIn ? (school.needsSignIn ? "Signed out of school — sign in again from the Nudge app on your computer." : `School is connected. Last read ${school.lastOk ? new Date(school.lastOk).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "never"}.`) : "School isn't connected yet. Sign in once from the Nudge app on your computer."}
         </div>
       </div>
-      <div className="tap" onClick={() => { savePairing("owner", null); onUnpair(); }} style={{ height: 44, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#13131a", color: "#8e8e97", fontSize: 10 }}>
+      <div className="tap" onClick={() => { savePairing("owner", null); onUnpair(); }} style={{ height: 44, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "var(--c-13131a)", color: "var(--c-8e8e97)", fontSize: 10 }}>
         <Ms style={{ fontSize: 15 }}>link_off</Ms> unpair this phone
       </div>
-      <div style={{ fontSize: 9, color: "#43434c", marginTop: 14 }}>{snap.termLabel.toLowerCase()} · nudge 0.1.0</div>
+      <div style={{ fontSize: 9, color: "var(--c-43434c)", marginTop: 14 }}>{snap.termLabel.toLowerCase()} · nudge 0.1.0</div>
       <Birthdays open={bdOpen} onClose={() => setBdOpen(false)} list={bdays ?? []} saved={reload} />
     </div>
   );
@@ -517,20 +522,20 @@ function Birthdays({ open, onClose, list, saved }: { open: boolean; onClose: () 
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
         <input style={{ ...inputStyle(true), flex: 1, minWidth: 0 }} placeholder="name" value={name} onChange={(e) => setName(e.target.value)} />
         <input style={{ ...inputStyle(true), width: 84 }} placeholder="dd/mm" inputMode="numeric" value={dm} onChange={(e) => setDm(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
-        <span className="tap" onClick={add} style={{ width: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "#ff4d17", color: "#0b0b0d" }}><Ms style={{ fontSize: 18 }}>add</Ms></span>
+        <span className="tap" onClick={add} style={{ width: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-ff4d17)", color: "var(--c-0b0b0d)" }}><Ms style={{ fontSize: 18 }}>add</Ms></span>
       </div>
       <input style={{ ...inputStyle(true), width: "100%", marginBottom: 8, height: 38, fontSize: 12 }} placeholder="search" value={q} onChange={(e) => setQ(e.target.value)} />
       <div style={{ maxHeight: "48vh", overflowY: "auto" }}>
         {shown.map(({ b, i }) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, height: 40, boxShadow: "inset 0 -1px 0 #1c1c23" }}>
-            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 11, width: 44, color: "#ff4d17" }}>{show(b)}</span>
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, height: 40, boxShadow: "inset 0 -1px 0 var(--c-1c1c23)" }}>
+            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 11, width: 44, color: "var(--c-ff4d17)" }}>{show(b)}</span>
             <span style={{ flex: 1, fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
             <span className="tap" onClick={() => {
               const nd = prompt(`New date for ${b.name} (dd/mm)`, show(b));
               const date = nd ? toMmdd(nd) : null;
               if (date) void put(list.map((x, j) => (j === i ? { ...x, date } : x)));
-            }}><Ms style={{ fontSize: 15, color: "#6d6d77" }}>edit</Ms></span>
-            <span className="tap" onClick={() => confirm(`Remove ${b.name}?`) && void put(list.filter((_, j) => j !== i))}><Ms style={{ fontSize: 15, color: "#6d6d77" }}>close</Ms></span>
+            }}><Ms style={{ fontSize: 15, color: "var(--c-6d6d77)" }}>edit</Ms></span>
+            <span className="tap" onClick={() => confirm(`Remove ${b.name}?`) && void put(list.filter((_, j) => j !== i))}><Ms style={{ fontSize: 15, color: "var(--c-6d6d77)" }}>close</Ms></span>
           </div>
         ))}
       </div>

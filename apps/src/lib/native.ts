@@ -11,6 +11,7 @@ export interface NudgeNative {
   openApp(o: { which: "call" | "chat" | "map" | "school"; url?: string }): Promise<void>;
   shareToKeep(o: { title: string; text: string }): Promise<void>;
   openInBrowser(o: { url: string }): Promise<void>;
+  setBars?(o: { light: boolean; color: string }): Promise<void>;
   addListener(ev: "lock", cb: (d: { blocked?: string }) => void): Promise<{ remove: () => void }>;
 }
 
