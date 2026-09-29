@@ -240,7 +240,7 @@ describe("assistant (OpenRouter)", () => {
     await wait(20);
     expect(names).not.toContain("hand_to_claude");
 
-    hub.setClaudeDesktop({ workspaces: ["portfolio"], desktopApp: true, cli: true, allowRun: true, runMode: "plan" });
+    hub.setClaudeDesktop({ workspaces: ["portfolio"], desktopApp: true, cli: true, allowRun: true, runMode: "plan", chat: false });
     const llm = scripted([
       () => ({ tool: { name: "hand_to_claude", args: { target: "code_run", task: "Make the nav bar sticky on mobile", folder: "portfolio", summary: "sticky nav" } } }),
       () => ({ content: "asked" }),
@@ -385,5 +385,58 @@ describe("assistant: cheap, safe, remembers", () => {
     const id = agentService({ hub, llm, say: () => {}, log: () => {} }).run({ prompt: "any news from school?", mode: "ask", origin: "app" });
     await wait(30);
     expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/not instructions/);
+  });
+});
+
+describe("Claude on the computer (his own plan)", () => {
+  const pc = { workspaces: [], desktopApp: true, cli: true, allowRun: false, runMode: "plan" as const, chat: true };
+
+  it("sends phone questions to the ongoing Claude chat, and its answer comes back to the thread", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    hub.updateSettings("owner", { aiEngine: "claude" });
+    hub.setClaudeDesktop(pc);
+    const llm = scripted([() => ({ content: "should not be used" })]);
+    const agent = agentService({ hub, llm, say: () => {}, log: () => {} });
+    const id = agent.run({ prompt: "help me plan my macbeth essay", mode: "act", origin: "app" });
+    await wait(20);
+    const [h] = hub.pendingHandoffs();
+    expect(h.kind).toBe("chat");
+    expect(h.kind === "chat" && h.payload.system).toMatch(/one ongoing chat/);
+    hub.handoffResult(h.id, { ok: true, text: "Start with the witches' prophecy, then ambition." });
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toMatch(/witches/);
+    expect(llm.seen).toHaveLength(0);
+  });
+
+  it("the wall stays on the quick model, and a silent computer falls back to it", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    hub.updateSettings("owner", { aiEngine: "claude" });
+    hub.setClaudeDesktop(pc);
+    const llm = scripted([() => ({ content: "quick answer" })]);
+    const agent = agentService({ hub, llm, say: () => {}, log: () => {}, claudeWaitMs: 30 });
+    agent.run({ prompt: "anything due for drama", mode: "act", origin: "wall" });
+    await wait(20);
+    expect(hub.pendingHandoffs()).toHaveLength(0);
+    const id = agent.run({ prompt: "what should I revise tonight", mode: "act", origin: "app" });
+    await wait(80);
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toBe("quick answer");
+    expect(hub.pendingHandoffs()).toHaveLength(0);
+    // a late answer from the computer is ignored
+    const late = hub.handoffs.all().find((x) => x.kind === "chat")!;
+    hub.handoffResult(late.id, { ok: true, text: "late" });
+    expect(hub.threads.get(id)!.log.at(-1)?.text).toBe("quick answer");
+  });
+
+  it("gives Claude the same tools with the same rules (proposals still need a held yes)", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const agent = agentService({ hub, llm: null, say: () => {}, log: () => {} });
+    const names = (await agent.toolList!()).map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["get_today", "search_notes", "propose_email", "remember"]));
+    expect(names).not.toContain("hand_to_claude");
+    expect(await agent.callTool!("get_today", {})).toMatch(/"date"/);
+    expect(await agent.callTool!("propose_email", { to_email: "x@evil.example", to_name: "x", subject: "s", body: "b", ask_summary: "a" })).toMatch(/isn't a school address/);
+    await agent.callTool!("propose_email", { to_email: "a.b@churcherscollege.com", to_name: "mr b", subject: "s", body: "b", ask_summary: "a" });
+    const [ask] = hub.pendingAsks();
+    expect(ask.kind).toBe("email");
+    expect(() => hub.answerAsk(ask.id, true, "phone", { held: false })).toThrow(/hold/);
   });
 });

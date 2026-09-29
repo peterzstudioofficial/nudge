@@ -462,6 +462,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
     { head: "ASSISTANT", rows: [
       { name: "assistant", meta: s.ai ? "ON" : "OFF", on: s.ai, go: () => set({ ai: !s.ai, ...(s.ai ? { wakeWord: false } : {}) }) },
       { name: "wake word", meta: s.ai && s.wakeWord ? "NUDGE" : "OFF", on: s.ai && s.wakeWord, locked: !s.ai, go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
+      { name: "answers from", meta: s.aiEngine === "claude" ? "MY CLAUDE (PC)" : "QUICK MODEL", on: s.aiEngine === "claude", locked: !s.ai, go: () => s.ai && set({ aiEngine: s.aiEngine === "claude" ? "openrouter" : "claude" }).then(() => s.aiEngine !== "claude" && toast("computer", "switch it on in the Nudge tray on your PC too", 4200)) },
       { name: "what it knows about you", meta: "SEE ALL", on: true, go: () => setBrainOpen(true) },
       { name: "documents it can read", meta: `${lib?.length ?? 0} ${lib?.length === 1 ? "FILE" : "FILES"}`, on: true, go: () => setLibOpen(true) },
     ] },

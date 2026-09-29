@@ -315,6 +315,8 @@ export const ClaudeDesktop = z.object({
   cli: z.boolean(),
   allowRun: z.boolean(),
   runMode: z.enum(["plan", "acceptEdits"]),
+  /** Peter switched on "answer with my Claude plan" on this computer */
+  chat: z.boolean().default(false),
 });
 export type ClaudeDesktop = z.infer<typeof ClaudeDesktop>;
 
@@ -322,6 +324,8 @@ const HandoffBase = { id: z.string(), createdAt: z.number(), doneAt: z.number().
 export const Handoff = z.discriminatedUnion("kind", [
   z.object({ ...HandoffBase, kind: z.literal("compose"), payload: z.object({ to: z.string(), subject: z.string(), body: z.string() }) }),
   z.object({ ...HandoffBase, kind: z.literal("claude"), payload: ClaudeTask }),
+  /** a question for the ongoing Claude chat on the PC (his own Claude plan), answered back to the thread */
+  z.object({ ...HandoffBase, kind: z.literal("chat"), payload: z.object({ threadId: z.string(), prompt: z.string().max(4000), context: z.string().max(8000), system: z.string().max(8000) }) }),
 ]);
 export type Handoff = z.infer<typeof Handoff>;
 
@@ -455,6 +459,9 @@ export const Settings = z.object({
   buildModel: z.string().max(60),
   /** the most the cloud AI may spend in a month, in US dollars; it stops at the limit */
   aiBudgetUsd: z.number().min(0.5).max(100),
+  /** who answers typed questions from the phone and computer: cheap models on OpenRouter, or one
+   *  ongoing chat with Claude on Peter's computer, on his own Claude plan (falls back if the PC is off) */
+  aiEngine: z.enum(["openrouter", "claude"]),
   /** Gemini Live model for the voice assistant */
   voiceModel: z.string().max(60),
   /** speak voice replies out loud (needs a speaker on the Pi) */
@@ -485,7 +492,7 @@ export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
   "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
-  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
+  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "aiEngine", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
 ];
 
 export const Device = z.object({

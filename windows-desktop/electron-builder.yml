@@ -13,6 +13,8 @@ extraResources:
     to: renderer
   - from: dist-extension
     to: extension
+  - from: dist-connector
+    to: connector
   - from: build/tray.png
     to: build/tray.png
 asar: true

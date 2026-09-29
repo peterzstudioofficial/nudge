@@ -14,7 +14,17 @@ import { tint, type Snapshot } from "@nudge/shared";
 export const BLOCKER_PORT = 47823;
 
 export function blockerKey(): string {
-  const f = path.join(app.getPath("userData"), "extension.key");
+  return keyFile("extension.key");
+}
+
+/** The Claude connector's key: a separate file, so the browser extension's key can't call tools. */
+export const connectorKeyPath = () => path.join(app.getPath("userData"), "connector.key");
+export function connectorKey(): string {
+  return keyFile("connector.key");
+}
+
+function keyFile(name: string): string {
+  const f = path.join(app.getPath("userData"), name);
   try {
     return fs.readFileSync(f, "utf8").trim();
   } catch {
@@ -25,9 +35,40 @@ export function blockerKey(): string {
   }
 }
 
-export function startBlocker(get: () => Snapshot | null): http.Server {
+export interface Connector {
+  tools(): Promise<unknown>;
+  call(body: { name: string; args: Record<string, unknown>; threadId: string | null }): Promise<unknown>;
+}
+
+export function startBlocker(get: () => Snapshot | null, connector?: Connector): http.Server {
   const key = blockerKey();
+  const cKey = connectorKey();
   const server = http.createServer((req, res) => {
+    // The Claude connector (nudge-mcp, started by Claude on this computer). Never from a browser.
+    if (req.url?.startsWith("/connector/")) {
+      const given = String(req.headers["x-nudge-connector"] ?? "");
+      const ok = !req.headers.origin && given.length === cKey.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(cKey));
+      if (!ok || !connector) return void res.writeHead(403).end();
+      const answer = (p: Promise<unknown>) =>
+        p.then((j) => (res.writeHead(200, { "content-type": "application/json" }), res.end(JSON.stringify(j))))
+          .catch((e: Error) => (res.writeHead(502, { "content-type": "text/plain" }), res.end(e.message.slice(0, 300))));
+      if (req.method === "GET" && req.url === "/connector/tools") return void answer(connector.tools());
+      if (req.method === "POST" && req.url === "/connector/call") {
+        let raw = "";
+        req.on("data", (d: Buffer) => (raw += d.toString()).length > 200_000 && req.destroy());
+        req.on("end", () => {
+          try {
+            const b = JSON.parse(raw) as { name?: unknown; args?: unknown; threadId?: unknown };
+            if (typeof b.name !== "string" || !/^[\w-]{1,64}$/.test(b.name)) throw new Error("bad tool name");
+            void answer(connector.call({ name: b.name, args: (b.args && typeof b.args === "object" ? b.args : {}) as Record<string, unknown>, threadId: typeof b.threadId === "string" ? b.threadId : null }));
+          } catch (e) {
+            res.writeHead(400).end((e as Error).message);
+          }
+        });
+        return;
+      }
+      return void res.writeHead(404).end();
+    }
     const origin = String(req.headers.origin || "");
     const fromExtension = origin.startsWith("chrome-extension://") || origin.startsWith("extension://");
     if (fromExtension) {

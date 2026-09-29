@@ -68,6 +68,11 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 - Connected apps run in a Composio session with its code sandbox switched off. Only actions from
   apps switched on in setup can run.
 
+- Claude on the PC uses Peter's own sign-in to the unmodified Claude Code / Claude Desktop apps
+  (personal use of his plan, as Anthropic allows). Nudge never sees, stores or passes on his
+  Claude login. Everything Claude does through Nudge goes through the same tools and rules:
+  hold-to-confirm, hourly caps, school-only email drafts, 150 tool calls an hour.
+
 ### Built tools
 
 - Building is a big job: it always shows where it runs, when, and the estimated cost, and only a
@@ -110,6 +115,8 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 | Connected apps (Google Calendar, Notion, Spotify…) | Composio holds the sign-ins (OAuth tokens) and makes the calls | the search query for finding an action, then whatever the approved or read-only action needs |
 | Answers read out loud (only if spoken replies are on) | Gemini text-to-speech (Flash-Lite), same voice as Live; each phrase cached on the Pi | the answer's text, once per new phrase |
 | Claude on the computer | Claude Desktop / Claude Code on Peter's PC, under his own Claude account | the task the assistant wrote (shown before the yes) |
+| "Answers from: my Claude" (off by default) | the official Claude Code CLI on Peter's PC, signed in with his own plan; one ongoing chat; no built-in tools (no files, commands or web), only the Nudge connector | the question, the same short context, and whatever Nudge tools it calls; the wall keeps the quick model |
+| Nudge connector in Claude Desktop / Code (added from the tray, after asking) | a small local MCP server that talks only to the running Nudge app over loopback, with its own key file; Nudge relays to the wall with its own pairing (the connector never sees a token) | whatever Claude asks the Nudge tools for, in his own Claude chats |
 
 - Mic audio is streamed to the hub over loopback and never written to disk.
 - The staff list and other private setup data never go to the parent app and are only sent to a

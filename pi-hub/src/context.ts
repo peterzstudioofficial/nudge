@@ -38,6 +38,9 @@ export interface AgentService {
     finish(heard: string, text: string): void;
     fail(msg: string): void;
   }>;
+  /** The assistant's tools, for Claude on Peter's computer (the Nudge connector). Same rules. */
+  toolList?(): Promise<{ name: string; description: string; parameters: Record<string, unknown> }[]>;
+  callTool?(name: string, args: unknown, threadId?: string | null): Promise<string>;
   /** A short title and tags for a transcribed voice note (structured output). */
   tidyNote?(text: string): Promise<{ label: string; tags: string[] } | null>;
 }

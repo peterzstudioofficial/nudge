@@ -32,6 +32,8 @@ interface Opts {
   say: (icon: string, line: string, sub?: string, ms?: number) => void;
   /** the few passages from their own notes/documents that clearly match a question (free, on the Pi) */
   retrieve?: (question: string) => Promise<{ title: string; text: string }[]>;
+  /** how long to wait for Claude on the computer before the quick model answers (tests shorten it) */
+  claudeWaitMs?: number;
   /** read a short wall answer out loud (if spoken replies are on) */
   speak?: (text: string) => void;
   log: (m: string) => void;
@@ -55,8 +57,15 @@ How you work:
 - Memory: when they tell you something lasting about themselves (a role, a goal, a preference, how they like help, a regular commitment), save it with remember in a short third-person line. Don't save one-off details, other people's private info, or anything sensitive (passwords, money, health, addresses). If they ask you to forget something, use forget.`;
 
 const VOICE = "(voice)";
-const wantsBig = (p: string) => p === VOICE || /\b(build|make me|create|app|tool|improve|computer|laptop|pc|claude|cowork|code|coding|website|site|script|program|project|folder|repo|bug|fix|portfolio|research|document|spreadsheet)\b/i.test(p);
+const CONNECTOR = "(claude on your computer)";
+const wantsBig = (p: string) => p === VOICE || p === CONNECTOR || /\b(build|make me|create|app|tool|improve|computer|laptop|pc|claude|cowork|code|coding|website|site|script|program|project|folder|repo|bug|fix|portfolio|research|document|spreadsheet)\b/i.test(p);
 
+
+/** Claude on the computer answers in a minute or two, or the quick model takes over. */
+const CLAUDE_WAIT_MS = 150_000;
+/** Claude can't hand work to itself. */
+const NOT_FOR_CLAUDE = new Set(["hand_to_claude"]);
+const CLAUDE_NOTE = "You are running as Claude in Peter's own Claude Code, on his computer, as the brain of his Nudge assistant. This is one ongoing chat: earlier messages are earlier questions. Use the nudge tools for his day, school, notes, documents and memory, and to propose anything (they only create a question he must hold yes to). Answer in plain text; keep it short unless he asks for depth.";
 
 /** The school's own mail domain (teachers' addresses). */
 const SCHOOL_MAIL_DOMAIN = "churcherscollege.com";
@@ -71,6 +80,8 @@ export function agentService(o: Opts): AgentService {
   const { hub } = o;
   const client = o.llm;
   const running = new Map<string, AbortController>();
+  const pendingChat = new Map<string, string>();
+  const toolCalls: number[] = [];
 
   /**
    * Can't go rogue: at most a few things that would leave the house per hour (each still needs a
@@ -746,6 +757,56 @@ export function agentService(o: Opts): AgentService {
     }
   }
 
+  /**
+   * One question for Claude on Peter's computer: it's answered in his one ongoing Claude chat,
+   * on his own plan, with Nudge's tools (the same rules: anything that leaves the house is only
+   * proposed and needs his held yes). If the computer doesn't answer in time, the usual cheap
+   * model answers instead, so nothing is ever left hanging.
+   */
+  async function askClaude(thread: AgentThread) {
+    thread.steps.push({ text: "asking claude on your computer", meta: "YOUR CLAUDE PLAN", done: false });
+    save(thread);
+    const refs = await refsFor(thread.prompt);
+    const hid = hub.chatHandoff({ threadId: thread.id, prompt: thread.prompt, context: contextFor(thread) + refs, system: SYSTEM + "\n\n" + CLAUDE_NOTE });
+    pendingChat.set(thread.id, hid);
+    setTimeout(() => {
+      if (!pendingChat.has(thread.id)) return;
+      pendingChat.delete(thread.id);
+      hub.doneHandoff(hid);
+      const cur = hub.threads.get(thread.id);
+      if (!cur || cur.status !== "working") return;
+      cur.steps.forEach((x) => (x.done = true));
+      cur.steps.push({ text: "computer didn't answer, used the quick model", meta: "", done: false });
+      save(cur);
+      if (client && (o.ready?.() ?? true)) void execute(cur);
+      else finish(cur, "Your computer didn't answer in time. Try again when it's on.");
+    }, o.claudeWaitMs ?? CLAUDE_WAIT_MS).unref?.();
+  }
+  hub.onChatResult = (threadId, r) => {
+    pendingChat.delete(threadId);
+    const t = hub.threads.get(threadId);
+    if (!t || (t.status !== "working" && t.status !== "asking")) return;
+    if (!r.ok) {
+      t.steps.push({ text: "claude couldn't answer, used the quick model", meta: "", done: false });
+      save(t);
+      if (client && (o.ready?.() ?? true)) return void execute(t);
+      return finish(t, r.text.slice(0, 300));
+    }
+    finish(t, r.text.trim());
+  };
+  /** The thread that Claude's own chats (Claude Desktop / Code with the Nudge connector) act in. */
+  function connectorThread(): AgentThread {
+    const key = `connectorThread:${hub.todayKey()}`;
+    const id = hub.db.kvGet<string | null>(key, null);
+    const t = id ? hub.threads.get(id) : null;
+    if (t) return t;
+    const n = newThread(CONNECTOR, "act", "desktop");
+    n.status = "done";
+    save(n);
+    hub.db.kvSet(key, n.id);
+    return n;
+  }
+
   // Deferred questions get answered once the session is over.
   setInterval(() => {
     const d = hub.db.kvGet<string[]>("deferred", []);
@@ -780,8 +841,33 @@ export function agentService(o: Opts): AgentService {
         return t.id;
       }
       runTimes.push(now);
+      // 4. His own Claude plan, if he switched it on and the computer is there (not the wall:
+      //    that needs an answer in a second or two).
+      if (origin !== "wall" && hub.settings().aiEngine === "claude" && hub.claudeChatReady()) {
+        void askClaude(t);
+        return t.id;
+      }
       void execute(t);
       return t.id;
+    },
+    async toolList() {
+      const th = connectorThread();
+      return (await allTools(th)).filter((x) => !NOT_FOR_CLAUDE.has(x.name)).map((x) => ({ name: x.name, description: x.description, parameters: x.parameters as Record<string, unknown> }));
+    },
+    async callTool(name, args, threadId) {
+      const now = Date.now();
+      while (toolCalls.length && toolCalls[0] < now - 3600_000) toolCalls.shift();
+      if (toolCalls.length >= 150) return "error: too many tool calls this hour; stop and answer with what you have.";
+      toolCalls.push(now);
+      const given = threadId ? hub.threads.get(threadId) : null;
+      const th = given && given.origin !== "wall" ? given : connectorThread();
+      const t = (await allTools(th)).find((x) => x.name === name && !NOT_FOR_CLAUDE.has(x.name));
+      if (!t) return `error: no tool called ${name}`;
+      try {
+        return (await t.run(parseArgs(JSON.stringify(args ?? {})))).slice(0, 12_000);
+      } catch (e) {
+        return `error: ${(e as Error).message}`.slice(0, 300);
+      }
     },
     async tidyNote(text) {
       if (!client || !hub.settings().ai || !text.trim()) return null;

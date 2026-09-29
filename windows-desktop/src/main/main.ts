@@ -6,7 +6,7 @@ import { loadPairing, savePairing, prefs, setPrefs, type Pairing } from "./store
 import { Watcher, distraction, writeControl } from "./watch";
 import { signInToSchool, openDraft } from "./school";
 import { startBlocker, blockerKey, BLOCKER_PORT } from "./blocker";
-import { claudeCapabilities, handleClaude } from "./claude";
+import { claudeCapabilities, handleClaude, handleChat, addConnectorToClaude, hasClaudeCli } from "./claude";
 import { notify, setupNotify, toastAction, toastDone } from "./notify";
 
 /**
@@ -267,6 +267,10 @@ function buildTray() {
           { label: "Let the assistant run Claude Code here", type: "checkbox", checked: p.claudeAllowRun, click: (i) => { setPrefs({ claudeAllowRun: i.checked }); reportClaude(); } },
           { label: "…and edit files (off = read and plan only)", type: "checkbox", enabled: p.claudeAllowRun, checked: p.claudeCanEdit, click: (i) => { setPrefs({ claudeCanEdit: i.checked }); reportClaude(); } },
           { type: "separator" },
+          { label: "Answer my questions with my Claude plan (one ongoing chat)", type: "checkbox", enabled: hasClaudeCli(), checked: p.claudeChat, click: (i) => { setPrefs({ claudeChat: i.checked }); reportClaude(); } },
+          { label: "Start a new Claude chat", enabled: p.claudeChat && !!p.claudeChatSession, click: () => { setPrefs({ claudeChatSession: null }); void notify({ icon: "chat_add_on", line: "next question starts a fresh Claude chat" }); buildTray(); } },
+          { label: "Add Nudge to Claude Desktop and Claude Code…", click: () => void connectClaude() },
+          { type: "separator" },
           { label: "Add a folder…", click: () => void addClaudeFolder() },
           ...p.claudeWorkspaces.map((w) => ({
             label: `Remove "${w.name}"`,
@@ -294,6 +298,23 @@ async function openToolInBrowser(id: string) {
 function reportClaude() {
   if (!client) return;
   void client.request("PUT", "/api/desktop/claude", claudeCapabilities(prefs())).catch(() => {});
+}
+
+/** Put the Nudge connector into Claude Desktop / Claude Code, after asking. */
+async function connectClaude() {
+  const { response } = await dialog.showMessageBox({
+    type: "question",
+    buttons: ["Add it", "Cancel"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "Nudge → Claude",
+    message: "Let Claude see your Nudge stuff?",
+    detail:
+      "Adds a \"nudge\" connector to Claude Desktop and Claude Code on this computer, so in any Claude chat you can ask about your day, homework, notes and documents, and have it propose things (emails, sessions, reminders). It uses your own Claude plan. Anything that would leave the house still needs you to hold yes on your phone or the wall. Nudge must be running for it to work.",
+  });
+  if (response !== 0) return;
+  const done = await addConnectorToClaude().catch(() => []);
+  void notify({ icon: done.length ? "check_circle" : "error", line: done.length ? `Nudge added to ${done.join(" and ")}` : "Couldn't find Claude Desktop or Claude Code on this computer" });
 }
 
 async function addClaudeFolder() {
@@ -362,6 +383,7 @@ async function checkHandoffs() {
       openHandoffs.add(h.id);
       if (h.kind === "compose") await openDraft(client, h);
       else if (h.kind === "claude") void handleClaude(client, h, prefs());
+      else if (h.kind === "chat") void handleChat(client, h, prefs(), (sid) => (setPrefs({ claudeChatSession: sid }), buildTray()));
     }
   } catch {
     /* offline */
@@ -519,7 +541,12 @@ app.on("will-quit", () => {
 void app.whenReady().then(() => {
   applyLogin();
   buildTray();
-  startBlocker(() => snap);
+  startBlocker(() => snap, {
+    tools: async () => (client ? client.get("/api/agent/tools") : Promise.reject(new Error("Nudge isn't connected to the wall"))),
+    call: async (b) => (client ? client.request("POST", `/api/agent/tools/${encodeURIComponent(b.name)}`, { args: b.args, threadId: b.threadId }) : Promise.reject(new Error("Nudge isn't connected to the wall"))),
+  });
+  // Tell the wall every minute that this computer (and Claude on it) is here.
+  setInterval(reportClaude, 60_000);
   extensionDir();
   syncBlocking(null);
   watcher.start();

@@ -27,6 +27,10 @@ export interface Prefs {
   claudeAllowRun: boolean;
   /** …and let it edit files in those folders (off = read and plan only) */
   claudeCanEdit: boolean;
+  /** answer the assistant's phone/computer questions in one ongoing Claude chat, on Peter's plan */
+  claudeChat: boolean;
+  /** that chat's Claude Code session id (a UUID made here); "new chat" in the tray clears it */
+  claudeChatSession: string | null;
 }
 
 const file = () => path.join(app.getPath("userData"), "nudge.json");
@@ -85,7 +89,7 @@ export function savePairing(p: Pairing | null) {
 }
 
 export function prefs(): Prefs {
-  return { hudCorner: "br", hudScale: 1, hudHidden: false, launchAtLogin: true, watchApps: true, bedtimeSnoozeUntil: 0, claudeWorkspaces: [], claudeAllowRun: false, claudeCanEdit: false, ...read().prefs };
+  return { hudCorner: "br", hudScale: 1, hudHidden: false, launchAtLogin: true, watchApps: true, bedtimeSnoozeUntil: 0, claudeWorkspaces: [], claudeAllowRun: false, claudeCanEdit: false, claudeChat: false, claudeChatSession: null, ...read().prefs };
 }
 export function setPrefs(p: Partial<Prefs>) {
   const d = read();

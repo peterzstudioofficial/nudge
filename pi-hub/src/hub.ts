@@ -985,6 +985,12 @@ export class Hub {
   /** What Claude on the computer reported back; it goes into the question's thread. */
   handoffResult(id: string, r: { ok: boolean; text: string; costUsd?: number }): void {
     const h = this.handoffs.get(id);
+    if (h?.kind === "chat") {
+      if (h.doneAt) return; // too late: the assistant already answered another way
+      this.doneHandoff(id);
+      this.onChatResult?.(h.payload.threadId, r);
+      return;
+    }
     if (!h || h.kind !== "claude") throw notFound("no such hand-off");
     this.doneHandoff(id);
     if (h.payload.jobId) {
@@ -1085,6 +1091,19 @@ export class Hub {
   }
   setClaudeDesktop(d: ClaudeDesktop): void {
     this.db.kvSet("claudeDesktop", { ...d, at: this.now() });
+  }
+  /** The PC can take a question for Claude right now (switched on, and it checked in lately). */
+  claudeChatReady(): boolean {
+    const d = this.claudeDesktop();
+    return !!d?.chat && d.cli && this.now() - d.at < 3 * 60_000;
+  }
+  /** Set by the assistant: an answer from Claude on the PC for one of its threads. */
+  onChatResult?: (threadId: string, r: { ok: boolean; text: string }) => void;
+  chatHandoff(p: { threadId: string; prompt: string; context: string; system: string }): string {
+    const id = newId();
+    this.handoffs.put({ id, kind: "chat", payload: { ...p, prompt: p.prompt.slice(0, 4000), context: p.context.slice(0, 8000), system: p.system.slice(0, 8000) }, createdAt: this.now(), doneAt: null });
+    this.bus.changed("handoffs");
+    return id;
   }
 
   /* ------------------------------ school heads --------------------------- */

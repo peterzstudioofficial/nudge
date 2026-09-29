@@ -30,6 +30,18 @@ await build({
   logLevel: "info",
 });
 
+// The Claude connector: a plain Node script, shipped outside the app archive.
+await build({
+  entryPoints: { "nudge-mcp": "src/connector/nudge-mcp.ts" },
+  outdir: "dist-connector",
+  outExtension: { ".js": ".cjs" },
+  bundle: true,
+  platform: "node",
+  target: "node22",
+  format: "cjs",
+  logLevel: "info",
+});
+
 await vite({
   configFile: false,
   root: ".",

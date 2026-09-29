@@ -31,6 +31,7 @@ pi-os/deploy/
 coverage/
 dist-renderer/
 dist-extension/
+dist-connector/
 __pycache__/
 # personal setup (timetable, birthdays, staff) — never commit
 /private/

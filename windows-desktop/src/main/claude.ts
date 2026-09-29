@@ -1,8 +1,11 @@
 import { app, dialog, shell } from "electron";
 import { notify } from "./notify";
+import crypto from "node:crypto";
+import { BLOCKER_PORT, connectorKeyPath } from "./blocker";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import type { ClaudeDesktop, Handoff, HubClient } from "@nudge/shared";
 import type { Prefs } from "./store";
 
@@ -24,13 +27,33 @@ export type Workspace = { name: string; path: string };
 
 const RUN_TIMEOUT = 20 * 60_000;
 
-/** Is the Claude Code CLI on PATH? */
-export function hasClaudeCli(): boolean {
-  const exts = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
-  for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
-    for (const e of exts) if (dir && fs.existsSync(path.join(dir, `claude${e}`))) return true;
+/**
+ * Where the Claude Code CLI is: PATH first, then the native installer's own folder (apps started
+ * from the Start menu don't always see PATH changes). A real .exe runs directly; an npm .cmd shim
+ * needs cmd.exe, so its arguments are quoted for it.
+ */
+export function findClaude(): { file: string; shim: boolean } | null {
+  const win = process.platform === "win32";
+  const dirs = [...(process.env.PATH ?? "").split(path.delimiter), path.join(os.homedir(), ".local", "bin"), ...(win ? [path.join(process.env.APPDATA ?? "", "npm")] : [])];
+  for (const e of win ? [".exe", ".cmd"] : [""]) {
+    for (const dir of dirs) {
+      const f = dir && path.join(dir, `claude${e}`);
+      if (f && fs.existsSync(f)) return { file: f, shim: e === ".cmd" };
+    }
   }
-  return false;
+  return null;
+}
+export const hasClaudeCli = () => !!findClaude();
+
+/** cmd.exe quoting, for the .cmd shim only. */
+const q = (a: string) => (/^[\w@%+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '""')}"`);
+
+export function spawnClaude(args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env) {
+  const c = findClaude();
+  if (!c) throw new Error("Claude Code isn't installed on this computer");
+  return c.shim
+    ? spawn(q(c.file), args.map(q), { cwd, shell: true, windowsHide: true, env })
+    : spawn(c.file, args, { cwd, windowsHide: true, env });
 }
 
 /** Claude Desktop registers claude:// — on Windows it's in the registry, elsewhere assume the app. */
@@ -51,6 +74,7 @@ export function claudeCapabilities(p: Prefs): ClaudeDesktop {
     cli: hasClaudeCli(),
     allowRun: !!p.claudeAllowRun,
     runMode: p.claudeCanEdit ? "acceptEdits" : "plan",
+    chat: !!p.claudeChat && hasClaudeCli(),
   };
 }
 
@@ -107,8 +131,12 @@ export function runClaude(cwd: string, task: string, mode: "plan" | "acceptEdits
       "--append-system-prompt",
       "This task was handed over by Nudge, the student's study assistant. Stay inside this folder. Don't install anything, don't push or publish anything, and finish with a short plain summary of what you did or found.",
     ];
-    // On Windows `claude` is usually a .cmd shim, which needs a shell; every argument above is fixed text.
-    const child = spawn("claude", args, { cwd, shell: process.platform === "win32", windowsHide: true, env: { ...process.env } });
+    let child: ReturnType<typeof spawnClaude>;
+    try {
+      child = spawnClaude(args, cwd);
+    } catch (e) {
+      return resolve({ ok: false, text: (e as Error).message });
+    }
     let out = "";
     let err = "";
     const timer = setTimeout(() => child.kill("SIGINT"), RUN_TIMEOUT);
@@ -182,3 +210,114 @@ async function buildTool(client: HubClient, h: ClaudeHandoff, p: Prefs): Promise
   }
 }
 
+
+/* ------------------------- Claude as the assistant ------------------------- */
+
+/** The connector script ships outside the app archive so Claude can start it with Node. */
+export const connectorScript = () =>
+  app.isPackaged ? path.join(process.resourcesPath, "connector", "nudge-mcp.cjs") : path.join(__dirname, "..", "dist-connector", "nudge-mcp.cjs");
+
+/** How Claude starts the Nudge connector: this app's own runtime in Node mode, no token anywhere. */
+export function connectorServer(threadId?: string) {
+  return {
+    command: process.execPath,
+    args: [connectorScript()],
+    env: { ELECTRON_RUN_AS_NODE: "1", NUDGE_CONNECTOR_KEY: connectorKeyPath(), NUDGE_PORT: String(BLOCKER_PORT), ...(threadId ? { NUDGE_THREAD: threadId } : {}) },
+  };
+}
+
+type ChatHandoff = Extract<Handoff, { kind: "chat" }>;
+const CHAT_TIMEOUT = 140_000;
+
+/**
+ * A question from the phone or computer, answered in one ongoing Claude Code chat on Peter's own
+ * plan. Claude gets no built-in tools at all (no files, no commands, no web), only the Nudge
+ * connector; anything it wants to do becomes a question he must hold yes to.
+ */
+export async function handleChat(client: HubClient, h: ChatHandoff, p: Prefs, save: (sid: string | null) => void): Promise<void> {
+  const answer = (ok: boolean, text: string) => client.request("POST", `/api/handoffs/${h.id}/result`, { ok, text: text.slice(0, 4000) }).catch(() => {});
+  if (!p.claudeChat) return void (await answer(false, "Claude isn't switched on for the assistant on this computer"));
+  const dir = path.join(app.getPath("userData"), "claude-chat");
+  fs.mkdirSync(dir, { recursive: true });
+  const sysFile = path.join(dir, "nudge-system.txt");
+  const mcpFile = path.join(dir, "mcp.json");
+  fs.writeFileSync(sysFile, h.payload.system);
+  fs.writeFileSync(mcpFile, JSON.stringify({ mcpServers: { nudge: connectorServer(h.payload.threadId) } }));
+  const input = `${h.payload.context}\n\n${h.payload.prompt}`;
+
+  const once = (sid: string | null) =>
+    new Promise<{ ok: boolean; text: string; sid: string | null; missing?: boolean }>((resolve) => {
+      const fresh = sid ?? crypto.randomUUID();
+      const args = [
+        "-p", "--output-format", "json", "--model", "sonnet",
+        ...(sid ? ["--resume", sid] : ["--session-id", fresh]),
+        "--tools", "", "--strict-mcp-config", "--mcp-config", mcpFile, "--allowedTools", "mcp__nudge",
+        "--permission-prompts", "none", "--max-turns", "12", "--append-system-prompt-file", sysFile,
+      ];
+      let child: ReturnType<typeof spawnClaude>;
+      try {
+        child = spawnClaude(args, dir);
+      } catch (e) {
+        return resolve({ ok: false, text: (e as Error).message, sid });
+      }
+      let out = "";
+      let err = "";
+      const timer = setTimeout(() => child.kill(), CHAT_TIMEOUT);
+      child.stdout.on("data", (d: Buffer) => (out += d.toString()).length > 2_000_000 && child.kill());
+      child.stderr.on("data", (d: Buffer) => (err = (err + d.toString()).slice(-2000)));
+      child.on("error", (e) => (clearTimeout(timer), resolve({ ok: false, text: e.message, sid })));
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        try {
+          const j = JSON.parse(out.trim().split("\n").pop() ?? "{}") as { result?: string; is_error?: boolean; session_id?: string };
+          resolve({ ok: code === 0 && !j.is_error, text: (j.result ?? "").trim() || "(no answer)", sid: j.session_id ?? fresh });
+        } catch {
+          const text = (err || out || `exited with ${code}`).trim();
+          resolve({ ok: false, text: text.slice(-400), sid, missing: !!sid && /no conversation|not found|session/i.test(text) });
+        }
+      });
+      child.stdin.end(input);
+    });
+
+  let r = await once(p.claudeChatSession);
+  if (!r.ok && r.missing) r = await once(null); // the old chat was deleted: start a new one
+  if (r.ok && r.sid !== p.claudeChatSession) save(r.sid);
+  await answer(r.ok, r.text);
+}
+
+/**
+ * Add the Nudge connector to Claude Desktop (its config file) and Claude Code (user scope), so
+ * Peter can talk to Claude with his Nudge stuff in any chat, on his own plan. Asks first.
+ */
+export async function addConnectorToClaude(): Promise<string[]> {
+  const done: string[] = [];
+  const server = connectorServer();
+  const base = process.platform === "win32" ? process.env.APPDATA ?? "" : process.platform === "darwin" ? path.join(os.homedir(), "Library", "Application Support") : path.join(os.homedir(), ".config");
+  const cfgPath = path.join(base, "Claude", "claude_desktop_config.json");
+  if (hasClaudeDesktop() || fs.existsSync(cfgPath)) {
+    let cfg: { mcpServers?: Record<string, unknown> } = {};
+    try {
+      cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+      fs.copyFileSync(cfgPath, cfgPath + ".before-nudge");
+    } catch {
+      /* no config yet */
+    }
+    cfg.mcpServers = { ...(cfg.mcpServers ?? {}), nudge: server };
+    fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+    done.push("Claude Desktop (restart it)");
+  }
+  if (hasClaudeCli()) {
+    const ok = await new Promise<boolean>((resolve) => {
+      try {
+        const c = spawnClaude(["mcp", "add-json", "nudge", JSON.stringify({ type: "stdio", ...server }), "--scope", "user"], os.homedir());
+        c.on("close", (code) => resolve(code === 0));
+        c.on("error", () => resolve(false));
+      } catch {
+        resolve(false);
+      }
+    });
+    if (ok) done.push("Claude Code");
+  }
+  return done;
+}

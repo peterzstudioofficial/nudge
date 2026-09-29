@@ -643,6 +643,21 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     hub.bus.changed("brain");
     return { ok: true };
   });
+  // The Nudge connector: Claude on Peter's computer (Claude Desktop / Claude Code, his own plan)
+  // gets the assistant's tools, with every rule unchanged. The computer's token only.
+  const connector = (req: FastifyRequest) => {
+    const c = need(req, "handoff");
+    if (c.role !== "desktop") throw new HttpError(403, "only the computer app");
+    if (!hub.settings().ai) throw new HttpError(409, "assistant is off");
+    return c;
+  };
+  app.get("/api/agent/tools", async (req) => (connector(req), (await ctx.agent.toolList?.()) ?? []));
+  app.post("/api/agent/tools/:name", async (req) => {
+    connector(req);
+    const b = parse(z.object({ args: z.record(z.string(), z.unknown()).default({}), threadId: z.string().max(64).nullable().optional() }), req.body);
+    const text = (await ctx.agent.callTool?.((req.params as { name: string }).name, b.args, b.threadId ?? null)) ?? "error: not available";
+    return { text };
+  });
   app.post("/api/agent/threads/:id/stop", async (req) => (need(req, "agent"), ctx.agent.stop((req.params as { id: string }).id), { ok: true }));
   app.post("/api/asks/:id/answer", async (req) => {
     const c = need(req, "asks.answer");
