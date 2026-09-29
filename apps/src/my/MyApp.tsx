@@ -15,7 +15,15 @@ import { setThemePref, themePref, type ThemePref } from "../lib/theme";
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
 
 type Tab = "today" | "plan" | "tools" | "sick" | "settings";
-const ORDER: Tab[] = ["today", "plan", "tools", "sick", "settings"];
+const TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: "today", icon: "checklist", label: "today" },
+  { id: "plan", icon: "calendar_month", label: "plan" },
+  { id: "tools", icon: "apps", label: "tools" },
+  { id: "sick", icon: "sick", label: "unwell" },
+  { id: "settings", icon: "settings", label: "settings" },
+];
+const ORDER = TABS.map((t) => t.id);
+const SEG = 38;
 
 export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const client = getClient("owner")!;
@@ -23,47 +31,69 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const [locked, hideLock] = usePhoneLock(snap);
   const [tab, setTab] = useState<Tab>("today");
   const [prev, setPrev] = useState<Tab>("today");
+  const [scrolled, setScrolled] = useState(false);
   const i = ORDER.indexOf(tab);
   const fwd = i >= ORDER.indexOf(prev);
+  const seg = window.innerWidth < 380 ? 33 : SEG;
   const go = (t: Tab) => {
-    if (t === tab) return;
+    if (t === tab) return void window.scrollTo({ top: 0, behavior: "smooth" });
     setPrev(tab);
     setTab(t);
+    window.scrollTo({ top: 0 });
   };
-  const now = new Date();
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 6);
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+
+  const day = snap ? parseDateKey(snap.today.date) : new Date();
+  const title =
+    tab === "today" ? DAY_SHORT[day.getDay()] : tab === "sick" ? (snap?.today.sick ? "resting" : "not well?") : TABS[i].label;
+  const sub = tab === "today" && snap ? `${day.getDate()} ${MONTH_SHORT[day.getMonth()]} · ${snap.today.kind === "school" && snap.today.week ? `WEEK ${snap.today.week}` : kindLabel(snap.today)}` : "";
+  // Little dots on the icons when something's waiting there.
+  const badge: Partial<Record<Tab, boolean>> = snap
+    ? { today: snap.asks.some((a) => a.kind !== "build"), tools: snap.asks.some((a) => a.kind === "build") || snap.jobs.some((j) => j.status === "done" && Date.now() - j.updatedAt < 3600_000) }
+    : {};
+  const status = !online ? { c: "var(--c-5f5f67)", anim: "aBreath 2.4s ease-in-out infinite", tip: "the wall is offline — showing what it last said" } : snap?.session ? { c: "var(--c-ff4d17)", anim: "aBreath 2s ease-in-out infinite", tip: "focus session on the wall" } : { c: "var(--c-ff4d17)", anim: "none", tip: "connected to the wall" };
 
   return (
     <div className="page" style={{ background: "var(--c-0a0a0c)", paddingBottom: 40 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 9, height: 44, padding: "0 18px" }}>
-        <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 13, letterSpacing: 0.5 }}>{hhmm(now.getHours() * 60 + now.getMinutes())}</span>
-        <span style={{ flex: 1 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 9px", borderRadius: 9, background: "var(--c-101017)" }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: online ? "var(--c-ff4d17)" : "var(--c-43434c)", animation: online ? "none" : "aBreath 3s ease-in-out infinite" }} />
-          <span style={{ fontSize: 8, letterSpacing: ".14em", color: "var(--c-8e8e97)" }}>{online ? (snap?.session ? "WALL · FOCUS" : "WALL ON") : "OFFLINE"}</span>
-        </div>
-        <Ms style={{ fontSize: 13, color: "var(--c-5f5f67)" }}>{online ? "wifi" : "wifi_off"}</Ms>
-      </div>
-
-      <div style={{ position: "relative", padding: "2px 14px 16px" }}>
-        <div style={{ position: "relative", height: 40, borderRadius: 13, background: "var(--c-101017)", padding: 3 }}>
-          <span style={{ position: "absolute", top: 3, height: 34, borderRadius: 10, background: "var(--c-ff4d17)", left: `calc(3px + (100% - 6px) * ${i / ORDER.length})`, right: `calc(3px + (100% - 6px) * ${(ORDER.length - 1 - i) / ORDER.length})`, transition: `left ${fwd ? ".56s" : ".32s"} cubic-bezier(.32,.72,0,1),right ${fwd ? ".32s" : ".56s"} cubic-bezier(.32,.72,0,1)` }} />
-          <div style={{ position: "relative", display: "flex", height: "100%" }}>
-            {([["checklist", "tasks", "today"], ["calendar_month", "plan", "plan"], ["apps", "tools", "tools"], ["sick", "unwell", "sick"], ["settings", "settings", "settings"]] as const).map(([icon, label, id]) => (
-              <div key={id} onClick={() => go(id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", zIndex: 1 }}>
-                <Ms style={{ fontSize: 16, color: tab === id ? "var(--c-0b0b0d)" : "var(--c-7a7a84)", transition: "color .4s" }}>{icon}</Ms>
-                {tab === id && <span style={{ fontSize: 10, letterSpacing: ".06em", whiteSpace: "nowrap", color: "var(--c-0b0b0d)", animation: "aFade .4s ease-out .12s both" }}>{label}</span>}
-              </div>
-            ))}
+      <header
+        style={{
+          position: "sticky", top: 0, zIndex: 30, padding: "calc(env(safe-area-inset-top, 0px) + 14px) 18px 12px",
+          background: scrolled ? "var(--c-0a0a0cd9)" : "var(--c-0a0a0c)", backdropFilter: scrolled ? "blur(18px) saturate(1.4)" : "none", WebkitBackdropFilter: scrolled ? "blur(18px) saturate(1.4)" : "none",
+          boxShadow: scrolled ? "0 1px 0 var(--c-1c1c23)" : "none", transition: "background-color .3s ease, box-shadow .3s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <span key={title} style={{ fontFamily: D, fontSize: scrolled ? 26 : "clamp(27px, 9vw, 38px)", lineHeight: 0.82, letterSpacing: -1, whiteSpace: "nowrap", animation: "aSwap .38s cubic-bezier(.32,.72,0,1) both", transition: "font-size .35s cubic-bezier(.32,.72,0,1)" }}>{title}</span>
+              <span title={status.tip} onClick={() => toast(online ? "sensors" : "wifi_off", status.tip)} style={{ width: 7, height: 7, marginTop: 1, borderRadius: "50%", flex: "none", background: status.c, animation: status.anim, cursor: "pointer" }} />
+            </div>
+            {sub && !scrolled && <span style={{ fontSize: 8, letterSpacing: ".2em", color: "var(--c-8e8e97)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", animation: "aFade .3s ease-out" }}>{sub}</span>}
           </div>
+          <nav aria-label="sections" style={{ position: "relative", flex: "none", display: "flex", padding: 3, borderRadius: 22, background: "var(--c-13131a)", boxShadow: "inset 0 0 0 1px var(--c-1c1c23)" }}>
+            <span style={{ position: "absolute", top: 3, left: 3, width: seg, height: seg - 2, borderRadius: 19, background: "var(--c-ff4d17)", transform: `translateX(${i * seg}px)`, transition: `transform ${fwd ? ".5s" : ".42s"} cubic-bezier(.32,.72,0,1)` }} />
+            {TABS.map((t) => (
+              <button key={t.id} aria-label={t.label} aria-current={tab === t.id ? "page" : undefined} onClick={() => go(t.id)} className="tap" style={{ position: "relative", width: seg, height: seg - 2, border: 0, padding: 0, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <Ms style={{ fontSize: 17, color: tab === t.id ? "var(--c-0b0b0d)" : "var(--c-8e8e97)", transition: "color .35s" }}>{t.icon}</Ms>
+                {badge[t.id] && tab !== t.id && <span style={{ position: "absolute", top: 6, right: 8, width: 5, height: 5, borderRadius: "50%", background: "var(--c-ff4d17)", animation: "cPop .4s cubic-bezier(.2,1.4,.4,1)" }} />}
+              </button>
+            ))}
+          </nav>
         </div>
-      </div>
+      </header>
 
-      {!snap && <div style={{ padding: "40px 22px", fontSize: 11, color: "var(--c-8e8e97)" }}>connecting to the wall…</div>}
-      {snap && tab === "today" && <Today snap={snap} />}
-      {snap && tab === "plan" && <Plan />}
-      {snap && tab === "tools" && <ToolsTab snap={snap} />}
-      {snap && tab === "sick" && <Sick snap={snap} />}
-      {snap && tab === "settings" && <SettingsTab snap={snap} onUnpair={onUnpair} />}
+      <div key={tab} style={{ paddingTop: 6, animation: `${fwd ? "aSlide" : "aSlideL"} .32s cubic-bezier(.32,.72,0,1) both` }}>
+        {!snap && <div style={{ padding: "40px 22px", fontSize: 11, color: "var(--c-8e8e97)" }}>connecting to the wall…</div>}
+        {snap && tab === "today" && <Today snap={snap} />}
+        {snap && tab === "plan" && <Plan />}
+        {snap && tab === "tools" && <ToolsTab snap={snap} />}
+        {snap && tab === "sick" && <Sick snap={snap} />}
+        {snap && tab === "settings" && <SettingsTab snap={snap} onUnpair={onUnpair} />}
+      </div>
       {snap && locked && <PhoneLock snap={snap} onHide={hideLock} />}
     </div>
   );
@@ -72,7 +102,6 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
 /* --------------------------------- today --------------------------------- */
 
 function Today({ snap }: { snap: Snapshot }) {
-  const now = new Date();
   const client = getClient("owner")!;
   const notSet = async (id: string, name: string) => {
     if (!confirm(`No ${name.toLowerCase()} was set? It'll be removed (doesn't use a skip).`)) return;
@@ -87,111 +116,120 @@ function Today({ snap }: { snap: Snapshot }) {
   const tasks = snap.tasks;
   const done = tasks.filter((t) => t.done).length;
   const rows = useMemo(() => timeline(snap), [snap]);
-  const dk = parseDateKey(snap.today.date);
+  const bagLeft = snap.bag.filter((b) => !b.got && !b.kept).length;
+  const evening = new Date().getHours() >= 17;
+  const pct = Math.min(100, Math.round((snap.bank / Math.max(1, snap.reward.goal)) * 100));
   return (
-    <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 15 }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{ fontFamily: D, fontSize: 58, lineHeight: 0.8, letterSpacing: -2 }}>{DAY_SHORT[dk.getDay()]}</span>
-          <span style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-8e8e97)", marginTop: 4 }}>{dk.getDate()} {MONTH_SHORT[dk.getMonth()]} · {kindLabel(snap.today)}</span>
-        </div>
-        <span style={{ flex: 1 }} />
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-          <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 34, lineHeight: 0.9, color: "var(--c-ff4d17)" }}>{done}/{tasks.length}</span>
-          <div style={{ display: "flex", gap: 3 }}>
-            {tasks.map((t, i) => (
-              <span key={t.id} style={{ width: 7, height: 7, borderRadius: i < done ? "50%" : 2, background: i < done ? "var(--c-ff4d17)" : "var(--c-f4f3ef)", transition: "border-radius .4s cubic-bezier(.4,0,.2,1),background-color .4s ease" }} />
+    <div style={{ padding: "0 18px" }}>
+      {tasks.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 3, flex: 1, flexWrap: "wrap" }}>
+            {tasks.map((t, k) => (
+              <span key={t.id} style={{ width: 7, height: 7, borderRadius: k < done ? "50%" : 2, background: k < done ? "var(--c-ff4d17)" : "var(--c-2a2a33)", transition: "border-radius .4s cubic-bezier(.4,0,.2,1),background-color .4s ease" }} />
             ))}
           </div>
-        </div>
-      </div>
-
-      {snap.heads && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 12, background: "var(--c-ff4d17)", color: "var(--c-0b0b0d)", marginBottom: 12, fontSize: 11, lineHeight: 1.3 }}>
-          <Ms style={{ fontSize: 15 }}>push_pin</Ms>
-          <span>{snap.heads}</span>
+          <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 24, lineHeight: 0.9, color: "var(--c-ff4d17)" }}>{done}/{tasks.length}</span>
         </div>
       )}
 
       {snap.asks.filter((a) => a.kind !== "build").map((a) => <AskCard key={a.id} a={a} />)}
 
-      <SchoolStrip snap={snap} />
+      <UpNext snap={snap} />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 18 }}>
         {rows.length === 0 && <span style={{ fontSize: 11, color: "var(--c-8e8e97)", padding: "14px 2px" }}>nothing set for today{snap.today.kind === "sick" ? " — rest up" : ""}.</span>}
-        {rows.map((t, i) => (
-          <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: t.now ? 50 : 40, padding: "0 13px", borderRadius: t.now ? 13 : i === 0 ? "12px 12px 5px 5px" : i === rows.length - 1 ? "5px 5px 12px 12px" : 5, overflow: "hidden", background: t.now ? "var(--c-1e1e26)" : "var(--c-13131a)", transition: "background-color .4s ease" }}>
-            <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: tint(t.subject) }} />
-            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, flex: "none", width: 36, paddingLeft: 5, color: t.now ? "var(--c-ff4d17)" : "var(--c-8e8e97)" }}>{t.time}</span>
-            <span style={{ fontSize: 12, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: t.done ? "var(--c-7a7a84)" : t.now ? "var(--c-ffffff)" : "var(--c-dedad4)", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
-            {t.due && !t.done && !t.now && <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-8e8e97)", flex: "none" }}>DUE {t.due.toUpperCase()}</span>}
+        {rows.map((t, k) => (
+          <div key={t.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 11, height: t.now ? 52 : 42, padding: "0 13px", borderRadius: t.now ? 14 : k === 0 ? "12px 12px 5px 5px" : k === rows.length - 1 ? "5px 5px 12px 12px" : 5, overflow: "hidden", background: t.now ? "var(--c-1e1e26)" : "var(--c-13131a)", transition: "background-color .4s ease, height .4s cubic-bezier(.32,.72,0,1)" }}>
+            <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: t.done ? "var(--c-2a2a33)" : tint(t.subject) }} />
+            <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, flex: "none", width: 36, paddingLeft: 5, color: t.now ? "var(--c-ff4d17)" : "var(--c-6d6d77)" }}>{t.time}</span>
+            <span style={{ fontSize: 12, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: t.done ? "var(--c-6d6d77)" : t.now ? "var(--c-ffffff)" : "var(--c-dedad4)", textDecoration: t.done ? "line-through" : "none" }}>{t.name}</span>
+            {t.due && !t.done && !t.now && <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-8e8e97)", flex: "none" }}>{t.due.toUpperCase()}</span>}
             {t.expected && !t.done && !t.now && (
-              <span className="tap" onClick={() => void notSet(t.id, t.name)} style={{ fontSize: 8, letterSpacing: ".1em", padding: "5px 7px", borderRadius: 7, background: "var(--c-26262e)", color: "var(--c-c9c8c2)", flex: "none" }}>NOT SET?</span>
+              <span className="tap" aria-label="homework wasn't set?" onClick={() => void notSet(t.id, t.name)} style={{ flex: "none", display: "flex" }}>
+                <Ms style={{ fontSize: 15, color: "var(--c-5f5f67)" }}>help</Ms>
+              </span>
             )}
             {t.now && t.left && <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 12, color: "var(--c-ff4d17)" }}>{t.left}</span>}
-            {(t.done || t.now) && <Ms style={{ fontSize: 15, flex: "none", color: t.done ? "var(--c-6d6d77)" : "var(--c-ff4d17)" }}>{t.done ? "check" : "play_arrow"}</Ms>}
+            {(t.done || t.now) && <Ms style={{ fontSize: 15, flex: "none", color: t.done ? "var(--c-5f5f67)" : "var(--c-ff4d17)" }}>{t.done ? "check" : "play_arrow"}</Ms>}
           </div>
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 7 }}>
-        <Stat v={String(snap.bank)} k={`OF ${snap.reward.goal} · ${snap.reward.name.toUpperCase()}`} />
-        <Stat v={String(snap.bag.filter((b) => !b.got && !b.kept).length)} k="TO PACK" />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 9, letterSpacing: ".12em", color: "var(--c-6d6d77)" }}>
+        <span style={{ whiteSpace: "nowrap" }}>{snap.bank}/{snap.reward.goal} · {snap.reward.name.toUpperCase()}</span>
+        <span style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--c-1c1c23)", overflow: "hidden" }}>
+          <span style={{ display: "block", height: 3, width: pct + "%", borderRadius: 2, background: "var(--c-ff4d17)", transition: "width .8s cubic-bezier(.4,0,.2,1)" }} />
+        </span>
+        {evening && bagLeft > 0 && snap.tomorrow.kind === "school" && <span style={{ whiteSpace: "nowrap", color: "var(--c-8e8e97)" }}>{bagLeft} TO PACK</span>}
       </div>
-      <div style={{ fontSize: 9, lineHeight: 1.5, color: "var(--c-5f5f67)", marginTop: 14 }}>
-        Tasks are started and claimed on the wall. This app plans and looks — nothing else.
-      </div>
-      <span style={{ display: "none" }}>{now.getSeconds()}</span>
     </div>
   );
 }
 
-/** Today's lessons (times + rooms), form time, and the next school-calendar dates. */
-function SchoolStrip({ snap }: { snap: Snapshot }) {
+/**
+ * One card for "what's next": the pinned heads-up, the lesson now or next, and the next thing on
+ * tonight. Tap it for the full day (lessons, rooms, teachers) and the next few school dates.
+ */
+function UpNext({ snap }: { snap: Snapshot }) {
   const [open, setOpen] = useState(false);
   const mins = new Date().getHours() * 60 + new Date().getMinutes();
   const toMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3));
   const lessons = snap.timetable;
+  const acts = (snap.activities ?? []).filter((a) => toMin(a.end) > mins);
   const soon = snap.events.filter((e) => e.date > snap.today.date || !e.time || toMin(e.time) >= mins).slice(0, 3);
-  const acts = snap.activities ?? [];
-  if (!lessons.length && !soon.length && !acts.length) return null;
   const cur = lessons.find((l) => mins >= toMin(l.start) && mins < toMin(l.end));
   const next = lessons.find((l) => toMin(l.start) > mins);
+  const lesson = cur ? `now · ${SUBJECT_NAMES[cur.subject] ?? cur.subject}${cur.room ? ` · ${cur.room}` : ""}` : next ? `next · ${SUBJECT_NAMES[next.subject] ?? next.subject} ${next.start}${next.room ? ` · ${next.room}` : ""}` : "";
+  const later = acts[0] ? `${acts[0].name} ${acts[0].start}` : soon[0] && soon[0].date === snap.today.date ? `${soon[0].title} ${soon[0].time ?? ""}` : "";
+  if (!snap.heads && !lesson && !later && !lessons.length && !soon.length) return null;
   return (
-    <div style={{ marginBottom: 12 }}>
-      {lessons.length > 0 && (
-        <div className="tap" onClick={() => setOpen(!open)} style={{ padding: "10px 12px", borderRadius: 12, background: "var(--c-13131a)", marginBottom: 5 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Ms style={{ fontSize: 15, color: "var(--c-8e8e97)" }}>school</Ms>
-            <span style={{ fontSize: 11, flex: 1, color: "var(--c-dedad4)" }}>
-              {cur ? `now: ${SUBJECT_NAMES[cur.subject] ?? cur.subject}${cur.room ? " · " + cur.room : ""}` : next ? `next: ${SUBJECT_NAMES[next.subject] ?? next.subject} ${next.start}${next.room ? " · " + next.room : ""}` : "school's done"}
+    <div className="tap" onClick={() => setOpen(!open)} style={{ padding: "12px 13px", borderRadius: 14, background: "var(--c-13131a)", marginBottom: 12, cursor: "pointer" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+          {snap.heads && (
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--c-ff4d17)" }}>
+              <Ms style={{ fontSize: 14 }}>push_pin</Ms>
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{snap.heads}</span>
             </span>
-            <span style={{ fontSize: 8, letterSpacing: ".12em", color: "var(--c-8e8e97)" }}>{snap.formTime ? snap.formTime.toUpperCase() : ""}</span>
-            <Ms style={{ fontSize: 15, color: "var(--c-5f5f67)" }}>{open ? "expand_less" : "expand_more"}</Ms>
-          </div>
-          {open && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 9 }}>
-              <div style={{ display: "flex", gap: 10, fontSize: 10, color: "var(--c-8e8e97)" }}><span style={{ fontFamily: DOTO, fontWeight: 700, width: 36 }}>08:30</span><span>{snap.formTime || "registration"}</span></div>
-              {lessons.map((l, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: l === cur ? "var(--c-ff4d17)" : "var(--c-c9c8c2)" }}>
-                  <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, width: 36 }}>{l.start}</span>
-                  <span style={{ width: 3, height: l.span > 1 ? 22 : 12, borderRadius: 2, background: tint(l.subject) }} />
-                  <span style={{ flex: 1 }}>{SUBJECT_NAMES[l.subject] ?? l.subject}{l.span > 1 ? " ×2" : ""}</span>
-                  <span style={{ fontSize: 9, color: "var(--c-8e8e97)" }}>{[l.room, l.teacher].filter(Boolean).join(" · ")}</span>
-                </div>
-              ))}
-            </div>
           )}
+          {(lesson || later) && (
+            <span style={{ fontSize: 11, color: "var(--c-c9c8c2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {lesson || "school's done"}{later ? <span style={{ color: "var(--c-6d6d77)" }}> · then {later.toLowerCase()}</span> : null}
+            </span>
+          )}
+          {!snap.heads && !lesson && !later && <span style={{ fontSize: 11, color: "var(--c-8e8e97)" }}>coming up</span>}
+        </div>
+        <Ms style={{ fontSize: 17, color: "var(--c-5f5f67)", transform: open ? "rotate(180deg)" : "none", transition: "transform .35s cubic-bezier(.32,.72,0,1)" }}>expand_more</Ms>
+      </div>
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 11, paddingTop: 10, boxShadow: "0 -1px 0 var(--c-1c1c23)", animation: "aFade .3s ease-out" }}>
+          {acts.filter((a) => !lessons.length || toMin(a.start) < toMin(lessons[0].start)).map((a) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "var(--c-dedad4)", marginTop: 2 }}>
+              <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, width: 36 }}>{a.start}</span>
+              <Ms style={{ fontSize: 13, color: "var(--c-ff4d17)" }}>theater_comedy</Ms>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}{a.where ? ` · ${a.where}` : ""}</span>
+            </div>
+          ))}
+          {lessons.length > 0 && snap.formTime && <div style={{ display: "flex", gap: 10, fontSize: 10, color: "var(--c-8e8e97)" }}><span style={{ fontFamily: DOTO, fontWeight: 700, width: 36 }}>08:30</span><span>{snap.formTime}</span></div>}
+          {lessons.map((l, k) => (
+            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: l === cur ? "var(--c-ff4d17)" : toMin(l.end) <= mins ? "var(--c-5f5f67)" : "var(--c-c9c8c2)" }}>
+              <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, width: 36 }}>{l.start}</span>
+              <span style={{ width: 3, height: l.span > 1 ? 22 : 12, borderRadius: 2, background: tint(l.subject) }} />
+              <span style={{ flex: 1 }}>{SUBJECT_NAMES[l.subject] ?? l.subject}{l.span > 1 ? " ×2" : ""}</span>
+              <span style={{ fontSize: 9, color: "var(--c-8e8e97)" }}>{[l.room, l.teacher].filter(Boolean).join(" · ")}</span>
+            </div>
+          ))}
+          {acts.filter((a) => lessons.length && toMin(a.start) >= toMin(lessons[0].start)).map((a) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "var(--c-dedad4)", marginTop: 2 }}>
+              <span style={{ fontFamily: DOTO, fontWeight: 700, fontSize: 10, width: 36 }}>{a.start}</span>
+              <Ms style={{ fontSize: 13, color: "var(--c-ff4d17)" }}>theater_comedy</Ms>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}{a.where ? ` · ${a.where}` : ""}</span>
+            </div>
+          ))}
+          {soon.length > 0 && <div style={{ fontSize: 8, letterSpacing: ".2em", color: "var(--c-5f5f67)", margin: "8px 0 0" }}>COMING UP</div>}
+          {soon.map((e) => <EventRow key={e.id} e={e} today={snap.today.date} />)}
         </div>
       )}
-      {acts.map((a) => (
-        <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "var(--c-dedad4)" }}>
-          <Ms style={{ fontSize: 14, color: "var(--c-ff4d17)" }}>theater_comedy</Ms>
-          <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}{a.where ? ` · ${a.where}` : ""}</span>
-          <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-8e8e97)", flex: "none" }}>{a.start}–{a.end}</span>
-        </div>
-      ))}
-      {soon.map((e) => <EventRow key={e.id} e={e} today={snap.today.date} />)}
     </div>
   );
 }
@@ -199,7 +237,7 @@ function SchoolStrip({ snap }: { snap: Snapshot }) {
 function EventRow({ e, today }: { e: CalEvent; today: string }) {
   const hot = e.tags.includes("exam") || e.tags.includes("term");
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", fontSize: 10, color: "var(--c-b6b5af)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0", fontSize: 10, color: "var(--c-b6b5af)" }}>
       <Ms style={{ fontSize: 14, color: hot ? "var(--c-ff4d17)" : "var(--c-6d6d77)" }}>{e.tags.includes("exam") ? "edit_note" : e.tags.includes("term") ? "event" : e.tags.includes("creative") ? "palette" : e.tags.includes("parents") ? "family_restroom" : "campaign"}</Ms>
       <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
       <span style={{ fontSize: 8, letterSpacing: ".1em", color: "var(--c-6d6d77)", flex: "none" }}>{relativeDay(e.date, today).toUpperCase()}{e.time ? " " + e.time : ""}</span>
@@ -207,14 +245,6 @@ function EventRow({ e, today }: { e: CalEvent; today: string }) {
   );
 }
 
-function Stat({ v, k }: { v: string; k: string }) {
-  return (
-    <div style={{ flex: 1, padding: "13px 12px", borderRadius: 14, background: "var(--c-13131a)", display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-      <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 21, lineHeight: 1 }}>{v}</span>
-      <span style={{ fontSize: 7, letterSpacing: ".14em", color: "var(--c-8e8e97)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k}</span>
-    </div>
-  );
-}
 
 function kindLabel(d: DayState): string {
   if (d.kind === "school" && d.week) return `SCHOOL · WEEK ${d.week}`;
@@ -284,9 +314,9 @@ function Plan() {
   const kindText = !selDay ? "" : selDay.kind === "away" ? "AWAY, NOTHING SET" : selDay.kind === "school" ? "SCHOOL DAY" : selDay.kind === "halfterm" ? "HALF TERM" : selDay.kind === "holiday" ? "HOLIDAY" : selDay.kind === "sick" ? "RESTING" : "WEEKEND";
 
   return (
-    <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
+    <div style={{ padding: "0 18px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <span style={{ fontFamily: D, fontSize: 30, lineHeight: 0.9, letterSpacing: -1 }}>{MONTH_LONG[m - 1]}</span>
+        <span style={{ fontFamily: D, fontSize: 22, lineHeight: 0.9, letterSpacing: -0.5 }}>{MONTH_LONG[m - 1]}</span>
         <span style={{ fontSize: 9, color: "var(--c-5f5f67)" }}>{y}</span>
         <span style={{ flex: 1 }} />
         <Ms style={{ fontSize: 22, cursor: "pointer", color: "var(--c-8e8e97)" }}><span onClick={() => shift(-1)}>chevron_left</span></Ms>
@@ -342,7 +372,6 @@ function Plan() {
           })}
         </div>
       )}
-      <div style={{ fontSize: 9, color: "var(--c-5f5f67)", marginTop: 12, lineHeight: 1.5 }}>Term dates and weeks A/B: Churcher's College calendar. A white corner mark means a school date for your year.</div>
       <span style={{ display: "none" }}>{addDays(today, 0)}</span>
     </div>
   );
@@ -366,8 +395,7 @@ function Sick({ snap }: { snap: Snapshot }) {
   };
   if (already) {
     return (
-      <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
-        <div style={{ fontFamily: D, fontSize: 34, lineHeight: 1.02, marginBottom: 8 }}>resting today</div>
+      <div style={{ padding: "0 18px" }}>
         <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--c-8e8e97)", marginBottom: 22 }}>Tasks are paused and nothing counts against you. {cap(parent)} knows.</div>
         <div className="tap" onClick={() => send(null)} style={{ height: 50, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-f4f3ef)", color: "var(--c-0b0b0d)", fontSize: 11 }}>feeling better</div>
       </div>
@@ -375,8 +403,7 @@ function Sick({ snap }: { snap: Snapshot }) {
   }
   const opts = [["sick", "unwell, staying home", "ill"], ["healing", "injured", "hurt"], ["psychology", "bad day, need a pause", "flat"]] as const;
   return (
-    <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
-      <div style={{ fontFamily: D, fontSize: 34, lineHeight: 1.02, marginBottom: 8 }}>not well<br />today?</div>
+    <div style={{ padding: "0 18px" }}>
       <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--c-8e8e97)", marginBottom: 22 }}>Tasks pause. Nothing counts against you. {cap(parent)} is told straight away.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 22 }}>
         {opts.map(([icon, name, id]) => (
@@ -434,9 +461,6 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "wake word", meta: s.ai && s.wakeWord ? "NUDGE" : "OFF", on: s.ai && s.wakeWord, locked: !s.ai, go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
       { name: "what it knows about you", meta: "SEE ALL", on: true, go: () => setBrainOpen(true) },
     ] },
-    { head: "THIS PHONE", rows: [
-      { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
-    ] },
     { head: "THE WALL", rows: [
       { name: "icon keys", meta: s.iconKeys ? "SYMBOLS" : "WORDS", on: s.iconKeys, go: () => set({ iconKeys: !s.iconKeys }) },
       { name: "dim at night", meta: s.dimAtNight ? "AUTO" : "OFF", on: s.dimAtNight, go: () => set({ dimAtNight: !s.dimAtNight }) },
@@ -449,6 +473,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "birthdays", meta: `${bdays?.length ?? 0} SAVED`, on: true, go: () => setBdOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
+      { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
       { name: "google keep", meta: s.googleKeep ? "SHARE" : "LOCAL", on: s.googleKeep, go: () => set({ googleKeep: !s.googleKeep }) },
       ...(nat ? [{ name: "phone lock", meta: lock ? "IN SESSIONS" : "OFF", on: lock, go: () => void togglePhoneLock(!lock).then((m) => { toast(lock ? "lock_open" : "lock", m); void refreshLock(); }).catch((e) => toast("lock", String((e as Error).message || e))) }] : []),
       { name: "reminders", meta: notify ? "ON" : "OFF", on: notify, go: askNotify },
@@ -457,7 +482,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   ];
   const school = snap.school;
   return (
-    <div style={{ padding: "0 18px", animation: "aUp .3s ease-out" }}>
+    <div style={{ padding: "0 18px" }}>
       {groups.map((g) => (
         <div key={g.head} style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 8, letterSpacing: ".24em", color: "var(--c-6d6d77)", paddingBottom: 4 }}>{g.head}</div>

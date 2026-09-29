@@ -235,3 +235,18 @@ describe("school week + homework", () => {
     expect(hub.planHomework()).toEqual([]);
   });
 });
+
+describe("parent feed", () => {
+  it("shows progress, never what was asked or who was emailed", () => {
+    const hub = new Hub(new Db(":memory:"));
+    hub.feed("claim", "Claimed chemistry q1-8");
+    hub.feed("agent", "Asked the agent: am I in trouble with mr hale");
+    hub.feed("agent", "Email to mr hale ready to send on the computer");
+    hub.feed("device", "New owner device paired: phone");
+    hub.feed("school", 'Dismissed "Detention notice"');
+    hub.feed("school", "3 new from school");
+    const texts = hub.parentFeed().map((e) => e.text);
+    expect(texts).toEqual(["3 new from school", "Used the assistant", "Claimed chemistry q1-8"]);
+    expect(JSON.stringify(hub.parentFeed())).not.toMatch(/hale|Detention|paired/i);
+  });
+});

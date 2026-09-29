@@ -39,3 +39,4 @@ a { color: var(--c-ff4d17); text-decoration: none; }
 .tap:active { transform: scale(.97); }
 ::-webkit-scrollbar { width: 0; height: 0; }
 @keyframes hShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-3px)}40%,60%{transform:translateX(3px)}}
+@keyframes aSlideL{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}

@@ -851,6 +851,29 @@ export class Hub {
     return this.feedC.latest(limit);
   }
 
+  /**
+   * What the parent app's feed shows: how the day went, never what was said. No questions to the
+   * assistant, no email names, no school item titles, no devices or setup (those live in the
+   * parent's devices page). Assistant use shows as one plain line, once per half hour.
+   */
+  parentFeed(limit = 30): FeedEvent[] {
+    const out: FeedEvent[] = [];
+    let lastAgent = Infinity;
+    for (const e of this.feedC.latest(limit * 4)) {
+      if (out.length >= limit) break;
+      if (e.type === "device" || e.type === "settings") continue;
+      if (e.type === "school" && !/^(\d+ new from school|Homework set|No .* homework set|Signed (in to|out of) school|School calendar read)/.test(e.text)) continue;
+      if (e.type === "agent") {
+        if (lastAgent - e.ts < 30 * 60_000) continue;
+        lastAgent = e.ts;
+        out.push({ ...e, text: "Used the assistant" });
+        continue;
+      }
+      out.push(e);
+    }
+    return out;
+  }
+
   /** The parent app's week: claimed tasks, focused hours, switches, and each day's done/total + points. */
   stats(days = 7) {
     const today = this.todayKey();

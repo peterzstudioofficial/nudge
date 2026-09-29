@@ -7,6 +7,7 @@ import { bridge, useHubState } from "./bridge";
 type Mode = "list" | "breathe" | "sleep" | "pack" | "relax" | "shut";
 const D = "'ZCOOL QingKe HuangYou', sans-serif";
 const DOTO = "Doto, monospace";
+const countWord = (n: number) => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][n] ?? String(n);
 const Ms = ({ children, style }: { children: string; style?: React.CSSProperties }) => <span className="ms" style={style}>{children}</span>;
 
 export function Hud() {
@@ -223,7 +224,7 @@ export function Hud() {
           <Ms style={{ fontSize: 30, flex: "none", color: "#ff4d17", animation: mode === "pack" ? "wRelax .6s cubic-bezier(.2,1.1,.3,1) both" : "wRelax .7s cubic-bezier(.2,1.1,.3,1) both, wSway 4.4s ease-in-out 1s infinite" }}>{mode === "pack" ? "backpack" : "self_improvement"}</Ms>
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
             <span style={{ fontFamily: D, fontSize: 25, lineHeight: 1, animation: "wStep .5s cubic-bezier(.2,.9,.25,1) .1s both" }}>{mode === "pack" ? "pack your bag" : "time to relax"}</span>
-            {mode === "pack" && <span style={{ fontSize: 10, lineHeight: 1.3, color: "#9a9aa3" }}>{snap.bag.filter((b) => !b.got && !b.kept).length} books for tomorrow, list is on the wall</span>}
+            {mode === "pack" && <span style={{ fontSize: 10, lineHeight: 1.3, color: "#9a9aa3" }}>{countWord(snap.bag.filter((b) => !b.got && !b.kept).length)} {snap.bag.filter((b) => !b.got && !b.kept).length === 1 ? "book" : "books"} for tomorrow, list is on the wall</span>}
           </div>
         </div>
       )}

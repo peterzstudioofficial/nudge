@@ -18,21 +18,23 @@ export function ParentApp({ onUnpair }: { onUnpair: () => void }) {
   const [tab, setTab] = useState<Tab>("reward");
   const [rules, setRules] = useState(false);
   const title = tab === "tasks" ? "tasks" : tab === "reward" ? "reward" : "today";
+  const TABS = [["redeem", "reward"], ["checklist", "tasks"], ["timeline", "feed"]] as const;
+  const idx = TABS.findIndex(([, id]) => id === tab);
   return (
     <div className="page" style={{ background: "var(--c-f4f3ef)", color: "var(--c-111114)", paddingBottom: 40 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 34, padding: "0 18px", fontSize: 8, letterSpacing: ".1em", color: "var(--c-b2ada3)" }}>
-        <span>{online ? "CONNECTED TO THE WALL" : "OFFLINE · SHOWING LAST SYNC"}</span>
-        <Ms style={{ fontSize: 12 }}>{online ? "wifi" : "wifi_off"}</Ms>
-      </div>
-      <div style={{ padding: "4px 18px 14px", display: "flex", alignItems: "flex-end", gap: 10 }}>
-        <span style={{ fontFamily: D, fontSize: 30, lineHeight: 0.9, letterSpacing: -1 }}>{title}</span>
+      <header style={{ position: "sticky", top: 0, zIndex: 30, padding: "calc(env(safe-area-inset-top, 0px) + 16px) 18px 14px", background: "var(--c-f4f3ef)", display: "flex", alignItems: "flex-end", gap: 10 }}>
+        <span key={title} style={{ fontFamily: D, fontSize: 36, lineHeight: 0.82, letterSpacing: -1, animation: "aSwap .38s cubic-bezier(.32,.72,0,1) both" }}>{title}</span>
+        <span title={online ? "connected to the wall" : "offline — showing the last sync"} style={{ width: 7, height: 7, borderRadius: "50%", alignSelf: "flex-start", marginLeft: -4, background: online ? "var(--c-ff4d17)" : "var(--c-b2ada3)", animation: online ? "none" : "aBreath 2.4s ease-in-out infinite" }} />
         <span style={{ flex: 1 }} />
-        {([["redeem", "reward"], ["checklist", "tasks"], ["timeline", "feed"]] as const).map(([icon, id]) => (
-          <div key={id} className="tap" onClick={() => setTab(id)} style={{ width: 38, height: 38, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: tab === id ? "var(--c-111114)" : "var(--c-eae7e1)", transition: "background-color .35s cubic-bezier(.4,0,.2,1)" }}>
-            <Ms style={{ fontSize: 18, color: tab === id ? "var(--c-f4f3ef)" : "var(--c-8a8a92)", transition: "color .35s" }}>{icon}</Ms>
-          </div>
-        ))}
-      </div>
+        <nav style={{ position: "relative", display: "flex", padding: 3, borderRadius: 22, background: "var(--c-eae7e1)" }}>
+          <span style={{ position: "absolute", top: 3, left: 3, width: 40, height: 36, borderRadius: 18, background: "var(--c-111114)", transform: `translateX(${idx * 40}px)`, transition: "transform .48s cubic-bezier(.32,.72,0,1)" }} />
+          {TABS.map(([icon, id]) => (
+            <button key={id} aria-label={id} className="tap" onClick={() => setTab(id)} style={{ position: "relative", width: 40, height: 36, border: 0, padding: 0, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <Ms style={{ fontSize: 18, color: tab === id ? "var(--c-f4f3ef)" : "var(--c-8a8a92)", transition: "color .35s" }}>{icon}</Ms>
+            </button>
+          ))}
+        </nav>
+      </header>
       {!snap && <div style={{ padding: "30px 18px", fontSize: 11, color: "var(--c-8a8a92)" }}>connecting…</div>}
       {snap && tab === "reward" && <RewardTab snap={snap} openRules={() => setRules(true)} />}
       {snap && tab === "tasks" && <TasksTab snap={snap} />}
@@ -48,6 +50,7 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
   const client = getClient("parent")!;
   const { data: stats } = useHubGet<{ claimed: number; focusedSec: number; switched: number }>(client, "/api/stats");
   const [edit, setEdit] = useState(false);
+  const [pts, setPts] = useState<"pointsStart" | "pointsClaim" | null>(null);
   const r = snap.reward;
   const bank = Math.min(snap.bank, r.goal);
   const blocks = 12;
@@ -94,19 +97,19 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", marginBottom: 9 }}>POINTS PER TASK · THIS WEEK</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", marginBottom: 9 }}>POINTS PER TASK</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
         {[{ k: "starting a session", v: snap.settings.pointsStart, key: "pointsStart" as const }, { k: "finishing and claiming", v: snap.settings.pointsClaim, key: "pointsClaim" as const }].map((row) => (
-          <div key={row.k} style={{ display: "flex", alignItems: "center", height: 44, padding: "0 8px 0 15px", borderRadius: 13, background: "var(--c-eae7e1)" }}>
+          <div key={row.k} className={pts === row.key ? "" : "tap"} onClick={() => pts !== row.key && setPts(row.key)} style={{ display: "flex", alignItems: "center", height: 44, padding: "0 8px 0 15px", borderRadius: 13, background: "var(--c-eae7e1)", cursor: "pointer" }}>
             <span style={{ fontSize: 10 }}>{row.k}</span>
             <span style={{ flex: 1 }} />
-            <Stepper value={row.v} min={0} max={row.key === "pointsStart" ? 10 : 20} onChange={(v) => void client.send("PATCH", "/api/settings", { [row.key]: v }).then(() => client.snapshot()).catch(toastError)} prefix="+" />
+            {pts === row.key ? (
+              <Stepper value={row.v} min={0} max={row.key === "pointsStart" ? 10 : 20} onChange={(v) => void client.send("PATCH", "/api/settings", { [row.key]: v }).then(() => client.snapshot()).catch(toastError)} prefix="+" />
+            ) : (
+              <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 15, paddingRight: 7 }}>+{row.v}</span>
+            )}
           </div>
         ))}
-      </div>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 9, marginBottom: 20 }}>
-        <Ms style={{ fontSize: 14, color: "var(--c-a5a5ad)" }}>lock</Ms>
-        <span style={{ fontSize: 9, lineHeight: 1.45, color: "var(--c-8a8a92)" }}>Banked points cannot be taken away, and the start point is only given once per task.</span>
       </div>
       <div className="tap" onClick={openRules} style={{ display: "flex", alignItems: "center", gap: 10, height: 48, padding: "0 15px", borderRadius: 14, boxShadow: "inset 0 0 0 1.5px var(--c-dcd8d0)" }}>
         <Ms style={{ fontSize: 17, color: "var(--c-8a8a92)" }}>tune</Ms>
@@ -296,6 +299,7 @@ function FeedTab({ snap }: { snap: Snapshot }) {
   const task = sess ? snap.tasks.find((t) => t.id === sess.taskId) : null;
   const v = sess ? sessionView(sess, Date.now()) : null;
   const [confirm, setConfirm] = useState(false);
+  const [more, setMore] = useState(false);
   const end = async () => {
     try {
       await client.send("POST", "/api/session/end");
@@ -333,7 +337,7 @@ function FeedTab({ snap }: { snap: Snapshot }) {
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 20 }}>
-        {(stats?.history ?? []).slice(0, 5).map((h) => {
+        {(stats?.history ?? []).slice(0, 3).map((h) => {
           const full = h.total > 0 && h.done === h.total;
           return (
             <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, padding: "0 15px", borderRadius: 14, background: "var(--c-eae7e1)" }}>
@@ -346,7 +350,7 @@ function FeedTab({ snap }: { snap: Snapshot }) {
         })}
       </div>
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {(feed ?? []).map((f, i) => (
+        {(feed ?? []).slice(0, more ? 40 : 10).map((f, i) => (
           <div key={f.id} style={{ display: "flex", gap: 13, animation: "aSlide .3s ease-out both", animationDelay: `${Math.min(i, 8) * 0.06}s` }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 11, flex: "none" }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", marginTop: 5, flex: "none", background: ["claim", "unlock", "sick"].includes(f.type) ? "var(--c-ff4d17)" : "var(--c-c2beb6)" }} />
@@ -358,6 +362,7 @@ function FeedTab({ snap }: { snap: Snapshot }) {
             </div>
           </div>
         ))}
+        {!more && (feed?.length ?? 0) > 10 && <span className="tap" onClick={() => setMore(true)} style={{ fontSize: 9, letterSpacing: ".14em", color: "var(--c-8a8a92)", paddingLeft: 24 }}>SHOW EARLIER</span>}
       </div>
     </div>
   );

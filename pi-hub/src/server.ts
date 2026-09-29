@@ -329,7 +329,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     return hub.ackReward();
   });
   app.get("/api/stats", async (req) => (need(req, "read"), hub.stats()));
-  app.get("/api/feed", async (req) => (need(req, "read"), hub.recentFeed(40)));
+  app.get("/api/feed", async (req) => (need(req, "read").role === "parent" ? hub.parentFeed(40) : hub.recentFeed(40)));
 
   /* ---------------------------------- notes --------------------------------- */
   app.get("/api/notes", async (req) => (need(req, "notes"), hub.listNotes()));

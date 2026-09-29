@@ -25,7 +25,7 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
   };
 
   return (
-    <div style={{ padding: "4px 14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ padding: "0 18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
       {builds.map((a) => <AskCard key={a.id} a={a} />)}
 
       {jobs.map((j) => (
