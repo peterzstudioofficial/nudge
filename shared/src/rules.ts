@@ -39,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   newsFeed: "https://feeds.bbci.co.uk/news/england/hampshire/rss.xml",
   blockList: ["instagram.com", "tiktok.com", "snapchat.com", "x.com", "twitter.com", "reddit.com", "netflix.com", "twitch.tv"],
   studyOnlySites: ["youtube.com"],
+  blockApps: ["steam", "epicgameslauncher", "robloxplayerbeta", "discord", "minecraftlauncher", "battle.net", "riotclientservices", "leagueclient", "whatsapp", "telegram", "tiktok", "instagram", "netflix"],
   nfcTags: {},
   schoolPages: [],
   schoolMail: true,

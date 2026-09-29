@@ -440,6 +440,8 @@ export const Settings = z.object({
   newsFeed: z.string().url().or(z.literal("")),
   blockList: z.array(z.string().max(80)).max(100),
   studyOnlySites: z.array(z.string().max(80)).max(20),
+  /** computer apps kept out of the way during a session (process names, e.g. "steam") */
+  blockApps: z.array(z.string().max(60)).max(60),
   nfcTags: z.record(z.string(), NfcAction),
   schoolPages: z.array(z.object({ label: z.string().max(40), url: z.string().url() })).max(10),
   schoolMail: z.boolean(),
@@ -477,7 +479,7 @@ export type Settings = z.infer<typeof Settings>;
 /** Which settings each role may change. Everything else is read-only for them. */
 export const PARENT_SETTINGS: (keyof Settings)[] = [
   "parentName", "breakMins", "skipsPerDay", "maxTasksPerDay", "pointsStart", "pointsClaim",
-  "blockList", "studyOnlySites", "bedtime", "quietAfter11", "defaultMins",
+  "blockList", "studyOnlySites", "blockApps", "bedtime", "quietAfter11", "defaultMins",
 ];
 export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { HubClient, memoryKV, type Snapshot, type Handoff, hhmmToMinutes } from "@nudge/shared";
 import { loadPairing, savePairing, prefs, setPrefs, type Pairing } from "./store";
-import { Watcher, distraction } from "./watch";
+import { Watcher, distraction, writeControl } from "./watch";
 import { signInToSchool, openDraft } from "./school";
 import { startBlocker, blockerKey, BLOCKER_PORT } from "./blocker";
 import { claudeCapabilities, handleClaude } from "./claude";
@@ -29,7 +29,10 @@ let pairWin: BrowserWindow | null = null;
 let client: HubClient | null = null;
 let pairing: Pairing | null = null;
 let snap: Snapshot | null = null;
-const watcher = new Watcher();
+const CONTROL = path.join(app.getPath("userData"), "focus.json");
+const watcher = new Watcher(CONTROL);
+/** Blocked apps are kept minimised while a session is running (not on a break). */
+const syncBlocking = (s: Snapshot | null) => writeControl(CONTROL, s?.session?.state === "running", s?.settings.blockApps ?? []);
 const openHandoffs = new Set<string>();
 
 /* --------------------------------- windows -------------------------------- */
@@ -318,6 +321,7 @@ function connect(p: Pairing) {
   client.onSnapshot((s) => {
     const before = snap;
     snap = s;
+    syncBlocking(s);
     broadcast("snapshot", s);
     onSnapshot(before, s);
     buildTray();
@@ -338,6 +342,7 @@ function unpair() {
   client = null;
   pairing = null;
   snap = null;
+  syncBlocking(null);
   savePairing(null);
   hud?.close();
   buildTray();
@@ -386,8 +391,19 @@ function onSnapshot(before: Snapshot | null, s: Snapshot) {
   }
 }
 
+const lastBlockToast = new Map<string, number>();
 watcher.on((f) => {
   const s = snap;
+  if (f.blocked && s?.session) {
+    // The watcher already put it away; say why, at most every 20 s per app.
+    const now = Date.now();
+    if (now - (lastBlockToast.get(f.process) ?? 0) > 20_000) {
+      lastBlockToast.set(f.process, now);
+      const task = s.tasks.find((t) => t.id === s.session!.taskId);
+      void notify({ icon: "block", line: `not now :) ${f.process} waits until ${task?.name ?? "this session"} is done.`, sub: "BLOCKED DURING A SESSION", ms: 4200 });
+    }
+    return;
+  }
   if (!s || s.session?.state !== "running" || !prefs().watchApps) return;
   const name = distraction(f, s.settings.blockList);
   if (!name) return;
@@ -495,12 +511,19 @@ app.on("window-all-closed", () => {
   /* keep running in the tray */
 });
 
+app.on("will-quit", () => {
+  syncBlocking(null);
+  watcher.stop();
+});
+
 void app.whenReady().then(() => {
   applyLogin();
   buildTray();
   startBlocker(() => snap);
   extensionDir();
+  syncBlocking(null);
   watcher.start();
+  setInterval(() => syncBlocking(snap), 30_000);
   const p = loadPairing();
   if (p) {
     connect(p);

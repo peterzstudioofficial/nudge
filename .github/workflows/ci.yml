@@ -101,6 +101,9 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build -w shared
+      - name: app blocker loop runs on real Windows and quits with Nudge
+        working-directory: windows-desktop
+        run: node scripts/check-watcher.mjs
       - run: npm run dist -w windows-desktop
       - uses: actions/upload-artifact@v4
         with:

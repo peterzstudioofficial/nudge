@@ -2,7 +2,7 @@
   "name": "nudge",
   "private": true,
   "version": "0.1.0",
-  "description": "Nudge \u2014 the ND-1 wall device, its hub, and the apps that sync with it.",
+  "description": "Nudge — the ND-1 wall device, its hub, and the apps that sync with it.",
   "workspaces": [
     "shared",
     "pi-hub",
@@ -15,7 +15,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "npm run build -w shared && npm run build -w pi-screen && npm run build -w apps && npm run build -w pi-hub",
     "build:desktop": "npm run build && npm run dist -w windows-desktop",
-    "test": "npm run test -w shared && npm run test -w pi-hub",
+    "test": "npm run test -w shared && npm run test -w pi-hub && npm run test -w windows-desktop",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "bundle:pi": "node scripts/bundle-pi.mjs"
   },

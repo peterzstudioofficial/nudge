@@ -376,6 +376,7 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
   const { data: devices, reload } = useHubGet<Device[]>(client, open ? "/api/devices" : null);
   const [code, setCode] = useState<string | null>(null);
   const [block, setBlock] = useState("");
+  const [appName, setAppName] = useState("");
   const set = (p: Partial<Settings>) => void client.send("PATCH", "/api/settings", p).then(() => client.snapshot()).catch(toastError);
   const makeCode = async (role: "parent" | "owner") => {
     try {
@@ -416,6 +417,20 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
         <Btn style={{ width: 80, height: 44 }} onClick={() => { const b = block.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""); if (b) { set({ blockList: [...new Set([...s.blockList, b])] }); setBlock(""); } }}>add</Btn>
       </div>
       <span style={{ display: "block", fontSize: 9, color: "var(--c-8a8a92)", lineHeight: 1.5, marginBottom: 18 }}>Study-only: {s.studyOnlySites.join(", ") || "none"} — open for videos that match today's tasks.</span>
+
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "0 0 8px" }}>APPS KEPT AWAY DURING A SESSION (COMPUTER)</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        {s.blockApps.map((b) => (
+          <span key={b} className="tap" onClick={() => set({ blockApps: s.blockApps.filter((x) => x !== b) })} style={{ display: "flex", alignItems: "center", gap: 5, height: 30, padding: "0 10px", borderRadius: 9, background: "var(--c-eae7e1)", fontSize: 10 }}>
+            {b}<Ms style={{ fontSize: 13, color: "var(--c-a5a5ad)" }}>close</Ms>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <input style={{ ...inputStyle(false), flex: 1 }} value={appName} onChange={(e) => setAppName(e.target.value)} placeholder="add an app, e.g. fortnite" autoCapitalize="off" />
+        <Btn style={{ width: 80, height: 44 }} onClick={() => { const b = appName.trim().toLowerCase().replace(/\.exe$/, ""); if (/^[a-z0-9 ._-]{2,60}$/.test(b)) { set({ blockApps: [...new Set([...s.blockApps, b])] }); setAppName(""); } }}>add</Btn>
+      </div>
+      <span style={{ display: "block", fontSize: 9, color: "var(--c-8a8a92)", lineHeight: 1.5, marginBottom: 18 }}>They're minimised the moment they're opened during a session, every time. Nothing is closed, so no work is lost.</span>
 
       <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "4px 0 8px" }}>DEVICES</div>
       {(devices ?? []).map((d) => (
