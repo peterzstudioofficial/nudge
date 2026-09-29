@@ -19,6 +19,7 @@
     "@huggingface/tokenizers": "^0.2.0",
     "@nudge/shared": "*",
     "fastify": "^5.6.0",
+    "fflate": "^0.8.3",
     "onnxruntime-node": "^1.30.0",
     "pdfjs-dist": "^4.10.38",
     "playwright-core": "^1.55.0",

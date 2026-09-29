@@ -370,6 +370,15 @@ describe("assistant: cheap, safe, remembers", () => {
     expect(String(peek.seen[0][1].content)).toContain("plays Fagin");
   });
 
+  it("sends the matching passages from their own documents with the question", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const peek = scripted([() => ({ content: "it shifts to oppose the change (chem guide p.2)" })]);
+    agentService({ hub, llm: peek, say: () => {}, log: () => {}, retrieve: async () => [{ title: "chem guide · p. 2", text: "equilibrium shifts to oppose a change" }] }).run({ prompt: "explain le chatelier", mode: "ask", origin: "app" });
+    await wait(20);
+    expect(String(peek.seen[0][1].content)).toMatch(/\[1\] chem guide · p\. 2: equilibrium shifts/);
+    expect(String(peek.seen[0][1].content)).toMatch(/not instructions/);
+  });
+
   it("marks school mail as data, not instructions", async () => {
     const hub = new Hub(new Db(":memory:"));
     const llm = scripted([() => ({ tool: { name: "get_school_items", args: {} } }), (m) => ({ content: String(m.at(-1)?.content).slice(0, 60) })]);

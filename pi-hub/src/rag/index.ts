@@ -3,6 +3,7 @@ import { addDays, SUBJECT_NAMES, matchTeacher } from "@nudge/shared";
 import type { Hub } from "../hub";
 import { cosine, type Embedder } from "./embed";
 import { memories } from "../agent/brain";
+import { chunk, docPages, listDocs } from "./library";
 
 /**
  * Private search over everything on the wall: notes and voice-note transcripts, school mail
@@ -19,6 +20,9 @@ export interface Hit {
   text: string;
   date: string | null;
   score: number;
+  /** how sure the match is: cosine similarity (if embeddings are on) and share of the question's words found */
+  cos: number;
+  cover: number;
 }
 
 interface Doc {
@@ -44,7 +48,10 @@ export class PersonalIndex {
   private df = new Map<string, number>();
   private avgLen = 1;
   private dirty = true;
+  /** the hub's change counter when the index was last built (changes bump it synchronously) */
+  private builtRev = -1;
   private building: Promise<void> | null = null;
+  private libCache = new Map<string, Doc[]>();
 
   constructor(private hub: Hub, private embedder: Embedder | null = null, private log: (m: string) => void = () => {}) {
     hub.db.sql.exec("CREATE TABLE IF NOT EXISTS rag (id TEXT PRIMARY KEY, hash TEXT NOT NULL, vec BLOB)");
@@ -63,8 +70,25 @@ export class PersonalIndex {
     const today = h.todayKey();
     const out: Doc[] = [];
     for (const n of h.listNotes()) {
-      out.push({ id: `note:${n.id}`, kind: n.kind === "voice" ? "voice note" : n.kind, title: n.label, text: `${n.label}\n${n.body}\n${n.tags.join(" ")}`, date: new Date(n.createdAt).toISOString().slice(0, 10) });
+      const kind = n.kind === "voice" ? "voice note" : n.kind;
+      const date = new Date(n.createdAt).toISOString().slice(0, 10);
+      // Long notes are searched passage by passage, so the right paragraph comes back.
+      const parts = n.body.length > 1200 ? chunk(n.body) : [n.body];
+      parts.forEach((part, k) => out.push({ id: parts.length > 1 ? `note:${n.id}:${k}` : `note:${n.id}`, kind, title: n.label, text: `${n.label}\n${part}${k === 0 ? "\n" + n.tags.join(" ") : ""}`, date }));
     }
+    // The library: passages with their page numbers (cached; documents never change once added).
+    for (const d of listDocs(h)) {
+      let passages = this.libCache.get(d.id);
+      if (!passages) {
+        passages = [];
+        for (const pg of docPages(h, d.id)) {
+          chunk(pg.text).forEach((text, k) => passages!.push({ id: `lib:${d.id}:${pg.n}:${k}`, kind: "document", title: d.pages > 1 ? `${d.title} · ${d.kind === "slides" ? "slide" : "p."} ${pg.n}` : d.title, text, date: new Date(d.addedAt).toISOString().slice(0, 10) }));
+        }
+        this.libCache.set(d.id, passages);
+      }
+      out.push(...passages);
+    }
+    for (const id of this.libCache.keys()) if (!listDocs(h).some((d) => d.id === id)) this.libCache.delete(id);
     for (const i of h.school.all()) {
       out.push({ id: `school:${i.id}`, kind: i.source === "mail" ? "school email" : "school page", title: i.title, text: `${i.title}\nfrom ${i.from}\n${i.preview}`, date: i.due ?? new Date(i.receivedAt).toISOString().slice(0, 10) });
     }
@@ -90,10 +114,11 @@ export class PersonalIndex {
 
   /** Bring the index up to date. Only new or changed documents are embedded. */
   async refresh(): Promise<void> {
-    if (!this.dirty) return;
+    if (!this.dirty && this.builtRev === this.hub.bus.rev) return;
     if (this.building) return this.building;
     this.building = (async () => {
       this.dirty = false;
+      this.builtRev = this.hub.bus.rev;
       const docs = this.collect();
       const stored = new Map(
         (this.hub.db.sql.prepare("SELECT id, hash, vec FROM rag").all() as { id: string; hash: string; vec: Uint8Array | null }[]).map((r) => [r.id, r]),
@@ -158,6 +183,7 @@ export class PersonalIndex {
     }
     const ranks = new Map<string, number>();
     [...bm.entries()].sort((a, b) => b[1] - a[1]).forEach(([id], i) => ranks.set(id, (ranks.get(id) ?? 0) + 1 / (60 + i)));
+    const cosOf = new Map<string, number>();
     if (this.embedder && this.vecs.size) {
       try {
         const [qv] = await this.embedder.embed([query]);
@@ -165,20 +191,48 @@ export class PersonalIndex {
           .map(([id, v]) => [id, cosine(qv, v)] as const)
           .filter(([, s]) => s > 0.25)
           .sort((a, b) => b[1] - a[1])
-          .slice(0, 40)
-          .forEach(([id], i) => ranks.set(id, (ranks.get(id) ?? 0) + 1 / (60 + i)));
+          .slice(0, 60)
+          .forEach(([id, c], i) => {
+            cosOf.set(id, c);
+            ranks.set(id, (ranks.get(id) ?? 0) + 1 / (60 + i));
+          });
       } catch {
         /* keywords still work */
       }
     }
-    return [...ranks.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, k)
-      .map(([id, score]) => {
-        const d = this.docs.get(id)!;
-        return { id, kind: d.kind, title: d.title, text: d.text.slice(0, 400), date: d.date, score: Math.round(score * 1e4) / 1e4 };
-      })
-      .filter((h) => h);
+    const qset = new Set(q);
+    const out: Hit[] = [];
+    const perDoc = new Map<string, number>();
+    for (const [id, score] of [...ranks.entries()].sort((a, b) => b[1] - a[1])) {
+      const d = this.docs.get(id);
+      if (!d) continue;
+      // At most two passages from the same document or note, so answers draw on more than one.
+      const parent = id.split(":").slice(0, 2).join(":");
+      if ((perDoc.get(parent) ?? 0) >= 2) continue;
+      perDoc.set(parent, (perDoc.get(parent) ?? 0) + 1);
+      const toks = new Set(d.tokens);
+      const cover = qset.size ? [...qset].filter((w) => toks.has(w) || [...toks].some((x) => w.length > 4 && x.startsWith(w.slice(0, -1)))).length / qset.size : 0;
+      out.push({ id, kind: d.kind, title: d.title, text: d.text.slice(0, d.kind === "document" ? 900 : 400), date: d.date, score: Math.round(score * 1e4) / 1e4, cos: Math.round((cosOf.get(id) ?? 0) * 100) / 100, cover: Math.round(cover * 100) / 100 });
+      if (out.length >= k) break;
+    }
+    return out;
+  }
+
+  /**
+   * The passages worth sending with a question without being asked for: only confident matches
+   * (close in meaning, or most of the question's words present), a few, and short.
+   */
+  async relevant(question: string, max = 3, budget = 1400): Promise<Hit[]> {
+    if (tokenise(question).length < 2) return [];
+    const hits = (await this.search(question, 8)).filter((h) => h.cos >= 0.5 || (h.cover >= 0.67 && tokenise(question).length >= 2));
+    const out: Hit[] = [];
+    let used = 0;
+    for (const h of hits) {
+      if (out.length >= max || used + h.text.length > budget) break;
+      out.push(h);
+      used += h.text.length;
+    }
+    return out;
   }
 
   get size(): number {

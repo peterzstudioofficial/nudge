@@ -10,6 +10,7 @@ import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 import { ToolsTab } from "./ToolsTab";
 import { AskCard } from "./AskCard";
 import { BrainSheet } from "./Brain";
+import { LibrarySheet } from "./Library";
 import { setThemePref, themePref, type ThemePref } from "../lib/theme";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
@@ -439,6 +440,8 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   const bdays = cfg?.birthdays;
   const [bdOpen, setBdOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
+  const [libOpen, setLibOpen] = useState(false);
+  const { data: lib } = useHubGet<unknown[]>(client, "/api/library", [libOpen]);
   const nat = native();
   const [lock, setLock] = useState(false);
   const refreshLock = async () => {
@@ -460,6 +463,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "assistant", meta: s.ai ? "ON" : "OFF", on: s.ai, go: () => set({ ai: !s.ai, ...(s.ai ? { wakeWord: false } : {}) }) },
       { name: "wake word", meta: s.ai && s.wakeWord ? "NUDGE" : "OFF", on: s.ai && s.wakeWord, locked: !s.ai, go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
       { name: "what it knows about you", meta: "SEE ALL", on: true, go: () => setBrainOpen(true) },
+      { name: "documents it can read", meta: `${lib?.length ?? 0} ${lib?.length === 1 ? "FILE" : "FILES"}`, on: true, go: () => setLibOpen(true) },
     ] },
     { head: "THE WALL", rows: [
       { name: "icon keys", meta: s.iconKeys ? "SYMBOLS" : "WORDS", on: s.iconKeys, go: () => set({ iconKeys: !s.iconKeys }) },
@@ -509,6 +513,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       <div style={{ fontSize: 9, color: "var(--c-43434c)", marginTop: 14 }}>{snap.termLabel.toLowerCase()} · nudge 0.1.0</div>
       <Birthdays open={bdOpen} onClose={() => setBdOpen(false)} list={bdays ?? []} saved={reload} />
       <BrainSheet open={brainOpen} onClose={() => setBrainOpen(false)} />
+      <LibrarySheet open={libOpen} onClose={() => setLibOpen(false)} />
     </div>
   );
 }

@@ -109,6 +109,7 @@ async function main() {
       ],
       say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms),
       speak: (text) => void tts.speak(text),
+      retrieve: (q) => index.relevant(q),
       log,
     }),
     hw: {

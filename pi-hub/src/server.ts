@@ -19,6 +19,7 @@ import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
 import { estimateBuild, iconFor } from "./builder/builder";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import { forget, memories, remember } from "./agent/brain";
+import { addDoc, docFile, listDocs, removeDoc } from "./rag/library";
 import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
 import { HttpError } from "./errors";
@@ -599,6 +600,34 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     if (c.role === "screen") throw new HttpError(403, "not here");
     return c;
   };
+  // The library: documents the assistant can read. Owner's phone and computer only.
+  app.get("/api/library", async (req) => (brainCaller(req), [...listDocs(hub)].sort((a, b) => b.addedAt - a.addedAt)));
+  app.post("/api/library", { bodyLimit: 26 * 1024 * 1024 }, async (req) => {
+    brainCaller(req);
+    const { name } = parse(z.object({ name: z.string().min(1).max(160) }), req.query);
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || !body.length) throw new HttpError(400, "no file");
+    const doc = await addDoc(hub, { name, mime: String(req.headers["content-type"] ?? ""), data: new Uint8Array(body) });
+    hub.feed("notes", `Added "${doc.title}" to the library`);
+    return doc;
+  });
+  app.delete("/api/library/:id", async (req) => {
+    brainCaller(req);
+    if (!removeDoc(hub, (req.params as { id: string }).id)) throw new HttpError(404, "not found");
+    return { ok: true };
+  });
+  app.get("/api/library/:id/file", async (req, reply) => {
+    brainCaller(req);
+    const id = (req.params as { id: string }).id;
+    const f = docFile(hub, id);
+    const d = listDocs(hub).find((x) => x.id === id);
+    if (!f || !d) throw new HttpError(404, "not found");
+    const ext = { pdf: "pdf", word: "docx", slides: "pptx", text: "txt" }[d.kind];
+    const type = { pdf: "application/pdf", word: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", slides: "application/vnd.openxmlformats-officedocument.presentationml.presentation", text: "text/plain; charset=utf-8" }[d.kind];
+    reply.header("content-type", type).header("content-disposition", `inline; filename="${d.title.replace(/[^\w .-]/g, "")}.${ext}"`).header("x-content-type-options", "nosniff").header("content-security-policy", "sandbox");
+    return reply.send(Buffer.from(f.data));
+  });
+
   app.get("/api/brain", async (req) => (brainCaller(req), [...memories(hub)].sort((a, b) => b.createdAt - a.createdAt)));
   app.post("/api/brain", async (req) => {
     brainCaller(req);
