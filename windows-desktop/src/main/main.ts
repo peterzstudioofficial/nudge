@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray, clipboard } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { HubClient, memoryKV, type Snapshot, type Handoff, hhmmToMinutes } from "@nudge/shared";
+import { HubClient, memoryKV, focusPlan, type Snapshot, type Handoff, hhmmToMinutes } from "@nudge/shared";
 import { loadPairing, savePairing, prefs, setPrefs, type Pairing } from "./store";
 import { Watcher, distraction, writeControl } from "./watch";
 import { signInToSchool, openDraft } from "./school";
@@ -32,7 +32,10 @@ let snap: Snapshot | null = null;
 const CONTROL = path.join(app.getPath("userData"), "focus.json");
 const watcher = new Watcher(CONTROL);
 /** Blocked apps are kept minimised while a session is running (not on a break). */
-const syncBlocking = (s: Snapshot | null) => writeControl(CONTROL, s?.session?.state === "running", s?.settings.blockApps ?? []);
+const syncBlocking = (s: Snapshot | null) => {
+  const task = s?.session ? s.tasks.find((t) => t.id === s.session!.taskId) : null;
+  writeControl(CONTROL, s?.session?.state === "running", s ? focusPlan(s.settings, task?.subject ?? null).apps : []);
+};
 const openHandoffs = new Set<string>();
 
 /* --------------------------------- windows -------------------------------- */
@@ -427,7 +430,8 @@ watcher.on((f) => {
     return;
   }
   if (!s || s.session?.state !== "running" || !prefs().watchApps) return;
-  const name = distraction(f, s.settings.blockList);
+  const cur = s.tasks.find((t) => t.id === s.session!.taskId);
+  const name = distraction(f, focusPlan(s.settings, cur?.subject ?? null).sites);
   if (!name) return;
   const now = Date.now();
   lastDrift = [...lastDrift.filter((d) => now - d.at < 60_000), { name, at: now }];

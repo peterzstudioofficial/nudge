@@ -376,6 +376,8 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
   const { data: devices, reload } = useHubGet<Device[]>(client, open ? "/api/devices" : null);
   const [code, setCode] = useState<string | null>(null);
   const [block, setBlock] = useState("");
+  const [gateName, setGateName] = useState("");
+  const [gateSubject, setGateSubject] = useState("art");
   const [appName, setAppName] = useState("");
   const set = (p: Partial<Settings>) => void client.send("PATCH", "/api/settings", p).then(() => client.snapshot()).catch(toastError);
   const makeCode = async (role: "parent" | "owner") => {
@@ -431,6 +433,35 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
         <Btn style={{ width: 80, height: 44 }} onClick={() => { const b = appName.trim().toLowerCase().replace(/\.exe$/, ""); if (/^[a-z0-9 ._-]{2,60}$/.test(b)) { set({ blockApps: [...new Set([...s.blockApps, b])] }); setAppName(""); } }}>add</Btn>
       </div>
       <span style={{ display: "block", fontSize: 9, color: "var(--c-8a8a92)", lineHeight: 1.5, marginBottom: 18 }}>They're minimised the moment they're opened during a session, every time. Nothing is closed, so no work is lost.</span>
+
+      <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "0 0 8px" }}>OPEN WHEN THE TASK IS FOR A SUBJECT</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
+        {[...new Map(s.focusAllow.map((r) => [r.name.replace(/\.(com|co\.uk)$/, ""), r])).entries()].map(([label, r]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 10px", borderRadius: 10, background: "var(--c-eae7e1)", fontSize: 10 }}>
+            <Ms style={{ fontSize: 14, color: "var(--c-8a8a92)" }}>palette</Ms>
+            <span style={{ flex: 1 }}>{label}</span>
+            <span style={{ fontSize: 8, letterSpacing: ".12em", color: "var(--c-8a8a92)" }}>{r.subjects.map((x) => (SUBJECT_NAMES[x] ?? x).toUpperCase()).join(" · ")}</span>
+            <span className="tap" onClick={() => set({ focusAllow: s.focusAllow.filter((x) => x.name.replace(/\.(com|co\.uk)$/, "") !== label) })}><Ms style={{ fontSize: 13, color: "var(--c-a5a5ad)" }}>close</Ms></span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <input style={{ ...inputStyle(false), flex: 1, minWidth: 0 }} value={gateName} onChange={(e) => setGateName(e.target.value)} placeholder="site or app, e.g. canva.com" autoCapitalize="off" />
+        <select value={gateSubject} onChange={(e) => setGateSubject(e.target.value)} style={{ ...inputStyle(false), width: 104 }}>
+          {["art", "drama", "music", "biz", "eng", "cs", "maths", "chem", "physics", "bio", "re", "history", "geog"].map((k) => <option key={k} value={k}>{SUBJECT_NAMES[k] ?? k}</option>)}
+        </select>
+        <Btn style={{ width: 64, height: 44 }} onClick={() => {
+          const n = gateName.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+          if (!/^[a-z0-9 ._-]{2,80}$/.test(n)) return;
+          const cur = s.focusAllow.find((x) => x.name === n);
+          const next = cur ? s.focusAllow.map((x) => (x.name === n ? { ...x, subjects: [...new Set([...x.subjects, gateSubject])] } : x)) : [...s.focusAllow, { name: n, subjects: [gateSubject] }];
+          // It only means something if it's blocked in the first place.
+          const isSite = n.includes(".");
+          set({ focusAllow: next, ...(isSite ? { blockList: [...new Set([...s.blockList, n])] } : { blockApps: [...new Set([...s.blockApps, n])] }) });
+          setGateName("");
+        }}>add</Btn>
+      </div>
+      <span style={{ display: "block", fontSize: 9, color: "var(--c-8a8a92)", lineHeight: 1.5, marginBottom: 18 }}>Blocked in every other session. School tools (Teams, Outlook, Office, SharePoint, revision sites) are never blocked, whatever is on these lists.</span>
 
       <div style={{ fontSize: 8, letterSpacing: ".22em", color: "var(--c-a5a5ad)", margin: "4px 0 8px" }}>DEVICES</div>
       {(devices ?? []).map((d) => (

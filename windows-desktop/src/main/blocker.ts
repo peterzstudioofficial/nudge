@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
-import { tint, type Snapshot } from "@nudge/shared";
+import { focusPlan, tint, type Snapshot } from "@nudge/shared";
 
 /**
  * A tiny local endpoint for the Nudge browser extension (Chrome / Edge). The extension asks
@@ -81,9 +81,11 @@ export function startBlocker(get: () => Snapshot | null, connector?: Connector):
     const sess = s?.session;
     const task = sess ? s!.tasks.find((t) => t.id === sess.taskId) : null;
     const worked = sess ? (sess.state === "running" && sess.runningSince ? sess.workedSec + (Date.now() - sess.runningSince) / 1000 : sess.workedSec) : 0;
+    const plan = s ? focusPlan(s.settings, task?.subject ?? null) : { sites: [], apps: [], allowed: [] };
     const body = {
       active: !!sess && sess.state !== "break",
-      blockList: s?.settings.blockList ?? [],
+      blockList: plan.sites,
+      allowed: plan.allowed,
       studyOnly: s?.settings.studyOnlySites ?? [],
       open: (s?.settings.schoolPages ?? []).map((x) => { try { return new URL(x.url).hostname; } catch { return ""; } }).filter(Boolean),
       task: task ? { name: task.name, subject: task.subject, tint: tint(task.subject) } : null,

@@ -37,9 +37,18 @@ export const DEFAULT_SETTINGS: Settings = {
   pointsClaim: 3,
   location: { name: "Petersfield", lat: 51.0036, lon: -0.9349 },
   newsFeed: "https://feeds.bbci.co.uk/news/england/hampshire/rss.xml",
-  blockList: ["instagram.com", "tiktok.com", "snapchat.com", "x.com", "twitter.com", "reddit.com", "netflix.com", "twitch.tv"],
+  blockList: [
+    "instagram.com", "tiktok.com", "snapchat.com", "x.com", "twitter.com", "facebook.com", "threads.net", "reddit.com", "netflix.com",
+    "disneyplus.com", "primevideo.com", "twitch.tv", "kick.com", "roblox.com", "discord.com", "web.whatsapp.com", "pinterest.com", "pinterest.co.uk",
+  ],
   studyOnlySites: ["youtube.com"],
-  blockApps: ["steam", "epicgameslauncher", "robloxplayerbeta", "discord", "minecraftlauncher", "battle.net", "riotclientservices", "leagueclient", "whatsapp", "telegram", "tiktok", "instagram", "netflix"],
+  blockApps: ["steam", "epicgameslauncher", "robloxplayerbeta", "discord", "minecraftlauncher", "battle.net", "riotclientservices", "leagueclient", "whatsapp", "telegram", "tiktok", "instagram", "netflix", "pinterest"],
+  // Pinterest is a distraction most of the time, and a mood board in art or drama.
+  focusAllow: [
+    { name: "pinterest.com", subjects: ["art", "drama"] },
+    { name: "pinterest.co.uk", subjects: ["art", "drama"] },
+    { name: "pinterest", subjects: ["art", "drama"] },
+  ],
   nfcTags: {},
   schoolPages: [],
   schoolMail: true,
