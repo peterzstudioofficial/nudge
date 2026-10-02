@@ -6,7 +6,7 @@ import { Screen } from "./ui/Screen";
 import { useDevice } from "./device/useDevice";
 import { attachKeyboard } from "./input";
 import type { Mode } from "./device/types";
-import type { WallCard } from "@nudge/shared";
+import { BUILTIN_GLYPHS, glyphCell, glyphFrameAt, type GlyphFrame, type WallCard } from "@nudge/shared";
 
 /** Sample cards to preview the assistant's screens (shown locally; the hub doesn't know). */
 const CARDS: Record<string, WallCard> = {
@@ -170,9 +170,13 @@ function Panel() {
           </div>
 
           <div style={{ position: "absolute", left: 600, top: 378, display: "grid", gridTemplateColumns: "repeat(5,34px)", gridTemplateRows: "repeat(5,34px)", gap: 32 }}>
-            {panel.leds.map((l, i) => (
-              <span key={i + panel.pat} style={{ width: 34, height: 34, borderRadius: "50%", background: l.bg, opacity: l.o, boxShadow: l.glow, animation: l.anim, animationDelay: l.delay, transition: "background-color .5s cubic-bezier(.4,0,.2,1),opacity .45s ease,box-shadow .5s ease" }} />
-            ))}
+            {panel.glyph ? (
+              <GlyphCells key={panel.glyphName} glyph={panel.glyph} />
+            ) : (
+              panel.leds.map((l, i) => (
+                <span key={i + panel.pat} style={{ width: 34, height: 34, borderRadius: "50%", background: l.bg, opacity: l.o, boxShadow: l.glow, animation: l.anim, animationDelay: l.delay, transition: "background-color .5s cubic-bezier(.4,0,.2,1),opacity .45s ease,box-shadow .5s ease" }} />
+              ))
+            )}
           </div>
           <div style={{ position: "absolute", left: 600, top: 658, width: 298, textAlign: "center", fontSize: 8, letterSpacing: ".26em", color: "#a8a69e" }}>{panel.ledLabel}</div>
         </div>
@@ -254,6 +258,10 @@ function Panel() {
           />
         </Row>
         <Row label="states">{STATES.map((m) => btn(m, effective === m, () => d.jump(m)))}</Row>
+        <Row label="lights">
+          {BUILTIN_GLYPHS.map((g) => btn(g.name, panel.glyphName === g.name, () => void d.client.send("POST", "/api/lights/play", { ref: g.name, secs: 8 }).catch(() => {})))}
+          {btn("text: hi peter", false, () => void d.client.send("POST", "/api/lights/play", { text: "hi peter" }).catch(() => {}), true)}
+        </Row>
         <Row label="cards">
           {Object.entries(CARDS).map(([k, c]) =>
             btn(k, effective === "show" && d.card()?.kind === c.kind, () => {
@@ -269,6 +277,25 @@ function Panel() {
         </span>
       </div>
     </div>
+  );
+}
+
+/** A glyph on the drawn matrix, animated the way the Pi does it (frames at the glyph's own speed). */
+function GlyphCells({ glyph }: { glyph: GlyphFrame }) {
+  const [t0] = useState(() => Date.now());
+  const [f, setF] = useState(0);
+  useEffect(() => {
+    if (glyph.frames.length < 2) return;
+    const iv = setInterval(() => setF(glyphFrameAt(glyph, Date.now() - t0)), 1000 / glyph.fps / 2);
+    return () => clearInterval(iv);
+  }, [glyph, t0]);
+  return (
+    <>
+      {Array.from({ length: 25 }, (_, i) => {
+        const c = glyphCell(glyph, f, i);
+        return <span key={i} style={{ width: 34, height: 34, borderRadius: "50%", background: c || "#d2d0c8", boxShadow: c ? `0 0 18px 3px ${c}73,inset 0 1px 2px #ffffff59` : "inset 0 2px 4px #00000026", transition: glyph.fade ? `background-color ${1 / glyph.fps}s ease, box-shadow ${1 / glyph.fps}s ease` : "none" }} />;
+      })}
+    </>
   );
 }
 

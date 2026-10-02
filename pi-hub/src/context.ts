@@ -70,6 +70,8 @@ export interface Ctx {
   wake?: import("./voice/wake").WakeService;
   /** what the assistant put up on the wall */
   wall?: import("./wall/cards").WallCards;
+  /** the 5×5 lights' content: packs, and what's playing */
+  lights?: import("./wall/lights").Lights;
   /** builds tools (small apps) after a yes */
   builder?: BuilderService;
   /** the OpenRouter key (hub.env, or connected from setup) */

@@ -144,6 +144,15 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
   once a key is installed.
 - Node.js is downloaded from nodejs.org and checked against its published SHA-256 before install.
   Tailscale comes from its signed apt repo.
+- The wake word runs on the Pi: the mic daemon only opens the microphone while listening is on
+  (assistant on, wake word on, not night, mic switch on), and only sends audio to the hub while
+  someone is talking. The spotter's model (~5 MB) is downloaded at install and checked against
+  its SHA-256. Nothing it hears is saved or leaves the Pi; the question after "nudge" goes the
+  same way as pressing the touch pad.
+- What the assistant puts on the wall (answers, document pages, timers) and what plays on the
+  lights is never sent to the parent app. Light packs are checked against a strict format before
+  they're stored (owner's phone or computer only, 10 packs, 40 glyphs each); they're data, never
+  code.
 
 ## Reporting
 

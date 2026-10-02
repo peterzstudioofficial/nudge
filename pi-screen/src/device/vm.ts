@@ -1,4 +1,4 @@
-import { hhmm, mmss, tint, SUBJECT_NAMES, DAY_SHORT, MONTH_SHORT, freeBy, hhmmToMinutes } from "@nudge/shared";
+import { hhmm, mmss, tint, SUBJECT_NAMES, DAY_SHORT, MONTH_SHORT, freeBy, hhmmToMinutes, type GlyphFrame, type LightMoment } from "@nudge/shared";
 import type { Device } from "./device";
 import { LOCAL_BREAK_SEC } from "./device";
 import type { Mode } from "./types";
@@ -572,6 +572,17 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     }
   });
 
+  // A glyph from a pack (or one the assistant is playing) takes the matrix over: never during focus,
+  // never at night. The Pi animates it by itself.
+  const MOMENT: Record<string, LightMoment> = { idle: "idle", burst: "award", sparkle: "unlock", listen: "listen", voice: "voice", alarm: "alarm", bag: "bag", timer: "timer" };
+  const focus = working || ["breathe", "paused", "overrun", "break", "resumeScan"].includes(mode);
+  const playing = snap?.lights?.playing && snap.lights.playing.until > d.hubNow() ? snap.lights.playing : null;
+  let glyph: GlyphFrame | null = null;
+  let glyphName = "";
+  if (!mono && !off && !focus) {
+    if (playing) [glyph, glyphName] = [playing.glyph, playing.name];
+    else if (MOMENT[pat] && snap?.lights?.moments[MOMENT[pat]]) [glyph, glyphName] = [snap.lights.moments[MOMENT[pat]]!, "moment:" + MOMENT[pat]];
+  }
   const barPctN = pat === "timer" && wallCard?.kind === "timer" ? Math.round(((timerLeft ?? 0) / Math.max(1, wallCard.secs)) * 100) : working ? Math.round(frac * 100) : mode === "countdown" ? 100 : onLight ? 100 : 0;
   const panel = {
     leds,
@@ -585,6 +596,10 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     holdKey: s.holdKey,
     hold: s.hold,
     plan: plan.map((k) => !!k),
+    glyph,
+    glyphName,
+    /** overall LED brightness: the wall's brightness setting, and very low at night */
+    level: mono ? 0.08 : [0.18, 0.35, 0.6, 0.8, 1][s.bright] ?? 0.6,
   };
   return { vm, panel };
 }

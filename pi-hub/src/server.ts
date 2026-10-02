@@ -5,7 +5,7 @@ import fastifyWebsocket from "@fastify/websocket";
 import fastifyStatic from "@fastify/static";
 import { z } from "zod";
 import {
-  ClaudeDesktop,
+  BUILTIN_GLYPHS, ClaudeDesktop,
   can, type Cap, type HubMessage, type HwInput, type LedFrame, NewBagItem, NewNote, NewTask, NewTemplate, NotePatch,
   Role, SchoolAction, Settings, TaskPatch, TermDate, Timetable, Birthday, ToWall, DateKey, AgentMode, addDays,
   CalEvent, Activity, FormTime, HomeworkPlan, SchoolDay, Teacher, matchTeacher, parseStaffList,
@@ -641,6 +641,33 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   app.delete("/api/wall", async (req) => {
     need(req, "agent");
     ctx.wall?.close();
+    return { ok: true };
+  });
+  // The 5×5 lights: built-in glyphs, his packs, and playing one now.
+  app.get("/api/lights", async (req) => {
+    need(req, "agent");
+    return { builtins: BUILTIN_GLYPHS, packs: ctx.lights?.packs() ?? [] };
+  });
+  app.post("/api/lights/packs", { bodyLimit: 256 * 1024 }, async (req) => {
+    brainCaller(req);
+    if (!ctx.lights) throw new HttpError(503, "lights aren't ready");
+    const p = ctx.lights.addPack(req.body);
+    hub.feed("lights", `Added the "${p.name}" light pack`);
+    return p;
+  });
+  app.delete("/api/lights/packs/:name", async (req) => {
+    brainCaller(req);
+    return { removed: ctx.lights?.removePack((req.params as { name: string }).name) ?? false };
+  });
+  app.post("/api/lights/play", async (req) => {
+    need(req, "agent");
+    const b = parse(z.object({ ref: z.string().max(50).optional(), text: z.string().max(24).optional(), secs: z.number().min(2).max(60).optional() }), req.body);
+    if (!ctx.lights) throw new HttpError(503, "lights aren't ready");
+    return ctx.lights.play(b);
+  });
+  app.delete("/api/lights/play", async (req) => {
+    need(req, "agent");
+    ctx.lights?.stop();
     return { ok: true };
   });
   // Open one of his documents on the wall from the phone.

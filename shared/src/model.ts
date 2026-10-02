@@ -1,3 +1,4 @@
+import { LIGHT_MOMENTS, type GlyphFrame, type LightMoment } from "./lights";
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ */
@@ -505,6 +506,8 @@ export const Settings = z.object({
   interests: z.array(z.string().max(40)).max(12),
   /** offer "send to Google Keep" on notes */
   googleKeep: z.boolean(),
+  /** wall moments played with a glyph instead of the built-in light pattern, e.g. { award: "fx/confetti" } */
+  lightMap: z.partialRecord(z.enum(LIGHT_MOMENTS), z.string().regex(/^[a-z0-9-]{1,24}(\/[a-z0-9-]{1,24})?$/)),
 });
 export type Settings = z.infer<typeof Settings>;
 
@@ -517,7 +520,7 @@ export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
   "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
-  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "aiEngine", "ragEmbed", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
+  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "aiEngine", "ragEmbed", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd", "lightMap",
 ];
 
 export const Device = z.object({
@@ -652,6 +655,9 @@ export interface Snapshot {
   asks: Ask[];
   /** what the assistant put up on the wall (never sent to the parent app) */
   wall: WallShown | null;
+  /** the lights: a glyph playing right now (asked for by the assistant or the app), and the
+   *  glyphs picked for wall moments (Settings → lights), ready to draw */
+  lights: { playing: { name: string; glyph: GlyphFrame; until: number } | null; moments: Partial<Record<LightMoment, GlyphFrame>> };
   school: SchoolStatus;
   termLabel: string;
   sync: { lastSync: number };
@@ -686,10 +692,15 @@ export type HwInput =
 
 /** 25 matrix cells + light bar as RGB hex with brightness 0..1. */
 export interface LedFrame {
-  cells: { c: string; o: number; anim: string }[];
+  /** anim is a keyframe name from the design; p its period and d its delay, in seconds */
+  cells: { c: string; o: number; anim: string; p?: number; d?: number }[];
   bar: { pct: number; on: number; lit: number };
   dialLed: number;
   touchRing: boolean;
+  /** a glyph to play on the matrix instead of the cells (the Pi animates it by itself) */
+  glyph?: GlyphFrame | null;
+  /** overall brightness 0–1 (the wall's brightness setting, lower at night) */
+  level?: number;
 }
 
 /**

@@ -168,6 +168,24 @@ await owner("POST", "/api/wall/page", { delta: -1 });
 check("keys turn its pages", (await owner("GET", "/api/state")).j?.wall?.card?.page === 1);
 await owner("DELETE", "/api/wall");
 check("done takes it down", (await owner("GET", "/api/state")).j?.wall === null);
+
+// 8. the 5×5 lights: a pack from a file, a glyph on demand, a moment, and what reaches the Pi's daemon
+const frames = [];
+const daemon = new WebSocket(LOCAL.replace("http", "ws") + "/api/ws");
+daemon.onopen = () => daemon.send(JSON.stringify({ type: "auth", token: null }));
+daemon.onmessage = (e) => { const m = JSON.parse(String(e.data)); if (m.type === "leds") frames.push(m.frame); };
+const lp = await owner("POST", "/api/lights/packs", JSON.parse(fs.readFileSync(path.join(ROOT, "docs/lights-example.json"), "utf8")));
+check("a light pack is checked and added", lp.status === 200 && lp.j?.glyphs?.length === 3, JSON.stringify(lp.j).slice(0, 100));
+check("a broken pack is turned away", (await owner("POST", "/api/lights/packs", { name: "x", glyphs: [{ name: "a", palette: ["red"], frames: ["1"] }] })).status === 400);
+check("the parent app can't add packs", (await parent("POST", "/api/lights/packs", JSON.parse(fs.readFileSync(path.join(ROOT, "docs/lights-example.json"), "utf8")))).status === 403);
+await owner("PATCH", "/api/settings", { lightMap: { award: "film/clapper" } });
+await owner("POST", "/api/lights/play", { ref: "film/rec", secs: 6 });
+const lights = (await owner("GET", "/api/state")).j?.lights;
+check("a glyph plays, and moments use his pack", lights?.playing?.name === "film/rec" && lights?.moments?.award?.frames?.length === 3, JSON.stringify(lights?.playing ?? null).slice(0, 80));
+check("the parent app doesn't see the lights", (await parent("GET", "/api/state")).j?.lights?.playing === null);
+const got = await until(() => frames.find((f) => f.glyph?.palette?.[0] === "#ff2a1a" || (f.level ?? 1) < 0.1), 8000);
+check("the wall hands the glyph to the light daemon (or it's night: lights stay dark)", !!got, got ? (got.glyph ? `glyph ${got.glyph.frames.length} frames @ ${got.glyph.fps} fps, level ${got.level}` : `night, level ${got.level}`) : `${frames.length} frames`);
+daemon.close();
 const tok = (await (await fetch(`${HUB}/api/pair`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code("owner"), name: "browser" }) })).json());
 const phone = await b.newPage({ viewport: { width: 412, height: 912 } });
 phone.on("pageerror", (e) => errs.push("phone: " + e));

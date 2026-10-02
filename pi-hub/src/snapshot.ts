@@ -44,6 +44,7 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
     asks: role === "parent" ? [] : hub.pendingAsks(),
     // What's up on the wall can be a page of his documents: never the parent app.
     wall: role === "parent" ? null : ctx.wall?.current() ?? null,
+    lights: role === "parent" || !ctx.lights ? { playing: null, moments: {} } : ctx.lights.snapshot(),
     school: ctx.school.status(),
     termLabel: hub.termLabel(todayKey),
     sync: { lastSync: hub.now() },

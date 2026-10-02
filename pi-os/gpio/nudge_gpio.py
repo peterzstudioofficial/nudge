@@ -30,6 +30,8 @@ import signal
 import sys
 import time
 
+from lights import Renderer
+
 HUB = os.environ.get("NUDGE_HUB_WS", "ws://127.0.0.1:8788/api/ws")
 PINS = {
     "keys": [5, 6, 13, 19],
@@ -59,6 +61,7 @@ class Hub:
         self.queue: asyncio.Queue = asyncio.Queue()
         self.frame = None
         self.frame_at = 0.0
+        self.frame_event = asyncio.Event()
 
     async def run(self):
         import websockets  # python3-websockets
@@ -79,6 +82,7 @@ class Hub:
                             if msg.get("type") == "leds":
                                 self.frame = msg.get("frame")
                                 self.frame_at = time.monotonic()
+                                self.frame_event.set()
                             elif msg.get("type") == "play":
                                 play_audio(msg.get("pcm") or "", int(msg.get("rate") or 24000))
                             elif msg.get("type") == "wake-config" and MIC:
@@ -384,39 +388,18 @@ def play_audio(pcm_b64: str, rate: int):
 # ----------------------------------------------------------------------------- lights
 
 
-def hex_rgb(c: str):
-    c = (c or "#000000").lstrip("#")
-    if len(c) != 6:
-        return (0, 0, 0)
-    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
-
-
-def anim_level(name: str, t: float, delay: float = 0.0) -> float:
-    """Approximate the CSS keyframes from the design, 0..1."""
-    t = t - delay
-    if name in ("lPulse", "lSpark", "lSweep"):
-        period = 1.4 if name == "lPulse" else 1.1
-        return 0.15 + 0.85 * (0.5 - 0.5 * math.cos(2 * math.pi * t / period))
-    if name in ("lDrift",):
-        return 0.6 + 0.4 * (0.5 - 0.5 * math.cos(2 * math.pi * t / 6.5))
-    if name == "lBreathe":
-        p = (t % 16) / 16
-        return 0.1 + 0.8 * (p * 4 if p < 0.25 else 1 if p < 0.5 else 1 - (p - 0.5) * 4 if p < 0.75 else 0)
-    if name == "lAlarm":
-        p = (t % 0.85) / 0.85
-        return 1.0 if 0.22 < p < 0.54 else 0.06
-    return 1.0
-
-
 class Lights:
+    """The WS2812 chain and the dial LED. What to show is worked out by lights.Renderer."""
+
     def __init__(self):
         self.strip = None
         self.dial = None
+        self.dial_v = -1.0
         try:
             from rpi_ws281x import PixelStrip  # pip install rpi-ws281x
 
             n = LED_MATRIX + LED_BAR
-            # GPIO 10 = SPI; leaves PWM audio free on the Pi 3.
+            # GPIO 10 = SPI; leaves PWM audio free on the Pi 3. LED_BRIGHTNESS caps the current.
             self.strip = PixelStrip(n, 10, 800000, 10, False, int(255 * LED_BRIGHTNESS), 0)
             self.strip.begin()
             log(f"LED chain ready ({n} LEDs)")
@@ -429,46 +412,43 @@ class Lights:
         except Exception:  # noqa: BLE001
             self.dial = None
 
-    def draw(self, frame, t: float):
-        if frame is None:
+    def write(self, rgb: bytes):
+        if not self.strip:
             return
-        if self.strip:
-            from rpi_ws281x import Color
+        from rpi_ws281x import Color
 
-            for i, cell in enumerate(frame.get("cells", [])[:LED_MATRIX]):
-                r, g, b = hex_rgb(cell.get("c"))
-                k = float(cell.get("o", 0)) * anim_level(cell.get("anim", "none"), t, (i % 5) * 0.09)
-                self.strip.setPixelColor(i, Color(int(r * k), int(g * k), int(b * k)))
-            bar = frame.get("bar", {})
-            lit = int(round(LED_BAR * float(bar.get("pct", 0)) / 100))
-            on = float(bar.get("on", 0))
-            glow = float(bar.get("lit", 0))
-            for j in range(LED_BAR):
-                if j < lit and on:
-                    col = (255, 77, 23)
-                    k = 1.0
-                else:
-                    col = (255, 228, 212)
-                    k = glow * 0.5
-                self.strip.setPixelColor(LED_MATRIX + j, Color(int(col[0] * k), int(col[1] * k), int(col[2] * k)))
-            self.strip.show()
-        if self.dial:
-            self.dial.value = max(0.0, min(1.0, float(frame.get("dialLed", 0))))
+        for i in range(min(self.strip.numPixels(), len(rgb) // 3)):
+            self.strip.setPixelColor(i, Color(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]))
+        self.strip.show()
+
+    def dial_to(self, v: float):
+        v = round(max(0.0, min(1.0, v)), 2)
+        if self.dial and v != self.dial_v:
+            self.dial_v = v
+            self.dial.value = v
 
     def off(self):
-        if self.strip:
-            from rpi_ws281x import Color
-
-            for i in range(self.strip.numPixels()):
-                self.strip.setPixelColor(i, Color(0, 0, 0))
-            self.strip.show()
+        self.write(bytes(3 * (LED_MATRIX + LED_BAR)))
+        self.dial_to(0)
 
 
 async def light_loop(hub: Hub, lights: Lights):
-    t0 = time.monotonic()
+    """Draw when the picture changes or something on it moves; otherwise sleep until the next frame."""
+    r = Renderer(LED_MATRIX, LED_BAR)
     while True:
-        lights.draw(hub.frame, time.monotonic() - t0)
-        await asyncio.sleep(1 / 30)
+        now = time.monotonic()
+        f = hub.frame
+        r.set_frame(f, now)
+        out, wait = r.render(now)
+        if out is not None:
+            lights.write(out)
+        if f:
+            lights.dial_to(float(f.get("dialLed", 0)) * float(f.get("level", 1) or 1))
+        hub.frame_event.clear()
+        try:
+            await asyncio.wait_for(hub.frame_event.wait(), timeout=wait)
+        except asyncio.TimeoutError:
+            pass
 
 
 # ----------------------------------------------------------------------------- main
@@ -506,8 +486,13 @@ if __name__ == "__main__":
     if "--selftest" in sys.argv:
         # Quick check that the lights and inputs initialise, without a hub.
         lights = Lights()
+        r = Renderer(LED_MATRIX, LED_BAR)
         for k in range(26):
-            lights.draw({"cells": [{"c": "#ff4d17", "o": 1 if i == k else 0, "anim": "none"} for i in range(25)], "bar": {"pct": k * 4, "on": 1, "lit": 0.1}, "dialLed": k / 25}, 0)
+            r.set_frame({"cells": [{"c": "#ff4d17", "o": 1 if i == k else 0, "anim": "none"} for i in range(25)], "bar": {"pct": k * 4, "on": 1, "lit": 0.1}, "dialLed": k / 25}, 0)
+            out, _ = r.render(1)
+            if out:
+                lights.write(out)
+            lights.dial_to(k / 25)
             time.sleep(0.05)
         lights.off()
         print("selftest done")

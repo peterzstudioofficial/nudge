@@ -28,13 +28,15 @@ export function useDevice(size: { w: number; h: number }) {
 
 /** Send the LED picture to the GPIO daemon (through the hub) when it changes. */
 function useLedOutput(d: Device, panel: ReturnType<typeof buildVm>["panel"]) {
-  const key = panel.pat + ":" + panel.barPct + ":" + panel.leds.map((l) => l.bg + l.o + l.anim).join("|") + panel.dialLed + panel.touchRing;
+  const key = panel.pat + ":" + panel.barPct + ":" + panel.leds.map((l) => l.bg + l.o + l.anim).join("|") + panel.dialLed + panel.touchRing + panel.glyphName + panel.level;
   useEffect(() => {
     const frame: LedFrame = {
-      cells: panel.leds.map((l) => ({ c: l.bg === "#d2d0c8" ? "#000000" : l.bg, o: l.bg === "#d2d0c8" ? 0 : l.o, anim: l.anim.split(" ")[0] })),
+      cells: panel.leds.map((l) => ({ c: l.bg === "#d2d0c8" ? "#000000" : l.bg, o: l.bg === "#d2d0c8" ? 0 : l.o, ...cssAnim(l.anim, l.delay) })),
       bar: { pct: panel.barPct, on: panel.barOn, lit: panel.barLit },
       dialLed: panel.dialLed,
       touchRing: panel.touchRing,
+      glyph: panel.glyph,
+      level: panel.level,
     };
     d.client.wsSend({ type: "leds", frame });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,4 +59,17 @@ export function useFit(minW = 320, baseH = 240) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return fit;
+}
+
+/**
+ * "lRise .55s … both, lPulse 1.6s ease-in-out .55s infinite" + delay "0.12s" →
+ * the looping one's name, period and delay, so the Pi plays exactly what the simulator shows.
+ */
+export function cssAnim(anim: string, delay: string): { anim: string; p?: number; d?: number } {
+  if (!anim || anim === "none") return { anim: "none" };
+  const parts = anim.split(/,\s*(?![^(]*\))/);
+  const part = parts.find((x) => x.includes("infinite")) ?? parts[0];
+  const [name, dur, ...rest] = part.trim().split(/\s+(?![^(]*\))/);
+  const inner = rest.find((t) => /^[\d.]+s$/.test(t));
+  return { anim: name, p: parseFloat(dur) || undefined, d: (parseFloat(delay) || 0) + (inner ? parseFloat(inner) : 0) };
 }

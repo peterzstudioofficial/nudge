@@ -34,6 +34,7 @@ import { loadPrivateSetup } from "./setup";
 import { geminiSynth, ttsService } from "./voice/tts";
 import { wallCards } from "./wall/cards";
 import { quickWall, wallTools } from "./wall/tools";
+import { lightTool, lightsService } from "./wall/lights";
 
 process.removeAllListeners("warning");
 process.on("warning", (w) => {
@@ -96,10 +97,12 @@ async function main() {
   const tts = ttsService({ hub, synth: cfg.geminiKey ? geminiSynth(cfg.geminiKey) : null, dir: path.join(cfg.dataDir, "tts"), log });
   const ctx = {} as Ctx;
   const cards = wallCards({ hub, say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms) });
+  const lights = lightsService({ hub });
   Object.assign(ctx, {
     cfg,
     hub,
     wall: cards,
+    lights,
     auth,
     weather: weatherService(hub, false),
     news: newsService(hub, false),
@@ -124,6 +127,7 @@ async function main() {
         searchTool(index),
         // Putting something up on the wall (an answer, a list, a page of a document, a timer).
         ...wallTools(hub, cards, index),
+        lightTool(lights),
         // Reading from an app runs straight away; anything that changes something waits for a yes
         // (and isn't allowed at all outside "act" mode).
         ...(await apps.tools()).map(gate),

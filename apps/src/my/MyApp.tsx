@@ -11,6 +11,7 @@ import { ToolsTab } from "./ToolsTab";
 import { AskCard } from "./AskCard";
 import { BrainSheet } from "./Brain";
 import { LibrarySheet } from "./Library";
+import { LightsSheet } from "./Lights";
 import { setThemePref, themePref, type ThemePref } from "../lib/theme";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
@@ -441,6 +442,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   const [bdOpen, setBdOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
   const [libOpen, setLibOpen] = useState(false);
+  const [lightsOpen, setLightsOpen] = useState(false);
   const { data: lib } = useHubGet<unknown[]>(client, "/api/library", [libOpen]);
   const nat = native();
   const [lock, setLock] = useState(false);
@@ -470,6 +472,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "icon keys", meta: s.iconKeys ? "SYMBOLS" : "WORDS", on: s.iconKeys, go: () => set({ iconKeys: !s.iconKeys }) },
       { name: "dim at night", meta: s.dimAtNight ? "AUTO" : "OFF", on: s.dimAtNight, go: () => set({ dimAtNight: !s.dimAtNight }) },
       { name: "lie in at weekends", meta: s.lieInWeekends ? "ON" : "OFF", on: s.lieInWeekends, go: () => set({ lieInWeekends: !s.lieInWeekends }) },
+      { name: "lights", meta: `${Object.keys(s.lightMap ?? {}).length || "NO"} CUSTOM`, on: Object.keys(s.lightMap ?? {}).length > 0, go: () => setLightsOpen(true) },
     ] },
     { head: "SCHOOL", rows: [
       { name: "read school mail", meta: s.schoolMail ? "ON" : "OFF", on: s.schoolMail, go: () => set({ schoolMail: !s.schoolMail }) },
@@ -515,6 +518,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       <Birthdays open={bdOpen} onClose={() => setBdOpen(false)} list={bdays ?? []} saved={reload} />
       <BrainSheet open={brainOpen} onClose={() => setBrainOpen(false)} />
       <LibrarySheet open={libOpen} onClose={() => setLibOpen(false)} />
+      <LightsSheet open={lightsOpen} onClose={() => setLightsOpen(false)} />
     </div>
   );
 }

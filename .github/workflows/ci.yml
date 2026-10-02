@@ -32,6 +32,8 @@ jobs:
       - run: npm run build
       - name: mic daemon's wake-word gate (quiet sends nothing, speech opens it, questions stream and stop)
         run: python3 pi-os/gpio/test_gate.py
+      - name: light engine (still pictures sleep, glyphs, crossfades, cost per draw)
+        run: python3 pi-os/gpio/test_lights.py
       - name: icon font has every icon the code uses
         run: pip install -q fonttools brotli && python3 scripts/subset-icons.py --check
       - name: every app colour has a light and dark value

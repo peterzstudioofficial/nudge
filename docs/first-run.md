@@ -33,6 +33,8 @@ Everything below is a one-time job. Tick them off in order; each step says how y
 3. Settings → **documents it can read** → add revision guides, the syllabus, scripts.
    Scans and photos ask before costing anything.
 4. Settings → **what it knows about you**: check the lines, delete anything you don't want.
+5. Optional: Settings → **wake word** on (say "nudge", "hey nudge"), and Settings → **lights** to
+   try glyphs, pick them for wall moments, or add a pack ([docs/lights.md](lights.md)).
 
 ## 3. Dad's phone
 
@@ -68,4 +70,4 @@ openrouter.ai → Settings:
 - `sudo nudge dev on 2` turns on the dev tools for two hours (logs, status, test pop-up) —
   `sudo nudge dev off` or any update removes them.
 - `npm run build && npm run e2e` on a computer runs the whole system end to end with a fake
-  OpenRouter (41 checks); add `--pack private/nudge-setup.json` to run it on your own data.
+  OpenRouter (47 checks); add `--pack private/nudge-setup.json` to run it on your own data.

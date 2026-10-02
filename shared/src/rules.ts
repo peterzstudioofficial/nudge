@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { name: "pinterest", subjects: ["art", "drama"] },
   ],
   nfcTags: {},
+  lightMap: {},
   schoolPages: [],
   schoolMail: true,
   schoolMailSenders: [],
