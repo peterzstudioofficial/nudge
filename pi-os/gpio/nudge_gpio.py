@@ -81,6 +81,12 @@ class Hub:
                                 self.frame_at = time.monotonic()
                             elif msg.get("type") == "play":
                                 play_audio(msg.get("pcm") or "", int(msg.get("rate") or 24000))
+                            elif msg.get("type") == "wake-config" and MIC:
+                                MIC.set_wake(bool(msg.get("on")))
+                            elif msg.get("type") == "wake" and MIC:
+                                # "nudge" was heard: the wall lights up and the question streams
+                                self.send({"kind": "touch"})
+                                MIC.listen(preroll=True)
                     finally:
                         sender.cancel()
             except Exception as e:  # noqa: BLE001 - keep the daemon alive whatever happens
@@ -133,8 +139,8 @@ def setup_inputs(hub: Hub, loop: asyncio.AbstractEventLoop):
         touch.when_pressed = lambda: (emit({"kind": "touch"}), loop.call_soon_threadsafe(start_listening))
         parts["touch"] = touch
         mic = Button(PINS["mic"], pull_up=True, bounce_time=0.05)
-        mic.when_pressed = lambda: emit({"kind": "mic", "on": True})
-        mic.when_released = lambda: emit({"kind": "mic", "on": False})
+        mic.when_pressed = lambda: (emit({"kind": "mic", "on": True}), loop.call_soon_threadsafe(lambda: MIC and MIC.set_hw(True)))
+        mic.when_released = lambda: (emit({"kind": "mic", "on": False}), loop.call_soon_threadsafe(lambda: MIC and MIC.set_hw(False)))
         parts["mic"] = mic
         power = Button(PINS["power"], pull_up=True, bounce_time=0.05)
         power.when_pressed = lambda: emit({"kind": "power", "on": True})
@@ -142,6 +148,7 @@ def setup_inputs(hub: Hub, loop: asyncio.AbstractEventLoop):
         parts["power"] = power
         # report switch positions once at start
         emit({"kind": "mic", "on": mic.is_pressed})
+        loop.call_soon_threadsafe(lambda on=mic.is_pressed: MIC and MIC.set_hw(on))
         emit({"kind": "power", "on": power.is_pressed})
         log("controls ready")
     except Exception as e:  # noqa: BLE001
@@ -185,55 +192,171 @@ async def nfc_reader(hub: Hub):
 
 # ----------------------------------------------------------------------------- voice
 
-_listen_task = None
 _hub_ref: "Hub | None" = None
 
 
-def start_listening():
-    """Touch pad pressed: stream the microphone to the hub until the student stops talking.
+class Mic:
+    """The one owner of the microphone.
 
-    The hub decides what to do with it: Gemini Live if that's set up, otherwise on-device
-    speech-to-text on the Pi. Nothing is recorded to disk.
+    Two jobs, one recording process (and none at all when neither is needed, to save power):
+      - wake word: a cheap loudness gate runs here; only while someone is talking does audio go to
+        the hub, where the small keyword spotter looks for "nudge". Silence never leaves this loop.
+      - a question: after the touch pad or the wake word, audio streams to the hub (Gemini Live, or
+        on-device speech-to-text) until the speaker pauses. The last ~1.2 s before the wake word is
+        included, so "nudge, what's next" arrives whole.
+    Nothing is ever written to disk. The hardware mic switch cuts the mic's power and wins over all.
     """
-    global _listen_task
-    if _listen_task and not _listen_task.done():
-        return
-    _listen_task = asyncio.ensure_future(stream_voice())
+
+    CHUNK = 3200          # 0.1 s of 16 kHz 16-bit mono
+    PREROLL = 12          # chunks kept for "nudge, …" (1.2 s)
+
+    def __init__(self):
+        from collections import deque
+
+        self.proc = None
+        self.reader = None
+        self.wake_on = False
+        self.hw_on = True        # mic switch
+        self.ring = deque(maxlen=self.PREROLL)
+        self.floor = 300.0       # running noise floor (RMS)
+        self.open_for = 0.0      # seconds the wake gate stays open
+        self.streaming = None    # dict while a question is being streamed
+        self.ignore_until = 0.0  # don't re-trigger straight after a question
+
+    # -- control -----------------------------------------------------------
+    def set_wake(self, on: bool):
+        self.wake_on = bool(on)
+        self._sync()
+
+    def set_hw(self, on: bool):
+        self.hw_on = bool(on)
+        if not on:
+            self.streaming = None
+        self._sync()
+
+    def listen(self, preroll: bool):
+        """Start streaming a question (touch pad or wake word)."""
+        if not self.hw_on or self.streaming is not None:
+            return
+        self.streaming = {"heard": False, "silent": 0.0, "waited": 0.0, "total": 0.0}
+        if preroll and _hub_ref:
+            for c in list(self.ring):
+                self._send_voice(c)
+        self.ring.clear()
+        self._sync()
+
+    # -- the recording process ----------------------------------------------
+    def _wanted(self) -> bool:
+        return self.hw_on and (self.wake_on or self.streaming is not None)
+
+    def _sync(self):
+        if self._wanted() and self.reader is None:
+            self.reader = asyncio.ensure_future(self._run())
+        elif not self._wanted() and self.proc is not None:
+            try:
+                self.proc.terminate()
+            except ProcessLookupError:
+                pass
+
+    async def _run(self):
+        try:
+            self.proc = await asyncio.create_subprocess_exec(
+                "arecord", "-q", "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw",
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+            )
+            assert self.proc.stdout
+            while self._wanted():
+                try:
+                    chunk = await self.proc.stdout.readexactly(self.CHUNK)
+                except asyncio.IncompleteReadError:
+                    break
+                self._on_chunk(chunk)
+        except FileNotFoundError:
+            log("no arecord: voice off")
+        except Exception as e:  # noqa: BLE001
+            log("mic stopped:", e)
+        finally:
+            if self.proc and self.proc.returncode is None:
+                self.proc.terminate()
+            self.proc = None
+            self.reader = None
+            if self.streaming is not None:
+                self._end()
+        if self._wanted():  # e.g. arecord hiccup: try again shortly
+            await asyncio.sleep(1)
+            self._sync()
+
+    # -- per 0.1 s ------------------------------------------------------------
+    @staticmethod
+    def rms(chunk: bytes) -> float:
+        import array
+
+        a = array.array("h", chunk)
+        s = a[::4]  # every 4th sample is plenty for a loudness gate
+        return math.sqrt(sum(x * x for x in s) / max(1, len(s)))
+
+    def _on_chunk(self, chunk: bytes):
+        level = self.rms(chunk)
+        st = self.streaming
+        if st is not None:
+            self._send_voice(chunk)
+            st["total"] += 0.1
+            if level >= max(800, self.floor * 3):
+                st["heard"] = True
+                st["silent"] = 0.0
+            else:
+                st["silent"] += 0.1
+                st["waited"] += 0.1
+            # Stop after a pause once they've spoken, if nothing was said, or after 12 s.
+            if (st["heard"] and st["silent"] > 1.2) or (not st["heard"] and st["waited"] > 3.0) or st["total"] > 12:
+                self._end()
+            return
+        self.ring.append(chunk)
+        if not self.wake_on or time.monotonic() < self.ignore_until:
+            return
+        loud = level > max(350.0, self.floor * 2.5)
+        if not loud and self.open_for <= 0:
+            # quiet: learn the room's noise floor slowly
+            self.floor = self.floor * 0.98 + level * 0.02
+            return
+        if loud:
+            if self.open_for <= 0 and _hub_ref:
+                # gate opens: send the moment before it too
+                for c in list(self.ring)[-5:-1]:
+                    _hub_ref.send_raw({"type": "wake-audio", "pcm": _b64(c)})
+            self.open_for = 1.0
+        if _hub_ref:
+            _hub_ref.send_raw({"type": "wake-audio", "pcm": _b64(chunk)})
+        self.open_for -= 0.1
+        if self.open_for <= 0 and _hub_ref:
+            _hub_ref.send_raw({"type": "wake-gap"})
+
+    def _send_voice(self, chunk: bytes):
+        if _hub_ref:
+            _hub_ref.send_raw({"type": "voice-audio", "pcm": _b64(chunk)})
+
+    def _end(self):
+        self.streaming = None
+        self.ignore_until = time.monotonic() + 2.0
+        self.open_for = 0
+        if _hub_ref:
+            _hub_ref.send_raw({"type": "voice-end"})
+        self._sync()
 
 
-async def stream_voice():
-    if _hub_ref is None:
-        return
+def _b64(chunk: bytes) -> str:
     import base64
 
-    proc = await asyncio.create_subprocess_exec(
-        "arecord", "-q", "-f", "S16_LE", "-r", "16000", "-c", "1", "-d", "12", "-t", "raw",
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-    )
-    heard_any = False
-    silent_for = 0.0
-    waited = 0.0
-    assert proc.stdout
-    try:
-        while True:
-            chunk = await proc.stdout.read(8000)  # 0.25 s
-            if not chunk:
-                break
-            _hub_ref.send_raw({"type": "voice-audio", "pcm": base64.b64encode(chunk).decode()})
-            level = max(abs(int.from_bytes(chunk[i:i + 2], "little", signed=True)) for i in range(0, len(chunk) - 1, 64))
-            if level >= 800:
-                heard_any = True
-                silent_for = 0.0
-            else:
-                silent_for += 0.25
-                waited += 0.25
-            # Stop after a pause once they've spoken, or if nothing was said at all.
-            if (heard_any and silent_for > 1.2) or (not heard_any and waited > 3.0):
-                break
-    finally:
-        if proc.returncode is None:
-            proc.terminate()
-        _hub_ref.send_raw({"type": "voice-end"})
+    return base64.b64encode(chunk).decode()
+
+
+MIC = None
+
+
+def start_listening():
+    """Touch pad pressed: stream the question (no pre-roll: it starts now)."""
+    if MIC:
+        MIC.listen(preroll=False)
 
 
 _player = None
@@ -352,9 +475,10 @@ async def light_loop(hub: Hub, lights: Lights):
 
 
 async def main():
-    global _hub_ref
+    global _hub_ref, MIC
     hub = Hub()
     _hub_ref = hub
+    MIC = Mic()
     loop = asyncio.get_running_loop()
     parts = setup_inputs(hub, loop)
     lights = Lights()

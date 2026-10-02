@@ -30,6 +30,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: mic daemon's wake-word gate (quiet sends nothing, speech opens it, questions stream and stop)
+        run: python3 pi-os/gpio/test_gate.py
       - name: icon font has every icon the code uses
         run: pip install -q fonttools brotli && python3 scripts/subset-icons.py --check
       - name: every app colour has a light and dark value
@@ -91,6 +93,7 @@ jobs:
           cat /tmp/hub.log
           grep -q "speech-to-text: on-device model installed" /tmp/hub.log
           grep -q "on-device embeddings installed" /tmp/hub.log
+          grep -q "wake word: model installed" /tmp/hub.log
       - name: on-device models really run
         run: |
           set -a; . /etc/nudge/hub.env; set +a

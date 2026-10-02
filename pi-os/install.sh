@@ -164,6 +164,8 @@ install_app() {
 MOONSHINE_URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2
 MOONSHINE_SHA=d5fe6ec4334fef36255b2a4010412cad4c007e33103fec62fb5d17cad88086f2
 MINILM_URL=https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main
+KWS_URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
+KWS_SHA=f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a
 install_models() {
   [ "$MODELS" = 1 ] || return 0
   local dir=/var/lib/nudge/models tmp
@@ -190,6 +192,18 @@ install_models() {
       rm -rf "$dir/minilm"; mkdir -p "$dir/minilm"; cp "$tmp"/* "$dir/minilm/"
     else
       warn "search model didn't download — search still works on keywords"
+    fi
+    rm -rf "$tmp"
+  fi
+  if [ ! -f "$dir/kws/tokens.txt" ]; then
+    say "Downloading the wake word (\"nudge\", ~5 MB on the Pi)"
+    tmp=$(mktemp -d)
+    if curl -fsSL "$KWS_URL" -o "$tmp/k.tar.bz2" && echo "$KWS_SHA  $tmp/k.tar.bz2" | sha256sum -c --quiet -; then
+      tar -xjf "$tmp/k.tar.bz2" -C "$tmp"
+      rm -rf "$dir/kws"; mkdir -p "$dir/kws"
+      cp "$tmp"/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/*-chunk-16-left-64.int8.onnx "$tmp"/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/tokens.txt "$dir/kws/"
+    else
+      warn "wake word model didn't download — the touch pad still starts voice; run install.sh --update to retry"
     fi
     rm -rf "$tmp"
   fi

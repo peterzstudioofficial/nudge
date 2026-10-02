@@ -22,6 +22,8 @@ import { orClient } from "./builder/openrouter";
 import { buildToolsServer } from "./tools-server";
 import { devLog } from "./devtools";
 import { voiceService } from "./voice/wall";
+import { loadKws } from "./voice/kws";
+import { wakeService } from "./voice/wake";
 import { schoolReader, refreshTermDates } from "./school/reader";
 import { Vault } from "./school/vault";
 import { newsService } from "./services/news";
@@ -133,6 +135,10 @@ async function main() {
 
   ctx.builder = builderService({ hub, or: orClient(() => keys.openrouter()), log, say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms) });
   ctx.voice = voiceService({ ctx, geminiKey: cfg.geminiKey, stt: () => stt, log });
+  // "Nudge" — the wake word, spotted on the Pi (a ~5 MB model, fed only while someone's talking).
+  const kws = loadKws(process.env.NUDGE_KWS_MODEL || path.join(cfg.dataDir, "models", "kws"), log);
+  ctx.wake = wakeService({ hub, kws, voiceReady: () => { const v = ctx.voice?.available(); return !!(v && (v.live || v.local)); }, log });
+  ctx.wake.sync();
 
   const app = await buildServer(ctx);
   await app.listen({ port: cfg.port, host: cfg.host });

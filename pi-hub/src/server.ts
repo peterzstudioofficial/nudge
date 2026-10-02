@@ -801,6 +801,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
         const roles = new Set<string>([caller.role, isLoopback(ip) ? "local" : "remote"]);
         unsub = hub.bus.subscribe({ send, roles });
         send({ type: "hello", rev: hub.bus.rev, role: caller.role });
+        if (isLoopback(ip)) send({ type: "wake-config", on: !!ctx.wake?.active() });
         return;
       }
       // Hardware traffic only from the Pi itself.
@@ -809,6 +810,9 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
       // Mic audio for the voice assistant, streamed by the hardware daemon.
       if (msg.type === "voice-audio" && typeof msg.pcm === "string" && isLoopback(ip)) ctx.voice?.audio(msg.pcm);
       if (msg.type === "voice-end" && isLoopback(ip)) ctx.voice?.end();
+      // Wake word: only gated speech arrives here, only from the Pi, and it's never kept.
+      if (msg.type === "wake-audio" && typeof msg.pcm === "string" && isLoopback(ip)) ctx.wake?.audio(msg.pcm);
+      if (msg.type === "wake-gap" && isLoopback(ip)) ctx.wake?.gap();
     });
     socket.on("close", () => {
       clearTimeout(authTimer);

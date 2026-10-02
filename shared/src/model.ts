@@ -645,7 +645,11 @@ export type HubMessage =
   /** spoken reply audio for the speaker (16-bit mono PCM, base64) — hardware daemon only */
   | { type: "play"; pcm: string; rate: number }
   /** dev tools (only while switched on at the Pi): reload the wall */
-  | { type: "dev"; action: "reload" };
+  | { type: "dev"; action: "reload" }
+  /** to the mic daemon: listen for the wake word or not (it closes the mic when not) */
+  | { type: "wake-config"; on: boolean }
+  /** "nudge" was heard on the Pi */
+  | { type: "wake"; word: string };
 
 /** Physical inputs from the GPIO daemon (or the simulator). */
 export type HwInput =
