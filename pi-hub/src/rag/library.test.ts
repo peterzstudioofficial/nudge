@@ -122,3 +122,12 @@ describe("library with OpenRouter (opt-in)", () => {
     expect(hits[0].cos).toBeCloseTo(1);
   });
 });
+
+describe("library safety", () => {
+  it("won't unpack a Word file that claims to be enormous (zip bomb)", async () => {
+    const huge = zipSync({ "word/document.xml": new Uint8Array(45 * 1024 * 1024) }, { level: 9 });
+    expect(huge.length).toBeLessThan(200_000);
+    const hub = new Hub(new Db(":memory:"));
+    await expect(addDoc(hub, { name: "bomb.docx", mime: "", data: huge })).rejects.toThrow(/no text/);
+  });
+});

@@ -44,6 +44,10 @@ export function kindOf(name: string, mime: string, data: Uint8Array): LibDoc["ki
   return null;
 }
 
+/** Word and PowerPoint files are zips: a small file can claim to unpack into gigabytes. Not here. */
+const MAX_UNZIPPED = 40 * 1024 * 1024;
+const safeSize = (f: { originalSize: number }) => f.originalSize <= MAX_UNZIPPED;
+
 /** Text out of a file, page by page. Scanned PDFs (pictures of pages) have no text to find. */
 export async function extractPages(data: Uint8Array, kind: LibDoc["kind"]): Promise<LibPage[]> {
   if (kind === "image") return [{ n: 1, text: "" }];
@@ -64,12 +68,13 @@ export async function extractPages(data: Uint8Array, kind: LibDoc["kind"]): Prom
     return pages;
   }
   if (kind === "word") {
-    const xml = strFromU8(unzipSync(data, { filter: (f) => f.name === "word/document.xml" })["word/document.xml"] ?? new Uint8Array());
+    const xml = strFromU8(unzipSync(data, { filter: (f) => f.name === "word/document.xml" && safeSize(f) })["word/document.xml"] ?? new Uint8Array());
     const text = entities(xml.replace(/<w:tab\/>/g, "\t").replace(/<\/w:p>/g, "\n").replace(/<w:br\/>/g, "\n").replace(/<[^>]+>/g, ""));
     return [{ n: 1, text: clean(text) }];
   }
   if (kind === "slides") {
-    const files = unzipSync(data, { filter: (f) => /^ppt\/slides\/slide\d+\.xml$/.test(f.name) });
+    let total = 0;
+    const files = unzipSync(data, { filter: (f) => /^ppt\/slides\/slide\d+\.xml$/.test(f.name) && safeSize(f) && (total += f.originalSize) <= MAX_UNZIPPED });
     return Object.keys(files)
       .map((f) => ({ n: Number(/slide(\d+)\.xml$/.exec(f)![1]), xml: strFromU8(files[f]) }))
       .sort((a, b) => a.n - b.n)

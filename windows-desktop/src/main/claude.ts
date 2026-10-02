@@ -46,7 +46,11 @@ export function findClaude(): { file: string; shim: boolean } | null {
 export const hasClaudeCli = () => !!findClaude();
 
 /** cmd.exe quoting, for the .cmd shim only. */
-const q = (a: string) => (/^[\w@%+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '""')}"`);
+const q = (a: string) => {
+  // cmd.exe expands %VAR% and ^ even inside quotes: those never reach a command line from here.
+  if (/[%^!\r\n]/.test(a)) throw new Error("unsafe argument for the Claude Code shim");
+  return /^[\w@+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '""')}"`;
+};
 
 export function spawnClaude(args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env) {
   const c = findClaude();
