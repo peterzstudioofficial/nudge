@@ -40,7 +40,7 @@ const tokenise = (s: string) =>
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((w) => w.length > 1 && !STOP.has(w));
-const STOP = new Set("the a an and or of to in on at for is are was were be been it its this that with from by as i my me you your we our he she they them his her about what when where who how do does did".split(" "));
+const STOP = new Set("the a an and or of to in on at for is are was were be been it its this that with from by as i my me you your we our he she they them his her about what when where who how do does did say says said tell told explain anything something can could would should please any".split(" "));
 
 export class PersonalIndex {
   private docs = new Map<string, Doc & { tokens: string[] }>();
@@ -135,7 +135,7 @@ export class PersonalIndex {
       const toEmbed: { doc: Doc; hash: string }[] = [];
       for (const d of docs) {
         const hash = crypto.createHash("sha1").update(`${this.embedder?.id ?? "local"}\0${d.text}`).digest("hex").slice(0, 16);
-        next.set(d.id, { ...d, tokens: tokenise(d.text) });
+        next.set(d.id, { ...d, tokens: tokenise(d.text.startsWith(d.title) ? d.text : `${d.title} ${d.text}`) });
         const row = stored.get(d.id);
         if (row && row.hash === hash && (row.vec || !this.embedder)) {
           if (row.vec) this.vecs.set(d.id, new Float32Array(row.vec.buffer.slice(row.vec.byteOffset, row.vec.byteOffset + row.vec.byteLength)));
@@ -232,7 +232,9 @@ export class PersonalIndex {
    */
   async relevant(question: string, max = 3, budget = 1400): Promise<Hit[]> {
     if (tokenise(question).length < 2) return [];
-    const hits = (await this.search(question, 8)).filter((h) => h.cos >= 0.5 || (h.cover >= 0.67 && tokenise(question).length >= 2));
+    const words = tokenise(question).length;
+    // Close in meaning, or most of the question's real words in one passage (at least two of them).
+    const hits = (await this.search(question, 8)).filter((h) => h.cos >= 0.5 || (h.cover >= 0.5 && Math.round(h.cover * words) >= 2));
     const out: Hit[] = [];
     let used = 0;
     for (const h of hits) {

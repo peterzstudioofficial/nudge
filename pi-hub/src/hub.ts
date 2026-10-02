@@ -861,7 +861,7 @@ export class Hub {
     let lastAgent = Infinity;
     for (const e of this.feedC.latest(limit * 4)) {
       if (out.length >= limit) break;
-      if (e.type === "device" || e.type === "settings") continue;
+      if (e.type === "device" || e.type === "settings" || e.type === "library") continue;
       if (e.type === "school" && !/^(\d+ new from school|Homework set|No .* homework set|Signed (in to|out of) school|School calendar read)/.test(e.text)) continue;
       if (e.type === "agent") {
         if (lastAgent - e.ts < 30 * 60_000) continue;

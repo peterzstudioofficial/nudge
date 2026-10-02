@@ -611,7 +611,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const ext = name.toLowerCase().split(".").pop() ?? "";
     const mime = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", heic: "image/heic", pdf: "application/pdf" }[ext] ?? String(req.headers["content-type"] ?? "");
     const doc = await addDoc(hub, { name, mime, data: new Uint8Array(body) }, { ocr: ctx.keys?.openrouter() ? (ctx.ocr ?? null) : null, ocrOk: ocr === "1", estimate: ocrEstimate });
-    hub.feed("notes", `Added "${doc.title}" to the library`);
+    hub.feed("library", `Added "${doc.title}" to the library`);
     return doc;
   });
   app.delete("/api/library/:id", async (req) => {

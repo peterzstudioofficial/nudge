@@ -245,8 +245,9 @@ describe("parent feed", () => {
     hub.feed("device", "New owner device paired: phone");
     hub.feed("school", 'Dismissed "Detention notice"');
     hub.feed("school", "3 new from school");
+    hub.feed("library", 'Added "Diary" to the library');
     const texts = hub.parentFeed().map((e) => e.text);
     expect(texts).toEqual(["3 new from school", "Used the assistant", "Claimed chemistry q1-8"]);
-    expect(JSON.stringify(hub.parentFeed())).not.toMatch(/hale|Detention|paired/i);
+    expect(JSON.stringify(hub.parentFeed())).not.toMatch(/hale|Detention|paired|Diary/i);
   });
 });
