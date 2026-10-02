@@ -464,6 +464,9 @@ export const Settings = z.object({
   /** who answers typed questions from the phone and computer: cheap models on OpenRouter, or one
    *  ongoing chat with Claude on Peter's computer, on his own Claude plan (falls back if the PC is off) */
   aiEngine: z.enum(["openrouter", "claude"]),
+  /** how the private search matches meaning: the small model on the Pi (free), or a stronger
+   *  one on OpenRouter (zero retention; a few pence per thousand pages) */
+  ragEmbed: z.enum(["local", "openrouter"]),
   /** Gemini Live model for the voice assistant */
   voiceModel: z.string().max(60),
   /** speak voice replies out loud (needs a speaker on the Pi) */
@@ -494,7 +497,7 @@ export const OWNER_SETTINGS: (keyof Settings)[] = [
   "ownerName", "ai", "wakeWord", "iconKeys", "dimAtNight", "quietAfter11", "reminders", "brightness",
   "lieInWeekends", "leaveForSchool", "alarm", "location", "newsFeed", "nfcTags", "schoolPages",
   "schoolMail", "schoolMailSenders", "aiModel", "yearGroup", "house", "profile", "googleKeep", "interests",
-  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "aiEngine", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
+  "voiceModel", "voiceReplies", "voiceName", "ttsModel", "aiEngine", "ragEmbed", "webSearch", "aiAdvisorModel", "buildModel", "aiBudgetUsd",
 ];
 
 export const Device = z.object({

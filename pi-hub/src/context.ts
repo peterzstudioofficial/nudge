@@ -54,6 +54,8 @@ export interface HwBridge {
 export interface Ctx {
   cfg: Config;
   hub: Hub;
+  /** reads scanned documents and photos (OpenRouter), when a key is set */
+  ocr?: import("./rag/library").Ocr | null;
   auth: Auth;
   weather: WeatherService;
   news: NewsService;

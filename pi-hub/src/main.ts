@@ -9,10 +9,11 @@ import { Db } from "./db";
 import { Hub } from "./hub";
 import { agentService } from "./agent/agent";
 import { openRouter } from "./agent/llm";
-import { addSpend } from "./agent/spend";
+import { addSpend, spend } from "./agent/spend";
 import { appsService } from "./agent/composio";
 import { PersonalIndex } from "./rag/index";
-import { loadEmbedder } from "./rag/embed";
+import { loadEmbedder, type Embedder } from "./rag/embed";
+import { DEFAULT_EMBED_MODEL, DEFAULT_OCR_MODEL, ocrDocument, openRouterEmbedder } from "./rag/remote";
 import { searchTool } from "./rag/tool";
 import { loadStt } from "./voice/stt";
 import { Keys } from "./keys";
@@ -70,11 +71,22 @@ async function main() {
 
   // Private search over everything on the wall. Embeddings load in the background if installed.
   const index = new PersonalIndex(hub, null, log);
-  void loadEmbedder(process.env.NUDGE_EMBED_MODEL || path.join(cfg.dataDir, "models", "minilm"), log).then((e) => index.setEmbedder(e));
+  let localEmbedder: Embedder | null = null;
   // On-device speech-to-text (voice notes, and the voice fallback without Gemini).
   const stt = loadStt(process.env.NUDGE_STT_MODEL || path.join(cfg.dataDir, "models", "moonshine"), log);
   const vault = new Vault(cfg.dataDir);
   const keys = new Keys(hub, vault, { openrouter: cfg.openrouterKey });
+  // The search's meaning-match: on the Pi by default; OpenRouter (zero retention) if switched on.
+  // OCR for scans and photos only ever runs after a yes on the phone (it shows the cost first).
+  const remoteDeps = { key: () => keys.openrouter(), canSpend: () => spend(hub).usd < hub.settings().aiBudgetUsd, onCost: (usd: number) => addSpend(hub, usd), log };
+  const remoteEmbedder = openRouterEmbedder(DEFAULT_EMBED_MODEL, remoteDeps);
+  const pickEmbedder = () => index.setEmbedder(hub.settings().ragEmbed === "openrouter" && keys.openrouter() ? remoteEmbedder : localEmbedder);
+  void loadEmbedder(process.env.NUDGE_EMBED_MODEL || path.join(cfg.dataDir, "models", "minilm"), log).then((e) => {
+    localEmbedder = e;
+    pickEmbedder();
+  });
+  pickEmbedder();
+  hub.bus.subscribe({ roles: new Set(["rag-engine"]), send: (m) => void (m.type === "changed" && m.topics.includes("settings") && pickEmbedder()) });
   const apps = appsService({ hub, apiKey: cfg.composioKey, log });
   // Short wall answers read out in the live voice (cached per phrase; only if spoken replies are on).
   const tts = ttsService({ hub, synth: cfg.geminiKey ? geminiSynth(cfg.geminiKey) : null, dir: path.join(cfg.dataDir, "tts"), log });
@@ -97,6 +109,7 @@ async function main() {
     index,
     stt: () => stt,
     keys,
+    ocr: (data, kind, mime, pages) => ocrDocument(DEFAULT_OCR_MODEL, data, kind, mime, pages, remoteDeps),
     agent: agentService({
       hub,
       llm: openRouter(() => keys.openrouter(), { onCost: (usd) => addSpend(hub, usd), onRoute: (r) => log(`assistant: ${r}`) }),

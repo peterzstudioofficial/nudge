@@ -110,6 +110,8 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 | Voice note titles + tags | the text model, zero-retention, structured output | the note's words (only if the assistant is on) |
 | Personal search (notes, school mail, calendar, tasks, birthdays, teachers, memory, library documents) | **on the Pi**: keywords plus a local MiniLM model, passage by passage | only the few passages that clearly match a question (or that the assistant searches for), inside that one request |
 | Library documents (PDF, Word, PowerPoint, text) | text read **on the Pi** once when added; the file stays in the Pi's database | nothing when added; later only matching passages, as above |
+| Scans and photos in the library (OCR) | OpenRouter, zero-retention providers only, a cheap vision model (Gemini Flash-Lite); **only after a yes on the phone that shows the cost** | that one file, once |
+| "Sharper search" (off by default) | OpenRouter embeddings, zero-retention providers only (Qwen3 embedding); re-indexes when switched | the passages being indexed and each question's words; vectors are stored on the Pi |
 | Voice notes → text | **on the Pi** (Moonshine, sherpa-onnx) | nothing |
 | Talking to the wall | Gemini Live, if a Gemini key is set. Otherwise speech is turned into text **on the Pi** and goes to the text assistant as above. | the audio of that one question. Google's paid tier doesn't train on it but may keep it for a short time for abuse checks, so this isn't zero-retention. Leave the Gemini key out if that matters. |
 | Connected apps (Google Calendar, Notion, Spotify…) | Composio holds the sign-ins (OAuth tokens) and makes the calls | the search query for finding an action, then whatever the approved or read-only action needs |

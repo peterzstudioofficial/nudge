@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   voiceReplies: false,
   voiceName: "Puck",
   aiEngine: "openrouter",
+  ragEmbed: "local",
   ttsModel: "gemini-3.8-flash-lite-tts",
   yearGroup: "",
   house: "",

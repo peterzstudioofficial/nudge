@@ -4,6 +4,8 @@ export class HttpError extends Error {
     public status: number,
     message: string,
     public slab?: { icon: string; line: string; sub?: string },
+    /** extra fields for the app, e.g. what reading a scanned document would cost */
+    public extra?: Record<string, unknown>,
   ) {
     super(message);
   }

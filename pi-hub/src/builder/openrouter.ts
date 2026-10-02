@@ -5,7 +5,7 @@
  *   model writes the app and tests it. Files it made are read back with the Containers API.
  * - Batch: jobs for later run at half price, usually within minutes, at most 24 hours.
  */
-const BASE = "https://openrouter.ai/api/v1";
+import { OR_BASE as BASE } from "../agent/llm";
 
 export class OrError extends Error {
   constructor(message: string, public status = 0) {

@@ -29,7 +29,12 @@ export const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
 export const FALLBACK_MODELS = ["z-ai/glm-5.3-flash"];
 /** A stronger model the cheap one may consult on hard questions (openrouter:advisor). */
 export const DEFAULT_ADVISOR = "deepseek/deepseek-v4-pro";
-const URL_ = "https://openrouter.ai/api/v1/chat/completions";
+/**
+ * OpenRouter's API. For end-to-end tests a fake can stand in, but only on this machine's
+ * loopback, so the key can never be sent anywhere else by changing an environment variable.
+ */
+export const OR_BASE = /^http:\/\/127\.0\.0\.1:\d+\/api\/v1$/.test(process.env.NUDGE_OPENROUTER_BASE ?? "") ? process.env.NUDGE_OPENROUTER_BASE! : "https://openrouter.ai/api/v1";
+const URL_ = `${OR_BASE}/chat/completions`;
 /**
  * USD per million tokens. Above the cheap models Nudge uses, far below Claude-class ones, so no
  * request (or fallback) can ever land on an expensive model or endpoint.
@@ -270,7 +275,7 @@ export function serverToolsFor(s: { webSearch: boolean; aiAdvisorModel: string; 
 /** The key's own limits and what's been used (GET /api/v1/key). Free to call. */
 export async function openRouterKeyInfo(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<{ usage: number; limit: number | null; remaining: number | null; label: string } | null> {
   try {
-    const r = await fetchImpl("https://openrouter.ai/api/v1/key", { headers: { authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000) });
+    const r = await fetchImpl(`${OR_BASE}/key`, { headers: { authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000) });
     if (!r.ok) return null;
     const d = ((await r.json()) as { data?: { usage?: number; limit?: number | null; limit_remaining?: number | null; label?: string } }).data;
     return d ? { usage: d.usage ?? 0, limit: d.limit ?? null, remaining: d.limit_remaining ?? null, label: d.label ?? "" } : null;

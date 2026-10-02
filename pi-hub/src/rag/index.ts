@@ -60,8 +60,16 @@ export class PersonalIndex {
   }
 
   setEmbedder(e: Embedder | null) {
+    if (e === this.embedder) return;
     this.embedder = e;
+    // A different model means different vectors: drop the old ones; refresh re-embeds what changed.
+    this.vecs.clear();
     this.dirty = true;
+  }
+
+  /** which embedder is in use, for the status page */
+  get engine(): string {
+    return this.embedder ? (this.embedder.id ?? "on the Pi") : "keywords only";
   }
 
   /** Everything worth finding, as plain text. */
@@ -126,7 +134,7 @@ export class PersonalIndex {
       const next = new Map<string, Doc & { tokens: string[] }>();
       const toEmbed: { doc: Doc; hash: string }[] = [];
       for (const d of docs) {
-        const hash = crypto.createHash("sha1").update(d.text).digest("hex").slice(0, 16);
+        const hash = crypto.createHash("sha1").update(`${this.embedder?.id ?? "local"}\0${d.text}`).digest("hex").slice(0, 16);
         next.set(d.id, { ...d, tokens: tokenise(d.text) });
         const row = stored.get(d.id);
         if (row && row.hash === hash && (row.vec || !this.embedder)) {

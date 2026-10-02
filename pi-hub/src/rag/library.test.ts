@@ -4,6 +4,7 @@ import { Db } from "../db";
 import { Hub } from "../hub";
 import { PersonalIndex } from "./index";
 import { addDoc, chunk, docPages, extractPages, listDocs, removeDoc } from "./library";
+import { ocrEstimate, openRouterEmbedder, splitPages } from "./remote";
 
 /** A real two-page PDF with text, built by hand (correct xref offsets). */
 function pdf(pages: string[]): Uint8Array {
@@ -66,7 +67,58 @@ describe("library", () => {
 
   it("refuses files it can't read, and scanned PDFs with no text", async () => {
     const hub = new Hub(new Db(":memory:"));
-    await expect(addDoc(hub, { name: "photo.jpg", mime: "image/jpeg", data: new Uint8Array([1, 2, 3]) })).rejects.toThrow(/PDF, Word/);
-    await expect(addDoc(hub, { name: "scan.pdf", mime: "application/pdf", data: pdf([""]) })).rejects.toThrow(/no text/);
+    await expect(addDoc(hub, { name: "song.mp3", mime: "audio/mpeg", data: new Uint8Array([1, 2, 3]) })).rejects.toThrow(/PDF, Word/);
+    await expect(addDoc(hub, { name: "scan.pdf", mime: "application/pdf", data: pdf([""]) })).rejects.toThrow(/it's scanned/);
+  });
+});
+
+describe("library with OpenRouter (opt-in)", () => {
+  it("asks before reading a scan, then reads it with OCR and keeps the pages", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const scan = pdf(["", ""]);
+    const ocr = async (_d: Uint8Array, kind: string, _m: string, pages: number) => {
+      expect(kind).toBe("pdf");
+      expect(pages).toBe(2);
+      return splitPages("=== page 1 ===\nAn Inspector Calls: Birling is arrogant.\n=== page 2 ===\nSheila changes the most.");
+    };
+    await expect(addDoc(hub, { name: "scan.pdf", mime: "application/pdf", data: scan }, { ocr, estimate: ocrEstimate })).rejects.toMatchObject({ status: 402, extra: { needsOcr: true, pages: 2 } });
+    const doc = await addDoc(hub, { name: "scan.pdf", mime: "application/pdf", data: scan }, { ocr, ocrOk: true });
+    expect(doc).toMatchObject({ pages: 2, ocr: true });
+    expect((await new PersonalIndex(hub).search("sheila changes"))[0].title).toBe("scan · p. 2");
+  });
+
+  it("photos need OCR; without OpenRouter they're refused politely", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    await expect(addDoc(hub, { name: "worksheet.jpg", mime: "image/jpeg", data: new Uint8Array([0xff, 0xd8, 0xff]) })).rejects.toThrow(/need OpenRouter/);
+  });
+
+  it("OpenRouter embeddings: private providers only, budget respected, vectors normalised", async () => {
+    let body: Record<string, any> = {};
+    let spent = 0;
+    const fetchImpl = (async (_u: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ data: body.input.map((_: string, i: number) => ({ index: i, embedding: [3, 4, ...new Array(2000).fill(0)] })), usage: { cost: 0.00001 } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const e = openRouterEmbedder("qwen/qwen3-embedding-8b", { key: () => "sk-or-x", canSpend: () => true, onCost: (c) => (spent += c), log: () => {}, fetchImpl });
+    const [v] = await e.embed(["hello"]);
+    expect(body.provider).toEqual({ zdr: true, data_collection: "deny" });
+    expect(v.length).toBe(1024);
+    expect(v[0]).toBeCloseTo(0.6);
+    expect(spent).toBeGreaterThan(0);
+    const broke = openRouterEmbedder("m", { key: () => "k", canSpend: () => false, onCost: () => {}, log: () => {}, fetchImpl });
+    await expect(broke.embed(["x"])).rejects.toThrow(/budget/);
+  });
+
+  it("switching the search to another model re-embeds everything with it", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    hub.addNote({ kind: "note", label: "lines", body: "Fagin's song in act one", tags: [], secs: 0 });
+    const calls: string[] = [];
+    const mk = (id: string, v: number[]) => ({ id, embed: async (t: string[]) => (calls.push(id), t.map(() => Float32Array.from(v))) });
+    const index = new PersonalIndex(hub, mk("a", [1, 0]));
+    await index.search("song");
+    index.setEmbedder(mk("b", [0, 1]));
+    const hits = await index.search("song");
+    expect(calls.filter((c) => c === "b").length).toBeGreaterThanOrEqual(2); // docs + the question
+    expect(hits[0].cos).toBeCloseTo(1);
   });
 });

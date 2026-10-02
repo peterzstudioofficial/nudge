@@ -11,8 +11,10 @@ import { HttpError } from "../errors";
 export interface LibDoc {
   id: string;
   title: string;
-  kind: "pdf" | "word" | "slides" | "text";
+  kind: "pdf" | "word" | "slides" | "text" | "image";
   bytes: number;
+  /** read by OCR (OpenRouter), not from text in the file */
+  ocr?: boolean;
   pages: number;
   chars: number;
   addedAt: number;
@@ -35,6 +37,7 @@ const entities = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").re
 export function kindOf(name: string, mime: string, data: Uint8Array): LibDoc["kind"] | null {
   const ext = name.toLowerCase().split(".").pop() ?? "";
   if (ext === "pdf" || mime === "application/pdf" || (data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46)) return "pdf";
+  if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext) || /^image\/(jpeg|png|webp|heic)$/.test(mime)) return "image";
   if (ext === "docx") return "word";
   if (ext === "pptx") return "slides";
   if (["txt", "md", "markdown", "csv", "html", "htm", "srt", "vtt", "fountain"].includes(ext) || mime.startsWith("text/")) return "text";
@@ -43,6 +46,7 @@ export function kindOf(name: string, mime: string, data: Uint8Array): LibDoc["ki
 
 /** Text out of a file, page by page. Scanned PDFs (pictures of pages) have no text to find. */
 export async function extractPages(data: Uint8Array, kind: LibDoc["kind"]): Promise<LibPage[]> {
+  if (kind === "image") return [{ n: 1, text: "" }];
   if (kind === "pdf") {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const doc = await pdfjs.getDocument({ data: data.slice(), isEvalSupported: false, disableFontFace: true, useSystemFonts: false, verbosity: 0 }).promise;
@@ -94,17 +98,34 @@ export function docFile(hub: Hub, id: string) {
   return hub.db.blobGet(`libfile:${id}`);
 }
 
-export async function addDoc(hub: Hub, f: { name: string; mime: string; data: Uint8Array }): Promise<LibDoc> {
+/** OCR for scans and photos, provided by the hub when OpenRouter is set up. */
+export type Ocr = (data: Uint8Array, kind: "pdf" | "image", mime: string, pages: number) => Promise<LibPage[]>;
+
+export async function addDoc(hub: Hub, f: { name: string; mime: string; data: Uint8Array }, o: { ocr?: Ocr | null; ocrOk?: boolean; estimate?: (pages: number) => number } = {}): Promise<LibDoc> {
   if (f.data.length > MAX_BYTES) throw new HttpError(413, "that file is too big (25 MB max)");
   const list = listDocs(hub);
   if (list.length >= MAX_DOCS) throw new HttpError(409, "the library is full — delete something first");
   const kind = kindOf(f.name, f.mime, f.data);
-  if (!kind) throw new HttpError(415, "PDF, Word, PowerPoint or text files only");
+  if (!kind) throw new HttpError(415, "PDF, Word, PowerPoint, text or a photo only");
   let pages: LibPage[];
   try {
     pages = await extractPages(f.data, kind);
   } catch {
     throw new HttpError(422, "couldn't read that file");
+  }
+  let usedOcr = false;
+  const hasText = pages.some((p) => p.text.trim().length > 20);
+  if (!hasText && (kind === "pdf" || kind === "image")) {
+    // A scan or a photo: no text to find on the Pi. Reading it costs a little, so ask first.
+    const n = Math.max(1, pages.length);
+    if (!o.ocr) throw new HttpError(422, kind === "pdf" ? "no text in that PDF (it's scanned) — connect OpenRouter to read scans" : "photos need OpenRouter connected to be read");
+    if (!o.ocrOk) throw new HttpError(402, "it's a scan: reading it costs a little", undefined, { needsOcr: true, pages: n, estUsd: o.estimate?.(n) ?? 0 });
+    try {
+      pages = await o.ocr(f.data, kind, f.mime, n);
+    } catch (e) {
+      throw new HttpError(502, `couldn't read it: ${(e as Error).message}`.slice(0, 200));
+    }
+    usedOcr = true;
   }
   let chars = 0;
   pages = pages.filter((p) => p.text).map((p) => {
@@ -112,9 +133,9 @@ export async function addDoc(hub: Hub, f: { name: string; mime: string; data: Ui
     chars += text.length;
     return { ...p, text };
   }).filter((p) => p.text);
-  if (!chars) throw new HttpError(422, kind === "pdf" ? "no text in that PDF (it's probably scanned pictures)" : "no text in that file");
+  if (!chars) throw new HttpError(422, "no text in that file");
   const title = f.name.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").trim().slice(0, 80) || "document";
-  const doc: LibDoc = { id: newId(), title, kind, bytes: f.data.length, pages: pages.length, chars, addedAt: hub.now() };
+  const doc: LibDoc = { id: newId(), title, kind, bytes: f.data.length, pages: pages.length, chars, addedAt: hub.now(), ...(usedOcr ? { ocr: true } : {}) };
   hub.db.blobPut(`libfile:${doc.id}`, f.mime || "application/octet-stream", f.data);
   hub.db.blobPut(`libtext:${doc.id}`, "application/json", new TextEncoder().encode(JSON.stringify(pages)));
   hub.db.kvSet(KEY, [...list, doc]);

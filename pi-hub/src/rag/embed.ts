@@ -12,6 +12,8 @@ import path from "node:path";
  */
 export interface Embedder {
   embed(texts: string[]): Promise<Float32Array[]>;
+  /** which model made the vectors (vectors from different models never mix) */
+  id?: string;
 }
 
 type Ort = typeof import("onnxruntime-node");
