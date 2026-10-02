@@ -62,6 +62,15 @@ export function LibrarySheet({ open, onClose }: { open: boolean; onClose: () => 
     await client.send("DELETE", `/api/library/${d.id}`).catch(toastError);
     window.setTimeout(reload, 320);
   };
+  // Read it on the wall: page 1 goes up, the wall's keys turn pages.
+  const toWall = async (d: LibDoc) => {
+    try {
+      await client.send("POST", "/api/wall/doc", { docId: d.id, page: 1 });
+      toast("cast", "on the wall");
+    } catch (e) {
+      toastError(e);
+    }
+  };
   const list = data ?? [];
   const snap = useSnapshotSettings();
   const better = snap?.ragEmbed === "openrouter";
@@ -97,6 +106,9 @@ export function LibrarySheet({ open, onClose }: { open: boolean; onClose: () => 
                 {d.pages} {d.kind === "slides" ? "SLIDE" : "PAGE"}{d.pages === 1 ? "" : "S"} · {size(d.bytes)}{d.ocr ? " · OCR" : ""}
               </div>
             </div>
+            <span className="tap" onClick={() => void toWall(d)} aria-label="read it on the wall" style={{ padding: "0 4px" }}>
+              <Ms style={{ fontSize: 16, color: "var(--c-8e8e97)" }}>cast</Ms>
+            </span>
             <span className="tap" onClick={() => void del(d)} aria-label="remove">
               <Ms style={{ fontSize: 16, color: "var(--c-5f5f67)" }}>close</Ms>
             </span>

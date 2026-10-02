@@ -2,7 +2,7 @@ export type Mode =
   | "boot" | "standby" | "select" | "countdown" | "active" | "paused" | "break" | "resumeScan" | "overrun"
   | "claim" | "award" | "bag" | "reward" | "unlock" | "nextReward" | "alarm" | "brief" | "welcome" | "breathe"
   | "doze" | "sleep" | "night" | "about" | "bright" | "disco" | "update" | "offline" | "agent" | "agent2"
-  | "resume" | "pair";
+  | "resume" | "pair" | "show";
 
 export interface Slab {
   icon: string;

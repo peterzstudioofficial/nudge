@@ -32,6 +32,8 @@ import { buildServer, sayOnWall } from "./server";
 import { seedDemo } from "./seed";
 import { loadPrivateSetup } from "./setup";
 import { geminiSynth, ttsService } from "./voice/tts";
+import { wallCards } from "./wall/cards";
+import { quickWall, wallTools } from "./wall/tools";
 
 process.removeAllListeners("warning");
 process.on("warning", (w) => {
@@ -93,9 +95,11 @@ async function main() {
   // Short wall answers read out in the live voice (cached per phrase; only if spoken replies are on).
   const tts = ttsService({ hub, synth: cfg.geminiKey ? geminiSynth(cfg.geminiKey) : null, dir: path.join(cfg.dataDir, "tts"), log });
   const ctx = {} as Ctx;
+  const cards = wallCards({ hub, say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms) });
   Object.assign(ctx, {
     cfg,
     hub,
+    wall: cards,
     auth,
     weather: weatherService(hub, false),
     news: newsService(hub, false),
@@ -118,12 +122,16 @@ async function main() {
       ready: () => !!keys.openrouter(),
       extraTools: async (mode, gate) => [
         searchTool(index),
+        // Putting something up on the wall (an answer, a list, a page of a document, a timer).
+        ...wallTools(hub, cards, index),
         // Reading from an app runs straight away; anything that changes something waits for a yes
         // (and isn't allowed at all outside "act" mode).
         ...(await apps.tools()).map(gate),
       ],
       say: (i, l, s, ms) => sayOnWall(ctx, i, l, s, ms),
       speak: (text) => void tts.speak(text),
+      show: (card) => (cards.show(card), true),
+      quickAction: (p) => quickWall(cards, p),
       retrieve: (q) => index.relevant(q),
       log,
     }),

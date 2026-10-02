@@ -13,7 +13,7 @@ const ICON: Record<string, string> = {
   start: "play_arrow", resume: "play_arrow", pause: "pause", break: "coffee", switch: "swap_horiz", tasks: "list",
   skip: "keyboard_double_arrow_down", back: "arrow_back", stop: "close", claim: "check", "got it": "check", done: "check",
   ok: "check", up: "wb_sunny", next: "arrow_forward", reward: "redeem", later: "schedule", no: "close", yes: "check", hold: "touch_app",
-  list: "backpack", pair: "qr_code_2", parent: "family_restroom", phone: "smartphone", retry: "refresh", dimmer: "brightness_low", brighter: "brightness_high",
+  list: "backpack", pair: "qr_code_2", prev: "chevron_left", down: "keyboard_arrow_down", "+1 min": "more_time", cancel: "timer_off", hide: "visibility_off", parent: "family_restroom", phone: "smartphone", retry: "refresh", dimmer: "brightness_low", brighter: "brightness_high",
 };
 
 export interface Tab {
@@ -32,6 +32,79 @@ export interface LedCell {
   anim: string;
   delay: string;
   glow: string;
+}
+
+/** One line on a card, wrapped on the wall (the font is monospaced, so this is exact). */
+export interface CardLine {
+  t: string;
+  /** "1." or "•" on an item's first line */
+  m?: string;
+}
+const CHAR_W = 6; // DM Mono at 10px
+const LINE_H = 15;
+
+export function wrap(text: string, cols: number, max = 400): CardLine[] {
+  const out: CardLine[] = [];
+  for (const para of text.replace(/\r/g, "").split("\n")) {
+    if (!para.trim()) {
+      if (out.length && out[out.length - 1].t) out.push({ t: "" });
+      continue;
+    }
+    let line = "";
+    for (const word of para.trim().split(/\s+/)) {
+      for (let w = word; w; ) {
+        const room = cols - (line ? line.length + 1 : 0);
+        if (w.length <= room) {
+          line = line ? line + " " + w : w;
+          w = "";
+        } else if (!line && w.length > cols) {
+          out.push({ t: w.slice(0, cols) });
+          w = w.slice(cols);
+        } else {
+          out.push({ t: line });
+          line = "";
+        }
+      }
+    }
+    if (line) out.push({ t: line });
+    if (out.length >= max) break;
+  }
+  while (out.length && !out[out.length - 1].t) out.pop();
+  return out.slice(0, max);
+}
+
+/** The card the assistant put up, laid out for this screen. */
+function cardVm(d: Device, size: { w: number; h: number }) {
+  const c = d.card();
+  if (!c) return null;
+  const cols = Math.max(24, Math.floor((size.w - 40) / CHAR_W));
+  const view = Math.max(4, Math.floor((size.h - 26 - 30 - 44) / LINE_H));
+  let lines: CardLine[] = [];
+  if (c.kind === "text" || c.kind === "doc") lines = wrap(c.body, cols);
+  if (c.kind === "list") {
+    c.items.forEach((it, i) => {
+      const m = c.ordered ? `${i + 1}.` : "•";
+      wrap(it, cols - 3, 20).forEach((l, k) => lines.push({ t: l.t, m: k ? undefined : m }));
+    });
+  }
+  const max = Math.max(0, lines.length - view);
+  d.scrollMax = max;
+  const top = Math.min(d.s.scroll, max);
+  const now = d.hubNow();
+  const left = c.kind === "timer" ? Math.max(0, Math.ceil((c.endsAt - now) / 1000)) : 0;
+  return {
+    kind: c.kind,
+    icon: c.kind === "doc" ? (c.slides ? "slideshow" : "description") : c.kind === "list" ? "checklist" : c.kind === "info" ? c.icon : c.kind === "timer" ? "timer" : "notes",
+    title: c.kind === "timer" ? c.label : c.title,
+    meta: c.kind === "doc" ? `${c.slides ? "SLIDE" : "P."} ${c.page}/${c.pages}` : c.kind === "list" ? `${c.items.length} ${c.ordered ? "STEPS" : "ITEMS"}` : c.kind === "text" && c.src ? c.src : "",
+    lines: lines.slice(top, top + view),
+    view,
+    /** scroll thumb: where it starts and how tall, as fractions */
+    thumb: max ? { at: top / lines.length, len: view / lines.length } : null,
+    big: c.kind === "info" ? c.big : c.kind === "timer" ? mmss(left) : "",
+    sub: c.kind === "info" ? c.sub ?? "" : c.kind === "timer" ? (left ? `OF ${mmss(c.secs)}` : "DONE") : "",
+    frac: c.kind === "timer" ? left / Math.max(1, c.secs) : c.kind === "doc" ? c.page / Math.max(1, c.pages) : 0,
+  };
 }
 
 export function buildVm(d: Device, size: { w: number; h: number }) {
@@ -77,6 +150,8 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
   if (mode === "paused") { heroLabel = "PAUSED, SAVED"; heroFg = "#55555f"; }
   if (mode === "overrun") { hero = mmss(over); heroLabel = "EXTRA"; }
   if (mode === "break") { hero = mmss(brem); heroLabel = "STAND UP, WALK"; heroFg = "#f4f3ef"; }
+  const wallCard = d.card();
+  const timerLeft = wallCard?.kind === "timer" ? Math.max(0, Math.ceil((wallCard.endsAt - d.hubNow()) / 1000)) : null;
   const frac = mode === "break" ? brem / Math.max(1, breakLen) : mode === "overrun" ? 0 : rem / Math.max(1, total);
 
   const phases = PH.map((id, i) => {
@@ -185,6 +260,8 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     showDisco: mode === "disco",
     showUpdate: mode === "update",
     showAlarmRing: mode === "alarm",
+    showCard: mode === "show",
+    card: mode === "show" ? cardVm(d, size) : null,
     showAgent: mode === "agent",
     showAgent2: mode === "agent2",
     showResume: mode === "resume",
@@ -197,7 +274,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     showDark: mode === "night" && !s.peek,
     showPeek: (mode === "sleep" || mode === "night") && s.peek,
     showBoot: mode === "boot",
-    showBar: !["boot", "night", "sleep", "claim", "award", "unlock", "countdown", "alarm", "update", "reward", "nextReward", "breathe", "doze", "offline", "resume", "agent", "agent2", "welcome", "bag", "brief", "disco", "bright", "about", "pair"].includes(mode),
+    showBar: !["boot", "night", "sleep", "claim", "award", "unlock", "countdown", "alarm", "update", "reward", "nextReward", "breathe", "doze", "offline", "resume", "agent", "agent2", "welcome", "bag", "brief", "disco", "bright", "about", "pair", "show"].includes(mode),
     showTabs: !["boot", "night", "sleep", "doze", "update", "breathe"].includes(mode),
 
     unlockName: reward?.name ?? "cinema trip",
@@ -258,7 +335,9 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     })),
     headClock: ["standby", "alarm"].includes(mode) ? "" : clock,
     tagline:
-      mode === "welcome" ? "home" : ["agent", "agent2"].includes(mode) ? "working on it" : working ? "focus" : mode === "bag" ? "for tomorrow"
+      mode === "show" ? (wallCard?.kind === "doc" ? "reading" : wallCard?.kind === "timer" ? "timer" : "on the wall")
+        : mode === "standby" && timerLeft !== null ? `timer ${mmss(timerLeft)}`
+        : mode === "welcome" ? "home" : ["agent", "agent2"].includes(mode) ? "working on it" : working ? "focus" : mode === "bag" ? "for tomorrow"
         : mode === "break" ? "break" : mode === "resumeScan" ? "waiting" : mode === "reward" ? "reward" : school ? "school day"
         : kind === "halfterm" ? "half term" : kind === "holiday" ? "holiday" : kind === "sick" ? "resting" : "weekend",
     pips: tasks.map((x, i) => ({
@@ -417,6 +496,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
   else if (mode === "doze" || mode === "standby") pat = "idle";
   else if (s.slab && !s.slab.leaving) pat = s.slab.ask ? "listen" : "voice";
   else if (working) pat = "fill";
+  else if (mode === "show") pat = wallCard?.kind === "timer" ? "timer" : wallCard?.kind === "doc" ? "page" : "idle";
   const SIDE = 5;
   const leds: LedCell[] = Array.from({ length: 25 }, (_, i) => {
     const col = i % SIDE, row = Math.floor(i / SIDE);
@@ -476,6 +556,15 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
       }
       case "bright":
         return row >= SIDE - 1 - s.bright ? on(0.25 + s.bright * 0.18) : dead;
+      case "timer": {
+        // one cell per 4% left, read like a page (still: it only changes when a cell runs out)
+        const left = Math.ceil((timerLeft ?? 0) / Math.max(1, wallCard?.kind === "timer" ? wallCard.secs : 1) * 25);
+        return i < left ? on(i === left - 1 ? 0.45 : 0.85) : dead;
+      }
+      case "page": {
+        const p = wallCard?.kind === "doc" ? Math.ceil((wallCard.page / Math.max(1, wallCard.pages)) * SIDE) : 0;
+        return row === SIDE - 1 && col < p ? white(0.5) : dead;
+      }
       case "count":
         return ring < 1.6 ? on(1, "lPulse 1s ease-in-out infinite") : dead;
       default:
@@ -483,7 +572,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     }
   });
 
-  const barPctN = working ? Math.round(frac * 100) : mode === "countdown" ? 100 : onLight ? 100 : 0;
+  const barPctN = pat === "timer" && wallCard?.kind === "timer" ? Math.round(((timerLeft ?? 0) / Math.max(1, wallCard.secs)) * 100) : working ? Math.round(frac * 100) : mode === "countdown" ? 100 : onLight ? 100 : 0;
   const panel = {
     leds,
     pat,

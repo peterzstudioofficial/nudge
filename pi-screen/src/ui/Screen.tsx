@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import confetti from "canvas-confetti";
 import type { Vm } from "../device/vm";
+import { CardView } from "./Card";
 
 /**
  * Screen v2 — the 320×240 wall display, ported from "Screen v2.dc.html".
@@ -313,6 +314,8 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
           </div>
         </div>
       )}
+
+      {vm.showCard && <CardView vm={vm} />}
 
       {vm.showAgent && (
         <div style={{ position: "absolute", left: 12, right: 12, top: 26, bottom: 44, display: "flex", gap: 13, animation: "sFade .28s ease-out" }}>

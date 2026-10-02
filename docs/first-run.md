@@ -68,4 +68,4 @@ openrouter.ai → Settings:
 - `sudo nudge dev on 2` turns on the dev tools for two hours (logs, status, test pop-up) —
   `sudo nudge dev off` or any update removes them.
 - `npm run build && npm run e2e` on a computer runs the whole system end to end with a fake
-  OpenRouter (34 checks); add `--pack private/nudge-setup.json` to run it on your own data.
+  OpenRouter (41 checks); add `--pack private/nudge-setup.json` to run it on your own data.

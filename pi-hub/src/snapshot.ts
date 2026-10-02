@@ -42,6 +42,8 @@ export function buildSnapshot(ctx: Ctx, role: Role): Snapshot {
     reminders: hub.dueReminders(),
     // Asks are Peter's own questions + drafts: a parent never sees them.
     asks: role === "parent" ? [] : hub.pendingAsks(),
+    // What's up on the wall can be a page of his documents: never the parent app.
+    wall: role === "parent" ? null : ctx.wall?.current() ?? null,
     school: ctx.school.status(),
     termLabel: hub.termLabel(todayKey),
     sync: { lastSync: hub.now() },

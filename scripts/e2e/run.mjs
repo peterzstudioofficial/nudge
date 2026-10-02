@@ -148,6 +148,26 @@ const wall = await b.newPage({ viewport: { width: 1024, height: 600 } });
 wall.on("pageerror", (e) => errs.push("wall: " + e));
 await wall.goto(`${LOCAL}/screen/`); await wall.waitForTimeout(2500);
 check("wall screen renders", (await wall.evaluate(() => document.body.innerText.length)) > 10);
+
+// 7. the assistant's screens on the wall: a free timer, then a page of his document
+await wall.keyboard.press("4"); // morning alarm (if it's up): any key
+await wall.waitForTimeout(400);
+const calls0 = log().filter((x) => x.url.endsWith("/chat/completions")).length;
+const tq = await ask("nudge, set a timer for 10 minutes");
+let wallNow = (await owner("GET", "/api/state")).j?.wall;
+check("a timer is set on the Pi, free (no model call)", wallNow?.card?.kind === "timer" && wallNow.card.secs === 600 && log().filter((x) => x.url.endsWith("/chat/completions")).length === calls0, tq?.log?.at(-1)?.text);
+const wallText = () => wall.evaluate(() => document.body.innerText);
+check("the wall shows the timer", !!(await until(async () => /timer/i.test(await wallText()) && /\b(9:5\d|10:00)\b/.test(await wallText()), 12000)), (await wallText()).replace(/\s+/g, " ").slice(0, 120));
+const dq = await ask("put my inspector calls guide on the wall");
+wallNow = (await owner("GET", "/api/state")).j?.wall;
+check("the assistant opens his document on the wall at a page", wallNow?.card?.kind === "doc" && wallNow.card.page === 2 && /Sheila/.test(wallNow.card.body), dq?.log?.at(-1)?.text);
+const reads = async () => { const t = await wallText(); return /P\. 2\/2/.test(t) && /Sheila/.test(t) && /prev/.test(t); };
+check("the wall reads it, with page and keys", !!(await until(reads, 8000)), (await wallText()).replace(/\s+/g, " ").slice(0, 160));
+check("the parent app never sees what's on the wall", (await parent("GET", "/api/state")).j?.wall === null);
+await owner("POST", "/api/wall/page", { delta: -1 });
+check("keys turn its pages", (await owner("GET", "/api/state")).j?.wall?.card?.page === 1);
+await owner("DELETE", "/api/wall");
+check("done takes it down", (await owner("GET", "/api/state")).j?.wall === null);
 const tok = (await (await fetch(`${HUB}/api/pair`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code("owner"), name: "browser" }) })).json());
 const phone = await b.newPage({ viewport: { width: 412, height: 912 } });
 phone.on("pageerror", (e) => errs.push("phone: " + e));

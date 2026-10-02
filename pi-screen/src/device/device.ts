@@ -51,6 +51,10 @@ export interface DeviceState {
   shownReminders: string[];
   shownAsks: string[];
   tick: number;
+  /** the card the assistant put up that's been on screen (so it isn't pushed again) */
+  wallSeen: string | null;
+  /** how far down the card is scrolled, in lines */
+  scroll: number;
 }
 
 type Listener = () => void;
@@ -74,7 +78,7 @@ export class Device {
       countN: 3, countTaskId: null, flash: -1, holdKey: -1, hold: 0, dial: 0, dialPress: false, slab: null,
       peek: false, bT0: 0, eggTurns: 0, discoBeat: 0, fxSeq: 0, awardPts: 3, awardBank: 0, power: true, mic: true,
       armed: false, bright: 2, localBreakUntil: null, listening: false, online: false, pairCode: null,
-      agentThread: null, bootAt: now, shownReminders: [], shownAsks: [], tick: 0,
+      agentThread: null, bootAt: now, shownReminders: [], shownAsks: [], tick: 0, wallSeen: null, scroll: 0,
     };
     this.snap = client.last;
     client.onSnapshot((snap) => this.onSnapshot(snap));
@@ -102,6 +106,10 @@ export class Device {
 
   now(): number {
     return Date.now() + this.sim.clockOffsetMs;
+  }
+  /** the hub's clock (for times the hub set, like a timer's end) */
+  hubNow(): number {
+    return Date.now() - this.skew;
   }
   minsOfDay(): number {
     const d = new Date(this.now());
@@ -201,7 +209,8 @@ export class Device {
       this.set({ slab: { icon, line: ask.line, rows: ask.rows, ask: true, askId: ask.id, sub: askNeedsHold(ask) ? "HOLD YES TO CONFIRM" : undefined } });
     }
     if (this.s.slab?.ask && !snap.asks.some((a) => a.id === this.s.slab!.askId)) this.dropSlab();
-    this.emit();
+    this.wallChanged(snap);
+    this.set({}); // a fresh state object, so the screen redraws now (not on the next beat)
   }
 
   private onMessage(m: HubMessage) {
@@ -257,6 +266,48 @@ export class Device {
     }
   }
 
+  /* --------------------------- the assistant's cards --------------------------- */
+
+  /** set by the screen: how many lines the card has below the fold */
+  scrollMax = 0;
+  private wallPage = "";
+
+  card() {
+    return this.snap?.wall?.card ?? null;
+  }
+
+  /** A new card goes up when the wall is free; a session or a question always comes first. */
+  private wallChanged(snap: Snapshot) {
+    const w = snap.wall;
+    const mode = this.effectiveMode();
+    if (!w) {
+      if (this.s.mode === "show") this.s.mode = this.homeMode();
+      return;
+    }
+    const page = w.card.kind === "doc" ? `${w.id}:${w.card.page}` : w.id;
+    if (page !== this.wallPage) {
+      this.wallPage = page;
+      this.s.scroll = 0;
+    }
+    if (w.id !== this.s.wallSeen && this.wallFree(mode)) {
+      this.s.mode = "show";
+      this.s.lastAct = this.now();
+    }
+  }
+  private wallFree(mode: Mode): boolean {
+    return ["standby", "doze", "select", "welcome", "brief", "resume", "reward", "offline", "show", "agent", "agent2"].includes(mode) && !this.s.slab?.ask;
+  }
+  private wallPost(delta: number) {
+    void this.call("POST", "/api/wall/page", { delta }).then(() => this.refresh());
+  }
+  closeCard = () => {
+    this.set({ mode: this.homeMode(), scroll: 0 });
+    void this.call("DELETE", "/api/wall").then(() => this.refresh());
+  };
+  private scrollBy(lines: number) {
+    this.set({ scroll: Math.max(0, Math.min(this.scrollMax, this.s.scroll + lines)) });
+  }
+
   /* ------------------------------ the clock ------------------------------ */
 
   /** Once-a-day pop-ups: the birthday on the morning of the day, and the reward being within reach. */
@@ -297,6 +348,15 @@ export class Device {
       n.fxSeq = s.fxSeq + 1;
     }
     const idle = (now - s.lastAct) / 1000;
+    const w = this.snap?.wall;
+    if (mode === "show" && w && s.wallSeen !== w.id) n.wallSeen = w.id;
+    if (mode === "show" && !w) n.mode = this.homeMode();
+    // A card that came while the wall was busy goes up as soon as it's free.
+    if (w && s.wallSeen !== w.id && ["standby", "brief", "welcome", "resume", "doze"].includes(mode) && !s.slab) n.mode = "show";
+    if (mode === "show" && w?.card.kind !== "timer" && !entered && idle > 180) {
+      n.mode = "doze";
+      n.preDoze = "show";
+    }
     if (!entered && QUIET.includes(mode) && idle > 75) {
       n.mode = "doze";
       n.preDoze = mode;
@@ -385,6 +445,17 @@ export class Device {
       this.set({ bagIdx: (s.bagIdx + d + n) % n, dial });
       return;
     }
+    if (mode === "show") {
+      const c = this.card();
+      if (c?.kind === "timer") return this.set({ dial });
+      this.set({ dial });
+      // past the end of a page turns it
+      if (c?.kind === "doc" && ((d > 0 && s.scroll >= this.scrollMax) || (d < 0 && s.scroll === 0))) {
+        if ((d > 0 && c.page < c.pages) || (d < 0 && c.page > 1)) this.wallPost(d);
+        return;
+      }
+      return this.scrollBy(d * 2);
+    }
     if (["standby", "select", "reward"].includes(mode)) this.eggBump();
     if (!["standby", "select", "resume", "welcome", "brief", "reward"].includes(mode)) {
       this.set({ dial });
@@ -464,6 +535,11 @@ export class Device {
       return;
     }
     if (mode === "claim") return this.claim();
+    if (mode === "show") {
+      const c = this.card();
+      if (c?.kind === "doc" && c.page < c.pages) return this.wallPost(1);
+      return this.scrollBy(4);
+    }
     this.begin();
   };
 
@@ -809,6 +885,14 @@ export class Device {
       case "nextReward": return [null, null, null, K("ok", () => { void this.call("POST", "/api/rewards/ack").then(() => this.refresh()); home(); }, "primary")];
       case "agent":
       case "agent2": return [null, null, null, K("stop", home)];
+      case "show": {
+        const c = this.card();
+        const hide = () => this.set({ mode: this.homeMode(), scroll: 0 });
+        if (c?.kind === "timer") return [K("+1 min", () => this.wallPost(1)), null, K("cancel", this.closeCard), K("hide", hide, "primary")];
+        if (c?.kind === "doc") return [c.page > 1 ? K("prev", () => this.wallPost(-1)) : null, c.page < c.pages ? K("next", () => this.wallPost(1), "primary") : null, K("down", () => this.scrollBy(4)), K("done", this.closeCard)];
+        if (c?.kind === "info") return [null, null, null, K("ok", this.closeCard, "primary")];
+        return [this.s.scroll > 0 ? K("up", () => this.scrollBy(-4)) : null, this.s.scroll < this.scrollMax ? K("down", () => this.scrollBy(4)) : null, null, K("done", this.closeCard, "primary")];
+      }
       case "alarm": return [null, null, null, K("up", this.dismissAlarm, "live")];
       default: return [null, null, null, null];
     }

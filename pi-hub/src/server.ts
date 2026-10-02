@@ -632,6 +632,26 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     return reply.send(Buffer.from(f.data));
   });
 
+  // What's up on the wall: turn a page, keep it up, or close it (the wall's keys, or the phone).
+  app.post("/api/wall/page", async (req) => {
+    need(req, "agent");
+    const { delta } = parse(z.object({ delta: z.number().int().min(-50).max(50) }), req.body);
+    return { wall: ctx.wall?.page(delta) ?? null };
+  });
+  app.delete("/api/wall", async (req) => {
+    need(req, "agent");
+    ctx.wall?.close();
+    return { ok: true };
+  });
+  // Open one of his documents on the wall from the phone.
+  app.post("/api/wall/doc", async (req) => {
+    brainCaller(req);
+    const b = parse(z.object({ docId: z.string().min(1).max(64), page: z.number().int().min(1).max(5000).default(1) }), req.body);
+    const shown = ctx.wall?.openDoc(b.docId, b.page);
+    if (!shown) throw new HttpError(404, "no readable text in that document");
+    return { wall: shown };
+  });
+
   app.get("/api/brain", async (req) => (brainCaller(req), [...memories(hub)].sort((a, b) => b.createdAt - a.createdAt)));
   app.post("/api/brain", async (req) => {
     brainCaller(req);

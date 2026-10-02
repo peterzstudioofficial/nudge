@@ -68,6 +68,8 @@ export interface Ctx {
   /** the wall's voice assistant (mic stream from the hardware daemon) */
   voice?: VoiceService;
   wake?: import("./voice/wake").WakeService;
+  /** what the assistant put up on the wall */
+  wall?: import("./wall/cards").WallCards;
   /** builds tools (small apps) after a yes */
   builder?: BuilderService;
   /** the OpenRouter key (hub.env, or connected from setup) */

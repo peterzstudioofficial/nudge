@@ -6,6 +6,16 @@ import { Screen } from "./ui/Screen";
 import { useDevice } from "./device/useDevice";
 import { attachKeyboard } from "./input";
 import type { Mode } from "./device/types";
+import type { WallCard } from "@nudge/shared";
+
+/** Sample cards to preview the assistant's screens (shown locally; the hub doesn't know). */
+const CARDS: Record<string, WallCard> = {
+  text: { kind: "text", title: "how does le chatelier work", src: "ALSO IN YOUR NOTES", body: "If you change the conditions of a reaction at equilibrium, the position of equilibrium shifts to oppose that change.\n\nRaise the temperature and it shifts towards the endothermic direction, soaking up the heat. Raise the pressure and it shifts towards the side with fewer gas molecules.\n\nA catalyst doesn't move the position at all: it just gets there faster. Exam tip: always say which direction and why." },
+  list: { kind: "list", title: "pack for tomorrow", ordered: false, items: ["PE kit (week A Thursday)", "Oliver! script, act two", "Chemistry revision guide", "Calculator", "Lunch money"] },
+  doc: { kind: "doc", docId: "x", title: "Chemistry revision guide", page: 14, pages: 62, slides: false, body: "Equilibria\n\nA reversible reaction in a closed system reaches dynamic equilibrium: the forward and backward reactions happen at the same rate, so the amounts stop changing.\n\nThe Haber process makes ammonia from nitrogen and hydrogen at 450 °C and 200 atm with an iron catalyst. These are compromise conditions: lower temperatures give a better yield but a slower rate." },
+  info: { kind: "info", icon: "event", title: "chemistry mock", big: "14 nov", sub: "Friday, period 3 · lab 2" },
+  timer: { kind: "timer", label: "pasta", secs: 600, endsAt: Date.now() + 437_000 },
+};
 
 /**
  * Dev / testing mode: the whole ND-1 Panel v2 on your computer — screen, four keys, dial,
@@ -244,6 +254,16 @@ function Panel() {
           />
         </Row>
         <Row label="states">{STATES.map((m) => btn(m, effective === m, () => d.jump(m)))}</Row>
+        <Row label="cards">
+          {Object.entries(CARDS).map(([k, c]) =>
+            btn(k, effective === "show" && d.card()?.kind === c.kind, () => {
+              const card = c.kind === "timer" ? { ...c, endsAt: d.hubNow() + 437_000 } : c;
+              if (d.snap) d.snap = { ...d.snap, wall: { id: "sim-" + k, card, at: Date.now(), until: Date.now() + 600_000 } };
+              d.set({ scroll: 0 });
+              d.jump("show");
+            }),
+          )}
+        </Row>
         <span style={{ fontSize: 10, color: "#5f5f67", lineHeight: 1.6 }}>
           hub: {d.s.online ? "online" : "offline"} · mode: {effective} · the screen alone (what the Pi shows) is at <a href="./" style={{ color: "#ff4d17" }}>./</a>
         </span>

@@ -23,6 +23,7 @@ http.createServer((req, res) => {
     const user = msgs.filter((m) => m.role === "user").map((m) => String(m.content)).join("\n").toLowerCase();
     if (last.role === "tool") {
       const t = String(last.content);
+      if (t.startsWith("Opened ")) return reply(res, msg("It's up on the wall."));
       if (t.includes("waiting for the student's OK")) return reply(res, msg("I've drafted it — hold yes on your phone to get it ready in Outlook."));
       const lesson = /"subject":"([^"]+)","time":"([0-9:]+)/.exec(t);
       if (lesson) return reply(res, msg(`First up is ${lesson[1]} at ${lesson[2].split("-")[0]}.`));
@@ -32,6 +33,7 @@ http.createServer((req, res) => {
     }
     if (/email/.test(user) && tools.includes("propose_email")) return reply(res, msg("", call("propose_email", { to_email: "j.hale@churcherscollege.com", to_name: "mr hale", subject: "Chemistry write-up", body: "Hi Mr Hale, could I have until Tuesday for the write-up? Thanks, Peter", ask_summary: "two more days" })));
     if (/remember/.test(user) && tools.includes("remember")) return reply(res, msg("", call("remember", { fact: "prefers revising before school", they_said_it: true })));
+    if (/on the wall/.test(user) && tools.includes("open_document")) return reply(res, msg("", call("open_document", { query: "inspector", page: 2 })));
     if (/inspector|macbeth|guide|document/.test(user) && tools.includes("search_my_stuff")) return reply(res, msg("", call("search_my_stuff", { query: user.split("\n").pop() })));
     return reply(res, msg("", call("get_today", {})));
   });

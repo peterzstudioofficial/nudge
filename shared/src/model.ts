@@ -204,6 +204,26 @@ export const Reminder = z.object({
 });
 export type Reminder = z.infer<typeof Reminder>;
 
+/**
+ * Something the assistant puts up on the wall to look at: a longer answer, a list, one big
+ * number, a page of one of their documents, or a timer. One at a time; it goes away on its own.
+ */
+export const WallCard = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("text"), title: z.string().max(80), body: z.string().max(4000), src: z.string().max(80).optional() }),
+  z.object({ kind: z.literal("list"), title: z.string().max(80), items: z.array(z.string().max(160)).min(1).max(12), ordered: z.boolean().optional() }),
+  z.object({ kind: z.literal("info"), icon: z.string().max(40), title: z.string().max(60), big: z.string().max(14), sub: z.string().max(80).optional() }),
+  z.object({ kind: z.literal("doc"), docId: z.string(), title: z.string().max(120), page: z.number().int(), pages: z.number().int(), slides: z.boolean(), body: z.string().max(6000) }),
+  z.object({ kind: z.literal("timer"), label: z.string().max(40), secs: z.number().int().positive(), endsAt: z.number() }),
+]);
+export type WallCard = z.infer<typeof WallCard>;
+export interface WallShown {
+  id: string;
+  card: WallCard;
+  at: number;
+  /** it leaves on its own at this time (moved on by turning pages) */
+  until: number;
+}
+
 export const SchoolItemKind = z.enum(["homework", "bring", "deadline", "event", "info"]);
 export const SchoolItem = z.object({
   id: z.string(),
@@ -630,6 +650,8 @@ export interface Snapshot {
   heads: string;
   reminders: Reminder[];
   asks: Ask[];
+  /** what the assistant put up on the wall (never sent to the parent app) */
+  wall: WallShown | null;
   school: SchoolStatus;
   termLabel: string;
   sync: { lastSync: number };

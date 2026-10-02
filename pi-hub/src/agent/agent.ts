@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { type Llm, type Message, DEFAULT_MODEL, LlmError, serverToolsFor, type Citation } from "./llm";
 import { type Tool, tool, parseArgs } from "./tools";
-import { addDays, askNeedsHold, dueLabel, searchNotes, sessionView, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson } from "@nudge/shared";
+import { addDays, askNeedsHold, dueLabel, searchNotes, sessionView, type AgentThread, type AgentMode, parseDateKey, SUBJECT_NAMES, formTimeOn, matchTeacher, type Lesson, type WallCard } from "@nudge/shared";
 import type { AgentService } from "../context";
 import { type Hub, newId } from "../hub";
 import { estimateBuild } from "../builder/builder";
@@ -36,6 +36,10 @@ interface Opts {
   claudeWaitMs?: number;
   /** read a short wall answer out loud (if spoken replies are on) */
   speak?: (text: string) => void;
+  /** put a longer answer up on the wall to read (false if it can't right now) */
+  show?: (card: WallCard) => boolean;
+  /** things done on the Pi for free ("set a timer for 10 minutes"); returns what to say */
+  quickAction?: (prompt: string) => string | null;
   log: (m: string) => void;
 }
 
@@ -585,7 +589,7 @@ export function agentService(o: Opts): AgentService {
       (duringSession
         ? " The student is in a focus session right now. If the request is not about the current task, reply with exactly DEFER and nothing else."
         : "") +
-      (thread.origin === "wall" ? " This will show on a tiny screen: answer in at most two short lines; anything longer goes to save_note." : "")
+      (thread.origin === "wall" ? " This shows on a tiny screen: answer in at most two short lines. For anything longer (steps, an explanation, a page of their notes), put it up with show_on_wall or open_document and reply in one line." : "")
     );
   }
 
@@ -629,7 +633,11 @@ export function agentService(o: Opts): AgentService {
           thread.output = { file: thread.prompt.slice(0, 40), icon: "bookmark_added", meta: "IN NOTES", noteId: n.id };
           save(thread);
         }
-        o.say("bookmark_added", "saved to your notes", "READ IT AFTER THIS SESSION", 3000);
+        // Not in a session: put it up to read (and say the first line). In one: it waits in notes.
+        const title = thread.prompt === VOICE ? "answer" : thread.prompt.replace(/^(hey |ok )?nudge[,!]?\s*/i, "").slice(0, 60);
+        if (hub.session()?.state !== "running" && o.show?.({ kind: "text", title, body: text.slice(0, 4000), src: "ALSO IN YOUR NOTES" })) {
+          if (!alreadySpoken) o.speak?.(lines[0]);
+        } else o.say("bookmark_added", "saved to your notes", "READ IT AFTER THIS SESSION", 3000);
       } else if (text) {
         o.say("lightbulb", text.toLowerCase(), undefined, 5000);
         if (!alreadySpoken) o.speak?.(text);
@@ -821,7 +829,13 @@ export function agentService(o: Opts): AgentService {
       const t = newThread(prompt, mode, origin);
       const now = Date.now();
       while (runTimes.length && runTimes[0] < now - 3600_000) runTimes.shift();
-      // 1. Things the wall already knows: answered on the Pi, free and instant.
+      // 1. Things the wall already knows or can just do: answered on the Pi, free and instant.
+      const did = mode === "act" ? o.quickAction?.(prompt) ?? null : null;
+      if (did) {
+        t.steps.push({ text: "done on the wall", meta: "ON THE PI · FREE", done: true });
+        finish(t, did);
+        return t.id;
+      }
       const quick = mode !== "watch" && !(origin === "wall" && hub.session()?.state === "running") ? quickAnswer(hub, prompt) : null;
       if (quick) {
         t.steps.push({ text: "knew that one", meta: "ON THE PI · FREE", done: true });

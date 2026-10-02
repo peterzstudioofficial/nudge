@@ -19,13 +19,8 @@ export function getDevice(): Device {
 
 export function useDevice(size: { w: number; h: number }) {
   const d = useMemo(getDevice, []);
-  const [, force] = useState(0);
+  // The device's own once-a-second beat re-renders clocks and countdowns; nothing else polls.
   useSyncExternalStore(d.subscribe, () => d.s);
-  // re-render once a second for clocks and countdowns
-  useEffect(() => {
-    const iv = setInterval(() => force((n) => n + 1), 1000);
-    return () => clearInterval(iv);
-  }, []);
   const built = buildVm(d, size);
   useLedOutput(d, built.panel);
   return { d, ...built };
