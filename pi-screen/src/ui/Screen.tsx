@@ -1,4 +1,5 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
+import qrcode from "qrcode-generator";
 import confetti from "canvas-confetti";
 import type { Vm } from "../device/vm";
 import { CardView } from "./Card";
@@ -15,6 +16,24 @@ const DOTO = "Doto, monospace";
 function Ms({ children, style }: { children: ReactNode; style?: CSSProperties }) {
   return <span className="ms" style={style}>{children}</span>;
 }
+
+/** A QR code as one SVG path (drawn once per link; scanning it opens pairing on the phone). */
+const Qr = memo(function Qr({ text, size }: { text: string; size: number }) {
+  const d = useMemo(() => {
+    const q = qrcode(0, "M");
+    q.addData(text);
+    q.make();
+    const n = q.getModuleCount();
+    let path = "";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) path += `M${c + 2} ${r + 2}h1v1h-1z`;
+    return { path, n: n + 4 };
+  }, [text]);
+  return (
+    <svg viewBox={`0 0 ${d.n} ${d.n}`} width={size} height={size} shapeRendering="crispEdges" style={{ flex: "none", borderRadius: 10, background: "#f4f3ef", animation: "sFade .4s ease-out both" }} aria-label="scan to pair">
+      <path d={d.path} fill="#0b0b0d" />
+    </svg>
+  );
+});
 
 export interface ScreenProps {
   vm: Vm;
@@ -90,7 +109,7 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
 
       {vm.showBrief && (
         <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 38, display: "flex", animation: "sFade .3s ease-out" }}>
-          <div style={{ width: 104, flex: "none", padding: "8px 0 8px 8px", display: "flex", flexDirection: "column", gap: 3 }}>
+          <div style={{ width: vm.schedW, flex: "none", padding: "8px 0 8px 8px", display: "flex", flexDirection: "column", gap: 3 }}>
             {vm.sched.map((p, i) => (
               <div key={i} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, flex: p.flex, padding: "0 8px", borderRadius: p.radius, overflow: "hidden", background: p.bg }}>
                 <span style={{ width: 3, height: p.barH, borderRadius: 2, flex: "none", background: p.tint }} />
@@ -109,8 +128,8 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
               <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 14, flex: "none", color: vm.fg }}>{vm.clock}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Ms style={{ fontSize: 30, flex: "none", color: vm.fg }}>{vm.wxIcon}</Ms>
-              <span style={{ fontFamily: D, fontSize: 40, lineHeight: 0.82, flex: "none", color: vm.fg }}>{vm.wxTemp}</span>
+              {vm.wxShow && <Ms style={{ fontSize: 30, flex: "none", color: vm.fg }}>{vm.wxIcon}</Ms>}
+              {vm.wxShow && <span style={{ fontFamily: D, fontSize: 40, lineHeight: 0.82, flex: "none", color: vm.fg }}>{vm.wxTemp}</span>}
               {vm.bdayName && (
                 <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 10, background: "#17171d", minWidth: 0 }}>
                   <Ms style={{ fontSize: 13, color: vm.accent }}>{vm.bdayIcon}</Ms>
@@ -128,7 +147,7 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRadius: 11, overflow: "hidden", background: "#141419", minHeight: 0 }}>
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", minHeight: 0 }}>
-                <Ms style={{ fontSize: 15, flex: "none", color: vm.mid }}>bolt</Ms>
+                <Ms style={{ fontSize: 15, flex: "none", color: vm.mid }}>{vm.newsIcon}</Ms>
                 <span style={{ fontSize: 10, lineHeight: 1.35, color: vm.newsFg, textWrap: "pretty", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>{vm.news}</span>
               </div>
               {vm.heads && (
@@ -333,8 +352,8 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {vm.agentSteps.map((a, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Ms style={{ fontSize: 13, flex: "none", color: a.iconFg }}>{a.icon}</Ms>
-                  <span style={{ fontSize: 10, flex: "none", minWidth: "max-content", color: a.fg }}>{a.text}</span>
+                  <Ms style={{ fontSize: 13, flex: "none", color: a.iconFg, animation: a.icon === "progress_activity" ? "sSpin 1.1s linear infinite" : "none" }}>{a.icon}</Ms>
+                  <span key={a.text} style={{ fontSize: 10, flex: "none", minWidth: "max-content", color: a.fg, animation: "sSwap .3s ease-out both" }}>{a.text}</span>
                   <span style={{ flex: 1, height: 3, borderRadius: 2, background: a.ruleC }} />
                 </div>
               ))}
@@ -388,11 +407,14 @@ export function Screen({ vm, radius = 0, onKeyDown, onKeyUp }: ScreenProps) {
       )}
 
       {vm.showPair && (
-        <div style={{ position: "absolute", left: 14, right: 14, top: 18, bottom: 44, display: "flex", flexDirection: "column", justifyContent: "center", gap: 8, animation: "sUp .3s ease-out" }}>
-          <span style={{ fontSize: 8, letterSpacing: ".24em", color: vm.dim }}>PAIR A PHONE OR COMPUTER</span>
-          <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 52, lineHeight: 1, letterSpacing: 2, color: vm.accent }}>{vm.pairCode}</span>
-          <span style={{ fontSize: 9, letterSpacing: ".1em", color: vm.mid }}>{vm.pairSub}</span>
-          <span style={{ fontSize: 9, color: vm.dim }}>{vm.pairUrl}</span>
+        <div style={{ position: "absolute", left: 14, right: 14, top: 22, bottom: 46, display: "flex", alignItems: "center", gap: 14, animation: "sUp .3s ease-out" }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 7 }}>
+            <span style={{ fontSize: 8, letterSpacing: ".24em", color: vm.dim }}>{vm.pairLink ? "PAIR A PHONE" : "PAIR A PHONE OR COMPUTER"}</span>
+            <span key={vm.pairCode} style={{ fontFamily: DOTO, fontWeight: 900, fontSize: vm.pairFont, lineHeight: 1, letterSpacing: 1, whiteSpace: "nowrap", color: vm.pairReady ? vm.accent : "#3a3a44", animation: vm.pairReady ? "sSwap .35s ease-out both" : "sNow 1.2s ease-in-out infinite" }}>{vm.pairCode}</span>
+            <span style={{ fontSize: 8, lineHeight: 1.5, letterSpacing: ".1em", color: vm.mid }}>{vm.pairSub}</span>
+            <span style={{ fontSize: 9, color: vm.dim, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{vm.pairUrl}</span>
+          </div>
+          {vm.pairLink && <Qr text={vm.pairLink} size={vm.pairQr} />}
         </div>
       )}
 

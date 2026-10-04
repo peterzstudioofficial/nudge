@@ -80,7 +80,7 @@ export class Auth {
       const cur = a && a.until > Date.now() ? a : { n: 0, until: Date.now() + 10 * 60_000 };
       cur.n++;
       this.attempts.set(ip, cur);
-      throw new HttpError(401, "that code didn't work");
+      throw new HttpError(401, "that code didn't work. check the wall: codes last 10 minutes");
     }
     this.attempts.delete(ip);
     this.db.kvSet("pairCodes", codes.filter((c) => c !== match && c.expires > Date.now()));

@@ -25,6 +25,7 @@ import type { Ctx } from "./context";
 import { isLoopback, isPrivateLan, isTailscale, type Caller } from "./auth";
 import { HttpError } from "./errors";
 import { buildSnapshot } from "./snapshot";
+import { publicBase } from "./address";
 import { schoolAction } from "./school/actions";
 
 declare module "fastify" {
@@ -187,7 +188,10 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
           ? false
           : c.role === "parent" || c.role === "screen" || c.role === "owner";
     if (!ok) throw new HttpError(403, "not allowed", { icon: "lock", line: "ask a parent in their app" });
-    return auth.createCode(role, c.deviceId);
+    const made = auth.createCode(role, c.deviceId);
+    // A link the phone's camera can open straight into pairing (the wall shows it as a QR code).
+    const base = publicBase({ port: cfg.port, tlsCert: cfg.tlsCert });
+    return { ...made, base, url: base ? `${base}/app/${role === "parent" ? "parent.html" : "index.html"}?pair=${made.code}` : null };
   });
   app.delete("/api/devices/:id", async (req) => {
     const c = need(req, "devices.manage");

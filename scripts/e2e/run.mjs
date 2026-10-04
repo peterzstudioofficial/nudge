@@ -68,6 +68,8 @@ const until = async (fn, ms = 8000) => { const t0 = Date.now(); while (Date.now(
 // 1. import the private setup through the wall's loopback, like `sudo nudge import`
 const imp = await fetch(`${LOCAL}/api/config/import`, { method: "POST", headers: { "content-type": "application/json" }, body: fs.readFileSync(PACK) });
 check("setup pack imports on the wall", imp.ok, (await imp.text()).slice(0, 160));
+const pc = await (await fetch(`${LOCAL}/api/pairing-codes`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "owner" }) })).json();
+check("the wall's pair code comes with a link a phone can scan (not 127.0.0.1)", /^https?:\/\/(?!127\.)[^/]+\/app\/index\.html\?pair=\d{6}$/.test(pc.url ?? ""), pc.url);
 
 const owner = api(await pair("owner", "peter's phone"));
 const parent = api(await pair("parent", "dad"));

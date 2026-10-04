@@ -54,6 +54,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- tiny haptic ticks on toggles and confirms -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- voice notes in the notes app -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />

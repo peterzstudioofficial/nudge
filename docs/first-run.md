@@ -28,7 +28,8 @@ Everything below is a one-time job. Tick them off in order; each step says how y
 
 1. Install the APK from the CI build (Actions → build → artifacts → `nudge-android-my`, and
    `nudge-android-notes` for the notes app).
-2. On the wall: hold key 3 → 1 (pair) for a code; type it in the app.
+2. On the wall: hold key 3 → 1 (pair). Scan the QR code with the phone's camera and tap
+   **connect** (or type the six numbers into the app).
    ✓ Today shows your day and week A/B.
 3. Settings → **documents it can read** → add revision guides, the syllabus, scripts.
    Scans and photos ask before costing anything.
@@ -70,4 +71,4 @@ openrouter.ai → Settings:
 - `sudo nudge dev on 2` turns on the dev tools for two hours (logs, status, test pop-up) —
   `sudo nudge dev off` or any update removes them.
 - `npm run build && npm run e2e` on a computer runs the whole system end to end with a fake
-  OpenRouter (47 checks); add `--pack private/nudge-setup.json` to run it on your own data.
+  OpenRouter (48 checks); add `--pack private/nudge-setup.json` to run it on your own data.

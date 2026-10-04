@@ -205,11 +205,12 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     tint: x.now ? "#0b0b0d" : x.tint,
     flex: x.span,
     barH: x.span > 1 ? "22px" : "14px",
-    size: x.now ? "12px" : "11px",
+    size: x.now ? (x.name.length > 9 ? "11px" : "12px") : x.name.length > 9 ? "10px" : "11px",
     radius: i === 0 ? "10px 10px 5px 5px" : i === schedSrc.length - 1 ? "5px 5px 10px 10px" : "5px",
     bg: x.now ? accent : x.free ? "#0f0f14" : "#191920",
     fg: x.now ? "#0b0b0d" : x.free ? "#7a7a84" : "#dedad4",
-    dbl: x.span > 1,
+    // the double-lesson mark only means something on a school day
+    dbl: school && x.span > 1,
     dblC: x.now ? "#0b0b0d80" : "#4a4a54",
   }));
 
@@ -285,9 +286,14 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     nextIcon: snap?.nextReward?.icon ?? "redeem",
     offLine: "no wifi",
     offSub: "tasks still run, sync when it's back",
-    pairCode: s.pairCode ? s.pairCode.slice(0, 3) + " " + s.pairCode.slice(3) : "",
-    pairSub: d.pairRole === "parent" ? "FOR THE PARENT APP" : "OPEN THE NUDGE APP · ADD THIS WALL",
-    pairUrl: typeof location !== "undefined" ? location.host : "",
+    pairCode: s.pairCode ? s.pairCode.slice(0, 3) + " " + s.pairCode.slice(3) : "··· ···",
+    pairReady: !!s.pairCode,
+    pairSub: d.pairRole === "parent" ? "SCAN WITH THE PARENT'S PHONE" : "SCAN WITH YOUR PHONE, OR TYPE IT IN THE APP",
+    pairUrl: (s.pairBase ?? (typeof location !== "undefined" ? location.origin : "")).replace(/^https?:\/\//, ""),
+    pairLink: s.pairLink,
+    // QR as big as the screen allows; the code shrinks to fit beside it (Doto is ~0.62em per digit)
+    pairQr: Math.round(Math.min(136, size.h - 86, size.w * 0.36)),
+    pairFont: Math.round(Math.min(44, (size.w - 42 - (s.pairLink ? Math.min(136, size.h - 86, size.w * 0.36) : 0)) / (7 * 0.64))),
 
     aboutRows: [
       { k: "MODEL", v: "ND-1 rev C" },
@@ -338,7 +344,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
       mode === "show" ? (wallCard?.kind === "doc" ? "reading" : wallCard?.kind === "timer" ? "timer" : "on the wall")
         : mode === "standby" && timerLeft !== null ? `timer ${mmss(timerLeft)}`
         : mode === "welcome" ? "home" : ["agent", "agent2"].includes(mode) ? "working on it" : working ? "focus" : mode === "bag" ? "for tomorrow"
-        : mode === "break" ? "break" : mode === "resumeScan" ? "waiting" : mode === "reward" ? "reward" : school ? "school day"
+        : mode === "break" ? "break" : mode === "paused" ? "paused" : mode === "resumeScan" ? "waiting" : mode === "reward" ? "reward" : school ? "school day"
         : kind === "halfterm" ? "half term" : kind === "holiday" ? "holiday" : kind === "sick" ? "resting" : "weekend",
     pips: tasks.map((x, i) => ({
       r: i < doneN ? "50%" : "2px",
@@ -375,13 +381,17 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
     briefMonShort: MONTH_SHORT[date.getMonth()],
     briefKind,
     wxIcon: wx?.icon ?? (school ? "cloud" : "wb_sunny"),
-    wxTemp: wx ? wx.temp + "°" : "—",
+    wxTemp: wx ? wx.temp + "°" : "",
+    wxShow: !!wx,
+    schedW: Math.round(Math.max(104, Math.min(140, size.w * 0.3))),
     wxRain: wx?.rainAt ?? "",
     bdayIcon: "cake",
     bdayName: bday ? (bday.inDays === 0 ? `${bday.name}, today` : `${bday.name}, in ${bday.inDays} day${bday.inDays === 1 ? "" : "s"}`) : "",
     sched,
     heads: snap?.heads ?? "",
-    news: snap?.news || (snap ? "No headlines right now." : ""),
+    // No headlines (or no internet): the card says something useful about today instead.
+    news: snap?.news || briefFallback(snap, school, openT, mins),
+    newsIcon: snap?.news ? "bolt" : "event_note",
 
     rowH: "32px",
     rowsY: -listTop * 36,
@@ -467,13 +477,7 @@ export function buildVm(d: Device, size: { w: number; h: number }) {
       { name: "friday revision plan", icon: "edit_note", iconFg: accent, fg: "#ffffff", ruleC: accent, meta: "NEXT", metaFg: accent },
       { name: "chemistry deadline", icon: "check", iconFg: "#8e8e97", fg: "#b6b5af", ruleC: "#26262e", meta: "DONE", metaFg: "#6d6d77" },
     ],
-    agentElapsed: "0:07",
-    agentTask: "finding your chemistry deadline",
-    agentSteps: [
-      { icon: "check", text: "read school tasks", iconFg: "#8e8e97", fg: "#b6b5af", ruleC: "#26262e" },
-      { icon: "search", text: "checking notes", iconFg: accent, fg: "#ffffff", ruleC: accent },
-      { icon: "schedule", text: "add to friday", iconFg: "#6d6d77", fg: "#8e8e97", ruleC: "#1d1d24" },
-    ],
+    ...agentVm(s.agentInfo, now, accent),
 
     slab: s.slab,
     slabAnim: s.slab?.leaving ? "sLift .4s cubic-bezier(.5,0,.75,0) both" : "sDrop .52s cubic-bezier(.32,.72,0,1) both",
@@ -614,6 +618,32 @@ function weekendSched(open: { name: string; subject: string }[], mins: number) {
   list.forEach((t, i) => out.push({ name: t.name, tint: tint(t.subject), span: 2, now: i === 0 && mins >= 10 * 60, free: false }));
   if (out.length < 4) out.push({ name: "free", tint: "#2a2a33", span: 2, now: false, free: true });
   return out;
+}
+
+/** What the assistant is doing with the wall's question, from its real steps. */
+function agentVm(info: Device["s"]["agentInfo"], now: number, accent: string) {
+  if (!info) return { agentElapsed: "0:00", agentTask: "", agentSteps: [] as { icon: string; text: string; iconFg: string; fg: string; ruleC: string }[] };
+  const steps = info.steps.length ? info.steps : [{ text: "thinking", done: false }];
+  return {
+    agentElapsed: mmss(Math.max(0, Math.floor((now - info.t0) / 1000))),
+    agentTask: info.prompt.replace(/^(hey |ok )?nudge[,!]?\s*/i, "").toLowerCase().slice(0, 70),
+    agentSteps: steps.map((x, i) => {
+      const live = !x.done && i === steps.length - 1;
+      return { icon: x.done ? "check" : live ? "progress_activity" : "schedule", text: x.text.toLowerCase().slice(0, 40), iconFg: live ? accent : "#8e8e97", fg: live ? "#ffffff" : "#b6b5af", ruleC: live ? accent : "#26262e" };
+    }),
+  };
+}
+
+function briefFallback(snap: Device["snap"], school: boolean, open: { name: string; mins: number }[], mins: number): string {
+  if (!snap) return "";
+  if (school) {
+    const next = snap.timetable.find((l) => hhmmToMinutes(l.start) > mins);
+    if (next) return `first up: ${(SUBJECT_NAMES[next.subject] ?? next.subject).toLowerCase()} at ${next.start}${next.room ? `, ${next.room}` : ""}.`;
+  }
+  const ev = snap.activities[0];
+  if (ev) return `${ev.name.toLowerCase()} today${ev.start ? ` at ${ev.start}` : ""}.`;
+  if (open.length) return `${open.length} thing${open.length === 1 ? "" : "s"} to do, about ${Math.max(1, Math.round(open.reduce((a, x) => a + x.mins, 0) / 6) / 10)}h. first: ${open[0].name.toLowerCase()}.`;
+  return "nothing planned. enjoy it.";
 }
 
 function uptime(ms: number): string {

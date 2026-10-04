@@ -59,8 +59,13 @@ export function LibrarySheet({ open, onClose }: { open: boolean; onClose: () => 
   const del = async (d: LibDoc) => {
     if (!confirm(`Remove "${d.title}"? The assistant won't be able to read it any more.`)) return;
     setGone((g) => [...g, d.id]);
-    await client.send("DELETE", `/api/library/${d.id}`).catch(toastError);
-    window.setTimeout(reload, 320);
+    try {
+      await client.send("DELETE", `/api/library/${d.id}`);
+      window.setTimeout(reload, 320);
+    } catch (e) {
+      setGone((g) => g.filter((x) => x !== d.id));
+      toastError(e);
+    }
   };
   // Read it on the wall: page 1 goes up, the wall's keys turn pages.
   const toWall = async (d: LibDoc) => {
@@ -96,7 +101,7 @@ export function LibrarySheet({ open, onClose }: { open: boolean; onClose: () => 
         {busy ? `reading ${busy.slice(0, 28)}…` : "add a document"}
       </button>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "46vh", overflow: "auto" }}>
-        {!list.length && <span style={{ fontSize: 11, color: "var(--c-6d6d77)", padding: "10px 2px" }}>nothing yet. PDF, Word, PowerPoint, text, or a photo of a page.</span>}
+        {data && !data.length && <span style={{ fontSize: 11, color: "var(--c-6d6d77)", padding: "10px 2px" }}>nothing yet. PDF, Word, PowerPoint, text, or a photo of a page.</span>}
         {list.map((d) => (
           <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 12px", borderRadius: 12, background: "var(--c-13131a)", animation: gone.includes(d.id) ? "popOut .3s ease-in both" : "aUp .3s ease-out both" }}>
             <Ms style={{ fontSize: 18, flex: "none", color: "var(--c-ff4d17)" }}>{ICON[d.kind]}</Ms>

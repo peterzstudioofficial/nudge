@@ -66,6 +66,9 @@ export async function pair(app: AppKey, hub: string, code: string, name: string)
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ code, name }),
+    signal: AbortSignal.timeout(12_000),
+  }).catch(() => {
+    throw new Error("can't reach the wall from here. same Wi-Fi, or Tailscale on?");
   });
   const data = (await res.json().catch(() => ({}))) as { token?: string; device?: { role: Role; name: string }; error?: string };
   if (!res.ok || !data.token || !data.device) throw new Error(data.error || "couldn't reach the hub");

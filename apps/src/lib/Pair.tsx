@@ -5,7 +5,13 @@ import { Btn, D, inputStyle, Ms } from "./ui";
 /** First run: connect this device to the wall with the 6-digit code it shows. */
 export function Pair({ app, dark, title, onDone, onLocal }: { app: AppKey; dark: boolean; title: string; onDone: () => void; onLocal?: () => void }) {
   const [hub, setHub] = useState(defaultHub());
-  const [code, setCode] = useState("");
+  // Opened from the QR code on the wall: the code is in the link, so it's one tap.
+  const [fromQr] = useState(() => {
+    const c = new URLSearchParams(location.search).get("pair");
+    if (c) history.replaceState(history.state, "", location.pathname);
+    return c && /^\d{6}$/.test(c) ? c : "";
+  });
+  const [code, setCode] = useState(fromQr ? `${fromQr.slice(0, 3)} ${fromQr.slice(3)}` : "");
   const [name, setName] = useState(guessName());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -18,7 +24,10 @@ export function Pair({ app, dark, title, onDone, onLocal }: { app: AppKey; dark:
     setBusy(true);
     setErr("");
     try {
-      await pair(app, hub.trim() || location.origin, code.replace(/\s/g, ""), name.trim() || "device");
+      // "nudge.tail1234.ts.net" or "192.168.1.40:8787" typed without the https:// still works
+      const h = hub.trim().replace(/\/+$/, "");
+      const base = !h ? location.origin : /^https?:\/\//.test(h) ? h : /^(\d+\.){3}\d+(:\d+)?$/.test(h) ? `http://${h}` : `https://${h}`;
+      await pair(app, base, code.replace(/\s/g, ""), name.trim() || "device");
       onDone();
     } catch (e) {
       setErr((e as Error).message || "that didn't work");
@@ -35,7 +44,7 @@ export function Pair({ app, dark, title, onDone, onLocal }: { app: AppKey; dark:
         <span style={{ flex: 1 }} />
         <Ms style={{ fontSize: 22, color: "var(--c-ff4d17)" }}>link</Ms>
       </div>
-      <span style={{ fontSize: 11, lineHeight: 1.55, color: muted }}>{how}</span>
+      <span style={{ fontSize: 11, lineHeight: 1.55, color: muted }}>{fromQr ? "Scanned from the wall. Name this phone and connect." : how}</span>
       {!defaultHub() && (
         <input style={inputStyle(dark)} value={hub} onChange={(e) => setHub(e.target.value)} placeholder="hub address, e.g. https://nudge.tail1234.ts.net" autoCapitalize="off" autoCorrect="off" inputMode="url" />
       )}
@@ -45,7 +54,7 @@ export function Pair({ app, dark, title, onDone, onLocal }: { app: AppKey; dark:
         onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, "").slice(0, 7))}
         placeholder="000 000"
         inputMode="numeric"
-        autoFocus
+        autoFocus={!fromQr}
       />
       <input style={inputStyle(dark)} value={name} onChange={(e) => setName(e.target.value)} placeholder="name this device" />
       {err && <span style={{ fontSize: 11, color: "var(--c-ff4d17)" }}>{err}</span>}

@@ -30,7 +30,9 @@ export function toastError(e: unknown) {
   if (e instanceof HubError) {
     const slab = (e.body as { slab?: { icon: string; line: string } } | undefined)?.slab;
     toast(slab?.icon ?? "error", slab?.line ?? e.message);
-  } else toast("cloud_off", "saved — will sync when back online");
+  } else if (e instanceof Error && !(e instanceof TypeError) && e.message) toast("error", e.message.slice(0, 70));
+  else toast("cloud_off", "offline — it'll sync when the wall's back");
+  haptic("warn");
 }
 
 export function Toaster({ dark = false }: { dark?: boolean }) {
@@ -67,14 +69,37 @@ export function Toaster({ dark = false }: { dark?: boolean }) {
   );
 }
 
-/** Bottom sheet / pop-up card used across the apps. */
+/**
+ * A tiny tap of the vibration motor, like a native control. Android only (iOS Safari and desktops
+ * ignore it); never more than a few milliseconds.
+ */
+export function haptic(kind: "tick" | "confirm" | "warn" = "tick") {
+  try {
+    navigator.vibrate?.(kind === "tick" ? 8 : kind === "confirm" ? [10, 50, 16] : [22, 70, 22]);
+  } catch {
+    /* not allowed here */
+  }
+}
+
+/**
+ * Bottom sheet used across the apps. Behaves like a native one: drag it down (or swipe it away)
+ * to close, the phone's back button and Escape close it, and the page behind doesn't scroll.
+ */
 export function Sheet({ open, onClose, title, children, dark = false }: { open: boolean; onClose: () => void; title: string; children: ReactNode; dark?: boolean }) {
   const [closing, setClosing] = useState(false);
   const [shown, setShown] = useState(open);
+  const [flung, setFlung] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const scrim = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  const drag = useRef<{ y0: number; t0: number; dy: number; on: boolean; id: number } | null>(null);
+
   useEffect(() => {
     if (open) {
       setShown(true);
       setClosing(false);
+      setFlung(false);
     } else if (shown) {
       setClosing(true);
       const t = setTimeout(() => setShown(false), 240);
@@ -82,19 +107,109 @@ export function Sheet({ open, onClose, title, children, dark = false }: { open: 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Back button / Escape close it; the page behind stays put.
+  useEffect(() => {
+    if (!open) return;
+    const id = Math.random().toString(36).slice(2);
+    let popped = false;
+    history.pushState({ ...(history.state ?? {}), sheet: id }, "");
+    const onPop = () => {
+      popped = true;
+      close.current();
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+      if (!popped && history.state?.sheet === id) history.back();
+    };
+  }, [open]);
+
   if (!shown) return null;
   const bg = dark ? "var(--c-101015)" : "var(--c-f4f3ef)";
   const fg = dark ? "var(--c-f4f3ef)" : "var(--c-17171b)";
+
+  // Drag down from anywhere once the sheet is scrolled to its top.
+  const down = (e: React.PointerEvent) => {
+    if (closing || (e.pointerType === "mouse" && e.button !== 0)) return;
+    drag.current = { y0: e.clientY, t0: performance.now(), dy: 0, on: false, id: e.pointerId };
+  };
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current;
+    const el = panel.current;
+    if (!d || !el) return;
+    const dy = e.clientY - d.y0;
+    if (!d.on) {
+      if (dy > 8 && el.scrollTop <= 0) {
+        d.on = true;
+        d.y0 = e.clientY;
+        d.t0 = performance.now();
+        el.setPointerCapture(d.id);
+        el.style.transition = "none";
+      } else if (Math.abs(dy) > 8) drag.current = null;
+      return;
+    }
+    d.dy = Math.max(0, dy);
+    el.style.transform = `translateY(${d.dy}px)`;
+    if (scrim.current) scrim.current.style.opacity = String(Math.max(0, 1 - d.dy / el.offsetHeight));
+  };
+  const up = () => {
+    const d = drag.current;
+    const el = panel.current;
+    drag.current = null;
+    if (!d?.on || !el) return;
+    const v = d.dy / Math.max(1, performance.now() - d.t0); // px per ms
+    if (d.dy > Math.min(160, el.offsetHeight * 0.3) || (v > 0.55 && d.dy > 30)) {
+      haptic();
+      setFlung(true);
+      el.style.transition = `transform ${Math.max(0.14, Math.min(0.28, (el.offsetHeight - d.dy) / 1800))}s cubic-bezier(.3,0,.8,.6)`;
+      el.style.transform = "translateY(100%)";
+      if (scrim.current) {
+        scrim.current.style.transition = "opacity .24s ease";
+        scrim.current.style.opacity = "0";
+      }
+      close.current();
+    } else {
+      el.style.transition = "transform .42s cubic-bezier(.32,.72,0,1)";
+      el.style.transform = "";
+      if (scrim.current) {
+        scrim.current.style.transition = "opacity .3s ease";
+        scrim.current.style.opacity = "";
+      }
+    }
+  };
+
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "var(--c-17171b59)", animation: closing ? "scrimOut .24s ease both" : "scrimIn .28s ease both" }} />
+      <div ref={scrim} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "var(--c-17171b59)", animation: flung ? "none" : closing ? "scrimOut .24s ease both" : "scrimIn .28s ease both" }} />
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 51, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-        <div style={{ width: "min(100%, 520px)", maxHeight: "88vh", overflow: "auto", borderRadius: "26px 26px 0 0", background: bg, color: fg, pointerEvents: "auto", padding: "0 18px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 -20px 50px -20px var(--c-00000073)", animation: closing ? "sheetDown .24s cubic-bezier(.4,0,1,1) both" : "sheetUp .42s cubic-bezier(.32,.72,0,1) both" }}>
-          <div style={{ display: "flex", alignItems: "center", height: 54, position: "sticky", top: 0, background: bg, zIndex: 1 }}>
-            <span onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: dark ? "var(--c-1d1d24)" : "var(--c-e9e8e3)" }}>
+        <div
+          ref={panel}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+          style={{
+            width: "min(100%, 520px)", maxHeight: "88vh", overflow: "auto", overscrollBehavior: "contain", borderRadius: "26px 26px 0 0", background: bg, color: fg, pointerEvents: "auto",
+            padding: "0 18px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 -20px 50px -20px var(--c-00000073)", touchAction: "pan-y",
+            animation: flung ? "none" : closing ? "sheetDown .24s cubic-bezier(.4,0,1,1) both" : "sheetUp .46s cubic-bezier(.32,.72,0,1) backwards",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", height: 58, position: "sticky", top: 0, background: bg, zIndex: 1 }}>
+            <span aria-hidden style={{ position: "absolute", left: "50%", top: 7, width: 36, height: 4, marginLeft: -18, borderRadius: 2, background: dark ? "var(--c-2a2a33)" : "var(--c-d6d4cc)" }} />
+            <span className="tap" role="button" aria-label="close" onClick={onClose} style={{ width: 32, height: 32, marginTop: 6, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: dark ? "var(--c-1d1d24)" : "var(--c-e9e8e3)" }}>
               <Ms style={{ fontSize: 18 }}>close</Ms>
             </span>
-            <span style={{ flex: 1, textAlign: "center", fontFamily: D, fontSize: 18 }}>{title}</span>
+            <span style={{ flex: 1, textAlign: "center", fontFamily: D, fontSize: 18, marginTop: 6 }}>{title}</span>
             <span style={{ width: 32 }} />
           </div>
           {children}

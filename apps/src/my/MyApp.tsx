@@ -4,7 +4,7 @@ import {
   type Settings, type CalEvent, type Birthday, SUBJECT_NAMES, dueLabel, relativeDay,
 } from "@nudge/shared";
 import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
-import { D, DOTO, Ms, Sheet, inputStyle, toast, toastError } from "../lib/ui";
+import { D, DOTO, Ms, Sheet, haptic, inputStyle, toast, toastError } from "../lib/ui";
 import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 import { ToolsTab } from "./ToolsTab";
@@ -40,6 +40,7 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const go = (t: Tab) => {
     if (t === tab) return void window.scrollTo({ top: 0, behavior: "smooth" });
     setPrev(tab);
+    if (t !== tab) haptic();
     setTab(t);
     window.scrollTo({ top: 0 });
   };
@@ -495,7 +496,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
         <div key={g.head} style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 8, letterSpacing: ".24em", color: "var(--c-6d6d77)", paddingBottom: 4 }}>{g.head}</div>
           {g.rows.map((r) => (
-            <div key={r.name} onClick={r.go} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, boxShadow: "inset 0 -1px 0 var(--c-17171d)", cursor: r.locked ? "default" : "pointer" }}>
+            <div key={r.name} onClick={() => { if (!r.locked) haptic(); r.go(); }} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, boxShadow: "inset 0 -1px 0 var(--c-17171d)", cursor: r.locked ? "default" : "pointer" }}>
               <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: r.on ? "var(--c-f4f3ef)" : r.locked ? "var(--c-4a4a54)" : "var(--c-b6b5af)", transition: "color .3s" }}>{r.name}</span>
               <span style={{ fontSize: 9, letterSpacing: ".1em", flex: "none", color: r.on ? "var(--c-8e8e97)" : "var(--c-5c5c66)" }}>{r.meta}</span>
               <span style={{ width: 30, height: 4, borderRadius: 2, flex: "none", overflow: "hidden", background: "var(--c-22222a)" }}>

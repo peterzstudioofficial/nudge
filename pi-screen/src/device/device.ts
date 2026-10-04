@@ -46,7 +46,12 @@ export interface DeviceState {
   listening: boolean;
   online: boolean;
   pairCode: string | null;
+  /** where a phone reaches the wall, and a link that pairs it (shown as a QR code) */
+  pairBase: string | null;
+  pairLink: string | null;
   agentThread: string | null;
+  /** the wall's question while the assistant works on it (shown when it takes a moment) */
+  agentInfo: { prompt: string; steps: { text: string; done: boolean }[]; t0: number } | null;
   bootAt: number;
   shownReminders: string[];
   shownAsks: string[];
@@ -77,8 +82,8 @@ export class Device {
       mode: "boot", lastMode: "", lastAct: now, preDoze: "standby", sel: null, listTop: 0, bagIdx: 0,
       countN: 3, countTaskId: null, flash: -1, holdKey: -1, hold: 0, dial: 0, dialPress: false, slab: null,
       peek: false, bT0: 0, eggTurns: 0, discoBeat: 0, fxSeq: 0, awardPts: 3, awardBank: 0, power: true, mic: true,
-      armed: false, bright: 2, localBreakUntil: null, listening: false, online: false, pairCode: null,
-      agentThread: null, bootAt: now, shownReminders: [], shownAsks: [], tick: 0, wallSeen: null, scroll: 0,
+      armed: false, bright: 2, localBreakUntil: null, listening: false, online: false, pairCode: null, pairBase: null, pairLink: null,
+      agentThread: null, agentInfo: null, bootAt: now, shownReminders: [], shownAsks: [], tick: 0, wallSeen: null, scroll: 0,
     };
     this.snap = client.last;
     client.onSnapshot((snap) => this.onSnapshot(snap));
@@ -738,9 +743,43 @@ export class Device {
     }
     this.say({ icon: "progress_activity", line: "checking", spin: true }, 30_000);
     void this.call<{ id: string }>("POST", "/api/agent/threads", { prompt: t, mode: "act" }).then((r) => {
-      if (r) this.set({ agentThread: r.id });
+      if (!r) return;
+      this.set({ agentThread: r.id, agentInfo: { prompt: t, steps: [], t0: this.now() } });
+      this.followThread(r.id);
     });
   }
+
+  /**
+   * Watch the wall's own question. Quick answers just drop in; if it takes more than a couple of
+   * seconds (a search, a document), the screen shows what it's doing, step by step.
+   */
+  private followThread(id: string) {
+    const t0 = Date.now();
+    const poll = async () => {
+      if (this.s.agentThread !== id) return;
+      const th = await this.client.send<{ status: string; steps: { text: string; done: boolean }[] }>("GET", `/api/agent/threads/${id}`).catch(() => null);
+      if (this.s.agentThread !== id) return;
+      const working = !th || th.status === "working";
+      if (!working || Date.now() - t0 > 45_000) {
+        this.set({ agentThread: null, agentInfo: null, ...(this.s.mode === "agent" ? { mode: this.homeMode() } : {}) });
+        return;
+      }
+      const info = this.s.agentInfo ? { ...this.s.agentInfo, steps: th ? th.steps.slice(-3) : this.s.agentInfo.steps } : null;
+      const mode = this.effectiveMode();
+      const show = Date.now() - t0 > 2200 && this.snap?.session?.state !== "running" && ["standby", "select", "welcome", "brief", "resume", "reward", "doze", "show", "agent"].includes(mode);
+      if (show && mode !== "agent") clearTimeout(this.timers.slab);
+      this.set({ agentInfo: info, ...(show ? { mode: "agent", slab: null } : {}) });
+      this.later("thread", 800, () => void poll());
+    };
+    this.later("thread", 700, () => void poll());
+  }
+
+  stopThread = () => {
+    const id = this.s.agentThread;
+    if (id) void this.call("POST", `/api/agent/threads/${id}/stop`);
+    this.set({ agentThread: null, agentInfo: null, mode: this.homeMode() });
+    this.say({ icon: "stop_circle", line: "stopped" }, 1800);
+  };
 
   answerAsk = async (yes: boolean, held = false) => {
     const sl = this.s.slab;
@@ -834,9 +873,11 @@ export class Device {
 
   pairRole: "owner" | "parent" = "owner";
   async showPair(role: "owner" | "parent" = "owner") {
-    const r = await this.call<{ code: string }>("POST", "/api/pairing-codes", { role });
     this.pairRole = role;
-    if (r) this.set({ mode: "pair", pairCode: r.code, lastAct: this.now() });
+    this.set({ mode: "pair", pairCode: null, pairLink: null, lastAct: this.now() });
+    const r = await this.call<{ code: string; base: string | null; url: string | null }>("POST", "/api/pairing-codes", { role });
+    if (r) this.set({ pairCode: r.code, pairBase: r.base, pairLink: r.url });
+    else this.set({ mode: "standby" });
     this.later("pair", 10 * 60_000, () => this.s.mode === "pair" && this.set({ mode: "standby", pairCode: null }));
   }
 
@@ -883,7 +924,7 @@ export class Device {
       case "reward": return [null, null, null, K("back", home, "primary")];
       case "unlock": return [null, null, null, K("next", () => this.set({ mode: "nextReward" }), "live")];
       case "nextReward": return [null, null, null, K("ok", () => { void this.call("POST", "/api/rewards/ack").then(() => this.refresh()); home(); }, "primary")];
-      case "agent":
+      case "agent": return [null, null, null, K("stop", this.stopThread)];
       case "agent2": return [null, null, null, K("stop", home)];
       case "show": {
         const c = this.card();
@@ -907,6 +948,7 @@ export class Device {
 
   /** Simulator: jump straight to a screen. */
   jump(m: Mode) {
+    if (m === "pair") return void this.showPair();
     this.sim.forced = m;
     const p: Partial<DeviceState> = { mode: m, slab: null, peek: false };
     if (m === "breathe") p.bT0 = this.now();

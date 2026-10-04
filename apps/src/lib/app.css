@@ -35,8 +35,13 @@ button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
 a { color: var(--c-ff4d17); text-decoration: none; }
 .page { max-width: 520px; margin: 0 auto; min-height: 100dvh; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); position: relative; }
-.tap { cursor: pointer; transition: transform .12s; }
-.tap:active { transform: scale(.97); }
+.tap { cursor: pointer; transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .22s ease; -webkit-user-select: none; user-select: none; }
+.tap:active { transform: scale(.965); opacity: .86; transition-duration: .08s; }
+button:focus-visible, .tap:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--c-ff4d17); outline-offset: 2px; }
+/* "Reduce motion" on the phone: things still change, they just don't fly about. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
 ::-webkit-scrollbar { width: 0; height: 0; }
 @keyframes hShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-3px)}40%,60%{transform:translateX(3px)}}
 @keyframes aSlideL{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}

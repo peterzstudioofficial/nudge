@@ -52,7 +52,7 @@ export function BrainSheet({ open, onClose }: { open: boolean; onClose: () => vo
         </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "48vh", overflow: "auto" }}>
-        {!list.length && <span style={{ fontSize: 11, color: "var(--c-6d6d77)", padding: "10px 2px" }}>nothing yet — it learns as you ask.</span>}
+        {data && !data.length && <span style={{ fontSize: 11, color: "var(--c-6d6d77)", padding: "10px 2px" }}>nothing yet — it learns as you ask.</span>}
         {list.map((m) => (
           <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 11, background: "var(--c-13131a)", animation: gone.includes(m.id) ? "popOut .3s ease-in both" : "aUp .3s ease-out both" }}>
             <Ms style={{ fontSize: 14, flex: "none", color: m.source === "told" ? "var(--c-ff4d17)" : "var(--c-6d6d77)" }}>{m.source === "told" ? "record_voice_over" : "neurology"}</Ms>

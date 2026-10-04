@@ -4,7 +4,7 @@ import {
   type Snapshot, type Task, type Template,
 } from "@nudge/shared";
 import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
-import { Btn, D, DOTO, Field, inputStyle, Ms, Sheet, toast, toastError } from "../lib/ui";
+import { Btn, D, DOTO, Field, haptic, inputStyle, Ms, Sheet, toast, toastError } from "../lib/ui";
 
 /** "parent app — rewards and progress." Light theme, from "Nudge Apps.dc.html". */
 
@@ -29,7 +29,7 @@ export function ParentApp({ onUnpair }: { onUnpair: () => void }) {
         <nav style={{ position: "relative", display: "flex", padding: 3, borderRadius: 22, background: "var(--c-eae7e1)" }}>
           <span style={{ position: "absolute", top: 3, left: 3, width: 40, height: 36, borderRadius: 18, background: "var(--c-111114)", transform: `translateX(${idx * 40}px)`, transition: "transform .48s cubic-bezier(.32,.72,0,1)" }} />
           {TABS.map(([icon, id]) => (
-            <button key={id} aria-label={id} className="tap" onClick={() => setTab(id)} style={{ position: "relative", width: 40, height: 36, border: 0, padding: 0, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button key={id} aria-label={id} className="tap" onClick={() => { if (id !== tab) haptic(); setTab(id); }} style={{ position: "relative", width: 40, height: 36, border: 0, padding: 0, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <Ms style={{ fontSize: 18, color: tab === id ? "var(--c-f4f3ef)" : "var(--c-8a8a92)", transition: "color .35s" }}>{icon}</Ms>
             </button>
           ))}

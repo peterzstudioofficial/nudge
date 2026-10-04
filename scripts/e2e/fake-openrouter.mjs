@@ -7,8 +7,10 @@ const vec = (t) => { const v = new Array(64).fill(0); for (const w of String(t).
 const reply = (res, j) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify(j)); };
 const msg = (content, tool_calls) => ({ id: "gen-1", model: "deepseek/deepseek-v4.1-flash", choices: [{ message: { role: "assistant", content, ...(tool_calls ? { tool_calls } : {}) }, finish_reason: tool_calls ? "tool_calls" : "stop" }], usage: { cost: 0.0002, prompt_tokens: 900, completion_tokens: 60 } });
 const call = (name, args) => [{ id: "call_" + Math.random().toString(16).slice(2, 8), type: "function", function: { name, arguments: JSON.stringify(args) } }];
+// FAKE_DELAY_MS: answer slowly, like a real model doing a search (to see the wall's progress screen)
+const DELAY = Number(process.env.FAKE_DELAY_MS || 0);
 http.createServer((req, res) => {
-  let raw = ""; req.on("data", (d) => (raw += d)); req.on("end", () => {
+  let raw = ""; req.on("data", (d) => (raw += d)); req.on("end", () => setTimeout(() => {
     let b = {}; try { b = JSON.parse(raw || "{}"); } catch {}
     fs.appendFileSync(LOG, JSON.stringify({ url: req.url, auth: !!req.headers.authorization, body: b }) + "\n");
     if (req.url.endsWith("/key")) return reply(res, { data: { label: "test", limit: 5, usage: 0.01, limit_remaining: 4.99 } });
@@ -36,5 +38,5 @@ http.createServer((req, res) => {
     if (/on the wall/.test(user) && tools.includes("open_document")) return reply(res, msg("", call("open_document", { query: "inspector", page: 2 })));
     if (/inspector|macbeth|guide|document/.test(user) && tools.includes("search_my_stuff")) return reply(res, msg("", call("search_my_stuff", { query: user.split("\n").pop() })));
     return reply(res, msg("", call("get_today", {})));
-  });
+  }, req.url.endsWith("/chat/completions") ? DELAY : 0));
 }).listen(port, "127.0.0.1", () => console.log("fake openrouter on", port));
