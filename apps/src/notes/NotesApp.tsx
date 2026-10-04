@@ -4,6 +4,7 @@ import { getClient, loadPairing, useHubGet, useSnapshot } from "../lib/hub";
 import { isLocalClient, localAudio, setLocalMode } from "../lib/localNotes";
 import { D, DOTO, Ms, toast, toastError } from "../lib/ui";
 import { sendToKeep } from "../lib/native";
+import { glyphRecording, useGlyphSupport } from "../lib/glyph";
 
 /**
  * "nudge notes — second app, capture only." From "Nudge Notes App.dc.html".
@@ -316,6 +317,11 @@ function Voice({ n }: { n: Note }) {
 function Island({ drawer, mini, onDrawer, onSaved }: { drawer: Drawer; mini: boolean; onDrawer: (d: Drawer) => void; onSaved: (n: Note) => void }) {
   const client = getClient("owner")!;
   const [rec, setRec] = useState(false);
+  // Nothing phones: the bottom Glyph zone stays lit while it records (nothing elsewhere).
+  const glyph = useGlyphSupport();
+  useEffect(() => {
+    if (glyph?.supported) glyphRecording(rec);
+  }, [rec, glyph?.supported]);
   const [holding, setHolding] = useState(false);
   const [locked, setLocked] = useState(false);
   const [secs, setSecs] = useState(0);

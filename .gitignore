@@ -35,3 +35,5 @@ dist-connector/
 __pycache__/
 # personal setup (timetable, birthdays, staff) — never commit
 /private/
+# Nothing Glyph SDK: fetched at build time (scripts/fetch-glyph-sdk.mjs), not ours to redistribute
+android/native/app/libs/*.aar

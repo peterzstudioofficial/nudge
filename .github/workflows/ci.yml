@@ -144,8 +144,17 @@ jobs:
       - run: npm run build -w shared && npm run build -w apps
       - run: node build-app.mjs ${{ matrix.app }}
         working-directory: android
+      - name: Nothing's Glyph SDK (optional; pinned + checksummed, not kept in git)
+        run: node scripts/fetch-glyph-sdk.mjs
       - run: ./gradlew --no-daemon assembleDebug
         working-directory: android/native
+      - name: Glyph lights are in the app (and it still starts without them on other phones)
+        working-directory: android/native
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          unzip -p "$apk" 'classes*.dex' > /tmp/dex
+          grep -aq "Lstudio/peterz/nudge/GlyphPlugin;" /tmp/dex || { echo "::error::glyph plugin missing"; exit 1; }
+          if [ -f app/libs/glyph-sdk.aar ]; then grep -aq "Lcom/nothing/ketchum/GlyphManager;" /tmp/dex || { echo "::error::glyph sdk not packaged"; exit 1; }; echo "glyph sdk packaged"; fi
       - run: cp app/build/outputs/apk/debug/app-debug.apk ../../nudge-${{ matrix.app }}.apk
         working-directory: android/native
       - uses: actions/upload-artifact@v4

@@ -162,6 +162,9 @@ public class NudgePlugin extends Plugin {
             if (m.find()) color = android.graphics.Color.rgb(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3)));
             w.setStatusBarColor(color);
             w.setNavigationBarColor(color);
+            // Android 15+ (edge to edge): the bars are see-through, so the strips behind them
+            // show the window itself. Paint it to match the app.
+            w.getDecorView().setBackgroundColor(color);
             androidx.core.view.WindowInsetsControllerCompat c = androidx.core.view.WindowCompat.getInsetsController(w, w.getDecorView());
             c.setAppearanceLightStatusBars(light);
             c.setAppearanceLightNavigationBars(light);

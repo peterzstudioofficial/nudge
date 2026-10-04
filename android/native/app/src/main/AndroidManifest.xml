@@ -16,6 +16,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
 
             <intent-filter>
@@ -39,6 +40,10 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- Nothing phones: the Glyph lights on the back. Not needed for an app targeting Android 16+,
+             but Nothing recommends keeping it ("test" = debug mode, see docs/nothing-phone.md). -->
+        <meta-data android:name="NothingKey" android:value="test" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -67,6 +72,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Glyph lights on Nothing phones (ignored everywhere else). The Glyph SDK says Android 13+;
+         it's only ever used on Android 14+ Nothing phones, so its minimum doesn't apply to us. -->
+    <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
+    <uses-sdk tools:overrideLibrary="com.nothing.thirdparty" />
     <!-- find the phone / messages / maps / school apps to open from the lock screen -->
     <queries>
         <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /></intent>

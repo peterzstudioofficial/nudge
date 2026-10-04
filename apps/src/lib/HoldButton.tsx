@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { HOLD_MS, HOLD_MIN_SHOWN_MS } from "@nudge/shared";
 import { haptic } from "./ui";
+import { glyphFlash } from "./glyph";
 
 /**
  * Press and hold until it fills. Used for anything that leaves the house (emails, messages,
@@ -27,6 +28,7 @@ export function HoldButton({ label, onConfirm, style }: { label: string; onConfi
     if (v >= 1) {
       done.current = true;
       haptic("confirm");
+      glyphFlash();
       onConfirm();
       return;
     }

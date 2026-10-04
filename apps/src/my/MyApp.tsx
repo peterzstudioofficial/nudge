@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { glyphOn, setGlyphOn, useGlyphs, useGlyphSupport } from "../lib/glyph";
 import {
   addDays, dateKey, DAY_SHORT, hhmm, MONTH_LONG, MONTH_SHORT, parseDateKey, tint, type Snapshot, type DayState, type Task,
   type Settings, type CalEvent, type Birthday, SUBJECT_NAMES, dueLabel, relativeDay,
@@ -37,13 +38,32 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const i = ORDER.indexOf(tab);
   const fwd = i >= ORDER.indexOf(prev);
   const seg = window.innerWidth < 380 ? 33 : SEG;
-  const go = (t: Tab) => {
-    if (t === tab) return void window.scrollTo({ top: 0, behavior: "smooth" });
-    setPrev(tab);
-    if (t !== tab) haptic();
+  const show = (t: Tab, from: Tab) => {
+    if (t === from) return;
+    setPrev(from);
     setTab(t);
     window.scrollTo({ top: 0 });
   };
+  const go = (t: Tab) => {
+    if (t === tab) return void window.scrollTo({ top: 0, behavior: "smooth" });
+    haptic();
+    // Other tabs sit one step "in" from today, so the phone's back gesture comes home first.
+    if (t === "today" && history.state?.tab) return void history.back();
+    if (tab === "today") history.pushState({ ...(history.state ?? {}), tab: t }, "");
+    else history.replaceState({ ...(history.state ?? {}), tab: t }, "");
+    show(t, tab);
+  };
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  useEffect(() => {
+    const on = (e: PopStateEvent) => show(((e.state as { tab?: Tab } | null)?.tab) ?? "today", tabRef.current);
+    window.addEventListener("popstate", on);
+    return () => window.removeEventListener("popstate", on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // The Glyph lights on the back of a Nothing phone follow the session (nothing on other phones).
+  const glyph = useGlyphSupport();
+  useGlyphs(glyph?.supported ? snap : null, glyph?.zones ?? 0);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 6);
     window.addEventListener("scroll", on, { passive: true });
@@ -443,6 +463,8 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   const [bdOpen, setBdOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
   const [libOpen, setLibOpen] = useState(false);
+  const glyphHere = useGlyphSupport();
+  const [glyphLit, setGlyphLit] = useState(glyphOn);
   const [lightsOpen, setLightsOpen] = useState(false);
   const { data: lib } = useHubGet<unknown[]>(client, "/api/library", [libOpen]);
   const nat = native();
@@ -482,6 +504,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "birthdays", meta: `${bdays?.length ?? 0} SAVED`, on: true, go: () => setBdOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
+      ...(glyphHere?.supported ? [{ name: "glyph lights", meta: glyphLit ? "SESSIONS" : "OFF", on: glyphLit, go: () => { setGlyphOn(!glyphLit); setGlyphLit(!glyphLit); toast("light_mode", glyphLit ? "glyph lights off" : "glyph lights on the back while nudge is open"); } }] : []),
       { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
       { name: "google keep", meta: s.googleKeep ? "SHARE" : "LOCAL", on: s.googleKeep, go: () => set({ googleKeep: !s.googleKeep }) },
       ...(nat ? [{ name: "phone lock", meta: lock ? "IN SESSIONS" : "OFF", on: lock, go: () => void togglePhoneLock(!lock).then((m) => { toast(lock ? "lock_open" : "lock", m); void refreshLock(); }).catch((e) => toast("lock", String((e as Error).message || e))) }] : []),
