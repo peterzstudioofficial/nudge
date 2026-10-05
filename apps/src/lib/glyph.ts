@@ -38,25 +38,44 @@ export function setGlyphOn(on: boolean) {
   window.dispatchEvent(new Event("nudge-glyph"));
 }
 
+export interface GlyphSupport {
+  /** the lights can be used right now */
+  supported: boolean;
+  /** it's a Nothing phone (so the lights should be there, even if Nothing said no) */
+  nothing: boolean;
+  zones: number;
+  model: string;
+  /** why not, in plain words */
+  reason: string;
+}
+
+/** worked out once per app start, then every screen that asks gets it straight away */
+let known: GlyphSupport | null = null;
+
 /** Whether this phone has Glyph lights Nudge can use (null while checking). */
-export function useGlyphSupport(): { supported: boolean; zones: number; model: string } | null {
-  const [s, setS] = useState<{ supported: boolean; zones: number; model: string } | null>(get() ? null : { supported: false, zones: 0, model: "" });
+export function useGlyphSupport(): GlyphSupport | null {
+  const none: GlyphSupport = { supported: false, nothing: false, zones: 0, model: "", reason: "" };
+  const [s, setS] = useState<GlyphSupport | null>(known ?? (get() ? null : none));
   useEffect(() => {
     const b = get();
-    if (!b) return;
+    if (!b || known) return;
     let alive = true;
-    // The Glyph service connects a moment after start: ask again briefly if it isn't ready yet.
+    // The Glyph service connects a moment after start: ask again for a few seconds. If it never
+    // answers (a Nothing OS update that keeps the lights to itself), say so instead of pretending.
     const ask = (n: number) =>
       void b
         .status()
         .then((r) => {
           if (!alive) return;
+          const nothing = !!(r as { nothing?: boolean }).nothing;
+          if (r.supported && !r.ready && n > 0) return void window.setTimeout(() => ask(n - 1), 800);
+          const ok = r.supported && r.ready;
           knownZones = r.zones;
-          setS({ supported: r.supported, zones: r.zones, model: r.model });
-          if (r.supported && !r.ready && n > 0) window.setTimeout(() => ask(n - 1), 800);
+          known = { supported: ok, nothing, zones: r.zones, model: r.model, reason: ok ? "" : r.supported ? "the Glyph service didn't answer" : r.reason };
+          setS(known);
         })
-        .catch(() => alive && setS({ supported: false, zones: 0, model: "" }));
-    ask(5);
+        .catch(() => alive && setS(none));
+    ask(8);
     return () => {
       alive = false;
     };

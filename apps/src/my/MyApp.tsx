@@ -504,6 +504,8 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       { name: "birthdays", meta: `${bdays?.length ?? 0} SAVED`, on: true, go: () => setBdOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
+      // A Nothing phone whose software won't share the lights: say why, don't just hide it.
+      ...(glyphHere?.nothing && !glyphHere.supported ? [{ name: "glyph lights", meta: "NOT AVAILABLE", on: false, locked: true, go: () => toast("light_mode", `${glyphHere.reason || "Nothing didn't allow it"}. see docs/nothing-phone.md`, 5000) }] : []),
       ...(glyphHere?.supported ? [{ name: "glyph lights", meta: glyphLit ? "SESSIONS" : "OFF", on: glyphLit, go: () => { setGlyphOn(!glyphLit); setGlyphLit(!glyphLit); toast("light_mode", glyphLit ? "glyph lights off" : "glyph lights on the back while nudge is open"); } }] : []),
       { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
       { name: "google keep", meta: s.googleKeep ? "SHARE" : "LOCAL", on: s.googleKeep, go: () => set({ googleKeep: !s.googleKeep }) },

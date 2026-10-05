@@ -158,6 +158,7 @@ public class GlyphPlugin extends Plugin {
         o.put("ready", ready);
         o.put("device", code);
         o.put("model", Build.MODEL);
+        o.put("nothing", "nothing".equalsIgnoreCase(Build.MANUFACTURER));
         o.put("zones", zones);
         o.put("reason", reason);
         call.resolve(o);

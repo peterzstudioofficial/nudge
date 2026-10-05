@@ -1,6 +1,8 @@
 ext {
     minSdkVersion = 23
     compileSdkVersion = 36
+    // Keep at 36 (Android 16) until the apps ask for ACCESS_LOCAL_NETWORK: from target 37 (Android 17)
+    // Android blocks all traffic to the home network by default, which would cut the apps off from the wall.
     targetSdkVersion = 36
     androidxActivityVersion = '1.9.2'
     androidxAppCompatVersion = '1.7.0'
