@@ -30,7 +30,10 @@ Nothing only lets the app that's on screen use the Glyphs, so they switch off wh
 background or the screen goes off, and come back when you open it.
 
 **No setup needed on the Phone (4a)**: the apps target Android 16, where Nothing no longer asks
-for an API key. On an older Nothing phone still on Android 15 or earlier, turn on Glyph debug mode
+for an API key. They run the same on Android 17 (Nothing OS 5.0, in beta for the 4a now and due as
+a stable update in November 2026). Nothing OS 5.0 moves Nothing's own Glyph features into a Glyph
+app; if an update ever stops other apps lighting the Glyphs, nudge just shows nothing there (the
+switch in Settings disappears) and everything else carries on. On an older Nothing phone still on Android 15 or earlier, turn on Glyph debug mode
 first (it lasts 48 hours):
 
 ```
