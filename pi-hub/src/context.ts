@@ -27,7 +27,8 @@ export interface SchoolService {
 }
 export interface AgentService {
   available(): boolean;
-  run(input: { prompt: string; mode: "ask" | "act" | "watch"; origin: "desktop" | "wall" | "app" }): string;
+  /** follow: a thread this question carries on from (its question and answer ride along) */
+  run(input: { prompt: string; mode: "ask" | "act" | "watch"; origin: "desktop" | "wall" | "app"; follow?: string | null }): string;
   stop(threadId: string): void;
   /** Set up one spoken turn for the voice assistant (Gemini Live) with the same tools and rules. */
   voiceTurn?(): Promise<{

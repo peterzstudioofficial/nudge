@@ -1,6 +1,7 @@
 # Nudge: first run
 
 Everything below is a one-time job. Tick them off in order; each step says how you know it worked.
+The short checklist (including what's still to tell Claude) is in [next-steps.md](next-steps.md).
 
 ## 1. The wall (Raspberry Pi)
 
@@ -71,4 +72,4 @@ openrouter.ai → Settings:
 - `sudo nudge dev on 2` turns on the dev tools for two hours (logs, status, test pop-up) —
   `sudo nudge dev off` or any update removes them.
 - `npm run build && npm run e2e` on a computer runs the whole system end to end with a fake
-  OpenRouter (48 checks); add `--pack private/nudge-setup.json` to run it on your own data.
+  OpenRouter (50 checks); add `--pack private/nudge-setup.json` to run it on your own data.

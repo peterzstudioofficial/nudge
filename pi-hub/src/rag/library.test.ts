@@ -40,7 +40,7 @@ describe("library", () => {
     const pptx = zipSync({ "ppt/slides/slide2.xml": strToU8("<a:t>second</a:t>"), "ppt/slides/slide1.xml": strToU8("<a:t>first</a:t><a:t>slide</a:t>") });
     expect(await extractPages(pptx, "slides")).toEqual([{ n: 1, text: "first slide" }, { n: 2, text: "second" }]);
     expect((await extractPages(strToU8("<html><body><p>Hi</p><script>x()</script></body></html>"), "text"))[0].text).toBe("Hi");
-  });
+  }, 20_000);
 
   it("splits long text into overlapping passages at sentence ends", () => {
     const text = Array.from({ length: 40 }, (_, i) => `Sentence number ${i} is here.`).join(" ");

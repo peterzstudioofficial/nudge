@@ -836,6 +836,21 @@ export class Hub {
     return this.reminders.since(now - 86_400_000 * 2).filter((r) => r.at <= now && !r.shownAt);
   }
 
+  /** reminders still to come, soonest first */
+  upcomingReminders(limit = 20): Reminder[] {
+    const now = this.now();
+    return this.reminders.since(now).filter((r) => !r.shownAt && r.at > now).sort((a, b) => a.at - b.at).slice(0, limit);
+  }
+
+  /** take back a reminder that hasn't gone off yet */
+  cancelReminder(id: string): boolean {
+    const r = this.upcomingReminders(500).find((x) => x.id === id);
+    if (!r) return false;
+    this.reminders.del(id);
+    this.bus.changed("reminders");
+    return true;
+  }
+
   ackReminder(id: string): void {
     this.reminders.patch(id, (r) => ({ ...r, shownAt: this.now() }));
     this.bus.changed("reminders");

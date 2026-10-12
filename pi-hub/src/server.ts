@@ -595,8 +595,8 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const c = need(req, "agent");
     if (!hub.settings().ai) throw new HttpError(409, "assistant is off", { icon: "smart_toy", line: "assistant is off", sub: "TURN IT ON IN THE APP" });
     if (!ctx.agent.available()) throw new HttpError(409, "no OpenRouter key on the hub", { icon: "smart_toy", line: "assistant not set up", sub: "ADD A KEY ON THE HUB" });
-    const b = parse(z.object({ prompt: z.string().min(1).max(4000), mode: AgentMode.default("act") }), req.body);
-    const id = ctx.agent.run({ prompt: b.prompt, mode: b.mode, origin: c.role === "screen" ? "wall" : c.role === "desktop" ? "desktop" : "app" });
+    const b = parse(z.object({ prompt: z.string().min(1).max(4000), mode: AgentMode.default("act"), follow: z.string().max(64).nullish() }), req.body);
+    const id = ctx.agent.run({ prompt: b.prompt, mode: b.mode, origin: c.role === "screen" ? "wall" : c.role === "desktop" ? "desktop" : "app", follow: b.follow ?? null });
     return { id };
   });
   // The assistant's memory: owner's phone and computer only (never the parent app, not the wall).

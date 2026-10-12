@@ -40,9 +40,15 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 ## The assistant
 
 - It's optional and switched off until a key is set (`sudo nudge key openrouter`).
-- It can *read* tasks, notes, school items and the timetable. Anything that changes things (new
-  tasks, reminders, email drafts, anything in a connected app) becomes an **ask** that Peter
-  approves on the wall or phone. The model never gets a tool that acts directly.
+- It can *read* tasks, notes, documents, school items, reminders and the timetable.
+- A few small things that stay on the Pi and are easy to undo happen straight away: saving a note,
+  remembering a fact, putting something on the wall (an answer, a page, a timer, a glyph), adding
+  to the bag list, and cancelling a reminder (only when Peter's own question is about reminders,
+  so text in an email or web page can't talk it into it). None of these happen in "ask" or
+  "watch" mode.
+- Anything bigger (new tasks or study sessions, new reminders, email drafts, anything in a
+  connected app, handing work to Claude, paid builds) becomes an **ask** that Peter approves on
+  the wall, phone or computer.
 - **Nothing leaves the house by accident.** Emails, connected-app actions (messages, posts,
   anything that changes something), computer hand-offs and paid builds need a **press-and-hold**
   on the wall ("hold" key fills) or phone, and the hub refuses a yes in the first 1.5 s after the
@@ -50,8 +56,11 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
 - At most 4 of those per hour, and at most 40 questions an hour (nothing can loop and burn
   credit). Emails can only be drafted to school addresses or people Peter already approved an
   email to — and they're only ever drafts he sends himself.
-- School mail, app data, notes and web results reach the model marked as "information, not
-  instructions"; the model is told to report, not follow, anything in them that asks it to act.
+- School mail, app data, notes, documents and web results reach the model marked as
+  "information, not instructions"; the model is told to report, not follow, anything in them that
+  asks it to act (tested).
+- The phone's Ask tab and the computer's Ctrl+Shift+Space use the same assistant and the same
+  rules; a follow-up question only carries the one previous question and answer.
 - **Memory**: short facts it's told or picks up, kept on the Pi only, visible and deletable from
   the phone ("what it knows about you"). Passwords, money, health, addresses and numbers are
   refused by the hub, whatever the model asks.

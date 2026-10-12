@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray, clipboard } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, screen, shell, Tray, clipboard } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { HubClient, memoryKV, focusPlan, type Snapshot, type Handoff, hhmmToMinutes } from "@nudge/shared";
@@ -189,8 +189,20 @@ function openPair() {
 }
 
 /** The phone apps (my app, notes, setup) served by the hub, in a window, already signed in. */
-function openHubApp(file: "index" | "notes" | "admin", title: string) {
-  if (!pairing) return openPair();
+/** The one "ask" window: brought back to the front if it's already open. */
+let askWin: BrowserWindow | null = null;
+function openAsk() {
+  if (askWin && !askWin.isDestroyed()) {
+    askWin.show();
+    askWin.focus();
+    return;
+  }
+  askWin = openHubApp("index", "Ask Nudge", "ask") ?? null;
+  askWin?.on("closed", () => (askWin = null));
+}
+
+function openHubApp(file: "index" | "notes" | "admin", title: string, hash = ""): BrowserWindow | undefined {
+  if (!pairing) return void openPair();
   const win = new BrowserWindow({
     width: file === "admin" ? 980 : 420,
     height: file === "admin" ? 820 : 820,
@@ -215,7 +227,8 @@ function openHubApp(file: "index" | "notes" | "admin", title: string) {
       .executeJavaScript(`(() => { if (!localStorage.getItem("nudge-owner:pairing")) { localStorage.setItem("nudge-owner:pairing", ${JSON.stringify(stored)}); location.reload(); } })()`)
       .catch(() => {});
   });
-  void win.loadURL(`${base}/app/${file}.html`);
+  void win.loadURL(`${base}/app/${file}.html${hash ? `#${hash}` : ""}`);
+  return win;
 }
 
 /* ---------------------------------- tray ---------------------------------- */
@@ -247,6 +260,7 @@ function buildTray() {
           click: () => { setPrefs({ hudScale: k }); if (hud && !hud.isDestroyed()) hud.setBounds(hudBounds(), true); },
         })),
       },
+      { label: "Ask Nudge…", accelerator: "CommandOrControl+Shift+Space", enabled: !!pairing, click: openAsk },
       { label: "My tasks", enabled: !!pairing, click: () => openHubApp("index", "Nudge") },
       { label: "Notes", enabled: !!pairing, click: () => openHubApp("notes", "Nudge notes") },
       { type: "separator" },
@@ -538,6 +552,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
   syncBlocking(null);
   watcher.stop();
 });
@@ -545,6 +560,8 @@ app.on("will-quit", () => {
 void app.whenReady().then(() => {
   applyLogin();
   buildTray();
+  // Ctrl+Shift+Space anywhere: ask Nudge (if another app already has it, the tray item still works).
+  globalShortcut.register("CommandOrControl+Shift+Space", openAsk);
   startBlocker(() => snap, {
     tools: async () => (client ? client.get("/api/agent/tools") : Promise.reject(new Error("Nudge isn't connected to the wall"))),
     call: async (b) => (client ? client.request("POST", `/api/agent/tools/${encodeURIComponent(b.name)}`, { args: b.args, threadId: b.threadId }) : Promise.reject(new Error("Nudge isn't connected to the wall"))),

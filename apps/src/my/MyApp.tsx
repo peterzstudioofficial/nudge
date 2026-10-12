@@ -10,6 +10,7 @@ import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 import { ToolsTab } from "./ToolsTab";
 import { AskCard } from "./AskCard";
+import { ChatTab } from "./Chat";
 import { BrainSheet } from "./Brain";
 import { LibrarySheet } from "./Library";
 import { LightsSheet } from "./Lights";
@@ -17,9 +18,10 @@ import { setThemePref, themePref, type ThemePref } from "../lib/theme";
 
 /** "my app — plan and look, nothing else." From "Nudge Apps.dc.html". */
 
-type Tab = "today" | "plan" | "tools" | "sick" | "settings";
+type Tab = "today" | "ask" | "plan" | "tools" | "sick" | "settings";
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: "today", icon: "checklist", label: "today" },
+  { id: "ask", icon: "auto_awesome", label: "ask" },
   { id: "plan", icon: "calendar_month", label: "plan" },
   { id: "tools", icon: "apps", label: "tools" },
   { id: "sick", icon: "sick", label: "unwell" },
@@ -32,12 +34,13 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
   const client = getClient("owner")!;
   const { snap, online } = useSnapshot(client);
   const [locked, hideLock] = usePhoneLock(snap);
-  const [tab, setTab] = useState<Tab>("today");
+  // "#ask" opens straight on the assistant (the computer's Ctrl+Shift+Space).
+  const [tab, setTab] = useState<Tab>(() => (location.hash === "#ask" ? "ask" : "today"));
   const [prev, setPrev] = useState<Tab>("today");
   const [scrolled, setScrolled] = useState(false);
   const i = ORDER.indexOf(tab);
   const fwd = i >= ORDER.indexOf(prev);
-  const seg = window.innerWidth < 380 ? 33 : SEG;
+  const seg = window.innerWidth < 380 ? 31 : window.innerWidth < 400 ? 34 : SEG;
   const show = (t: Tab, from: Tab) => {
     if (t === from) return;
     setPrev(from);
@@ -112,6 +115,7 @@ export function MyApp({ onUnpair }: { onUnpair: () => void }) {
       <div key={tab} style={{ paddingTop: 6, animation: `${fwd ? "aSlide" : "aSlideL"} .32s cubic-bezier(.32,.72,0,1) both` }}>
         {!snap && <div style={{ padding: "40px 22px", fontSize: 11, color: "var(--c-8e8e97)" }}>connecting to the wall…</div>}
         {snap && tab === "today" && <Today snap={snap} />}
+        {snap && tab === "ask" && <ChatTab snap={snap} />}
         {snap && tab === "plan" && <Plan />}
         {snap && tab === "tools" && <ToolsTab snap={snap} />}
         {snap && tab === "sick" && <Sick snap={snap} />}

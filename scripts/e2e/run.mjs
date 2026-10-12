@@ -195,12 +195,20 @@ await phone.goto(`${HUB}/app/index.html`);
 await phone.evaluate(([t, hub]) => localStorage.setItem("nudge-owner:pairing", JSON.stringify({ hub, token: t.token, role: "owner", name: "browser" })), [tok, HUB]);
 await phone.reload(); await phone.waitForTimeout(2000);
 const txt = await phone.evaluate(() => document.body.innerText.toLowerCase());
-check("phone today shows the day", /mon|tue|wed|thu|fri|sat|sun/.test(txt) && (!schoolToday || /next ·|now ·|school's done/.test(txt)), txt.slice(0, 120));
+check("phone today shows the day", /mon|tue|wed|thu|fri|sat|sun/.test(txt) && (!schoolToday || /next ·|now ·|school's done|coming up/.test(txt)), txt.replace(/\s+/g, " ").slice(0, 300));
 for (const [icon, name] of [["calendar_month", "plan"], ["apps", "tools"], ["settings", "settings"]]) {
   await phone.locator(".ms", { hasText: new RegExp(`^${icon}$`) }).first().click(); await phone.waitForTimeout(900);
 }
 await phone.getByText("documents it can read").click(); await phone.waitForTimeout(1200);
 check("documents sheet lists the files", /macbeth/i.test(await phone.evaluate(() => document.body.innerText)));
+await phone.keyboard.press("Escape"); await phone.waitForTimeout(400);
+// the phone's Ask tab: a question, an answer, and the history from the wall and the computer
+await phone.locator("button[aria-label=ask]").click(); await phone.waitForTimeout(900);
+await phone.fill("textarea", "what's my first lesson today?");
+await phone.locator("button[aria-label=send]").click();
+const answered = await until(async () => /first up|nothing|no lessons|today/i.test((await phone.evaluate(() => document.body.innerText)).split("what's my first lesson today?").pop() ?? ""), 15000);
+check("the phone's Ask tab gets an answer", !!answered, (await phone.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(-160));
+check("…and shows questions asked elsewhere too", /AT THE WALL|ON THE COMPUTER|inspector|chemistry/i.test(await phone.evaluate(() => document.body.innerText)));
 const notes = await b.newPage({ viewport: { width: 412, height: 912 } });
 notes.on("pageerror", (e) => errs.push("notes: " + e));
 await notes.goto(`${HUB}/app/index.html`);
