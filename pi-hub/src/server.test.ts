@@ -162,3 +162,48 @@ describe("connect OpenRouter (PKCE)", () => {
   });
 });
 
+
+describe("built tools: keep, logo, open on the computer", () => {
+  const files = { "index.html": { mime: "text/html", data: new TextEncoder().encode("<!doctype html><html><body>x</body></html>") } };
+  const pairAs = async (role: "owner" | "parent") => {
+    const { code } = auth.createCode(role, "test");
+    return (await inject("POST", "/api/pair", { body: { code, name: role } })).json().token as string;
+  };
+
+  it("keeps a tool only for the owner", async () => {
+    const owner = await pairAs("owner");
+    const parent = await pairAs("parent");
+    const t = hub.putTool({ title: "Cards", description: "", icon: "quiz", target: "phone", jobId: null }, files);
+    expect(t.keep).toBe(false);
+    expect((await inject("PATCH", `/api/tools/${t.id}`, { token: parent, body: { keep: true } })).statusCode).toBe(403);
+    const r = await inject("PATCH", `/api/tools/${t.id}`, { token: owner, body: { keep: true } });
+    expect(r.json()).toMatchObject({ keep: true, expiresAt: null });
+    expect((await inject("PATCH", "/api/tools/nope", { token: owner, body: { keep: true } })).statusCode).toBe(404);
+  });
+
+  it("takes a plain logo and refuses one with a script in it", async () => {
+    const owner = await pairAs("owner");
+    const b64 = (s: string) => Buffer.from(s).toString("base64");
+    const bad = await inject("PUT", "/api/brand/logo", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') } });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toMatch(/scripts/);
+    const ok = await inject("PUT", "/api/brand/logo", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>') } });
+    expect(ok.statusCode).toBe(200);
+    const got = (await inject("GET", "/api/brand", { token: owner })).json();
+    expect(got.logo).toMatchObject({ name: "studio", mime: "image/svg+xml" });
+    expect(got.logo.preview).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect((await inject("PUT", "/api/brand/logo", { token: await pairAs("parent"), body: { name: "x", mime: "image/png", data: "" } })).statusCode).toBe(403);
+    await inject("DELETE", "/api/brand/logo", { token: owner });
+    expect((await inject("GET", "/api/brand", { token: owner })).json().logo).toBeNull();
+  });
+
+  it("only sends a tool to the computer when it's on", async () => {
+    const owner = await pairAs("owner");
+    const t = hub.putTool({ title: "Timer", description: "", icon: "timer", target: "any", jobId: null }, files);
+    expect((await inject("POST", `/api/tools/${t.id}/computer`, { token: owner, body: { install: true } })).statusCode).toBe(409);
+    hub.setClaudeDesktop({ desktopApp: false, cli: false, allowRun: false, canEdit: false, workspaces: [], chat: false } as never);
+    expect((await inject("POST", `/api/tools/${t.id}/computer`, { token: owner, body: { install: true } })).statusCode).toBe(200);
+    const h = hub.pendingHandoffs().find((x) => x.kind === "tool");
+    expect(h).toMatchObject({ kind: "tool", payload: { toolId: t.id, install: true } });
+  });
+});

@@ -347,6 +347,8 @@ export const Handoff = z.discriminatedUnion("kind", [
   z.object({ ...HandoffBase, kind: z.literal("claude"), payload: ClaudeTask }),
   /** a question for the ongoing Claude chat on the PC (his own Claude plan), answered back to the thread */
   z.object({ ...HandoffBase, kind: z.literal("chat"), payload: z.object({ threadId: z.string(), prompt: z.string().max(4000), context: z.string().max(8000), system: z.string().max(8000) }) }),
+  /** open one of the built tools on the computer (sent from the phone) */
+  z.object({ ...HandoffBase, kind: z.literal("tool"), payload: z.object({ toolId: z.string(), title: z.string().max(60), install: z.boolean() }) }),
 ]);
 export type Handoff = z.infer<typeof Handoff>;
 
@@ -584,8 +586,14 @@ export const ToolInfo = z.object({
   version: z.number(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  /** kept for good; otherwise it tidies itself away at expiresAt (a week after its last build) */
+  keep: z.boolean(),
+  expiresAt: z.number().nullable(),
 });
 export type ToolInfo = z.infer<typeof ToolInfo>;
+
+/** How long a tool stays if it isn't kept. Building a new version restarts the week. */
+export const TOOL_TTL_MS = 7 * 86400_000;
 
 /** A big job the assistant does after a yes: building a tool, now or later. */
 export const BuildWhere = z.enum(["pi", "computer"]);
@@ -598,6 +606,10 @@ export const BuildRequest = z.object({
   where: BuildWhere,
   /** a tool to improve instead of starting from scratch */
   toolId: z.string().max(40).nullable(),
+  /** a look the student asked for, which wins over the Nudge style (null = the Nudge style) */
+  style: z.string().max(400).nullable().default(null),
+  /** keep it for good from the start (otherwise it goes a week after its last build) */
+  keep: z.boolean().default(false),
   /** files the student attached (stored on the hub until the job has used them) */
   attachments: z.array(z.object({ id: z.string(), name: z.string().max(120), mime: z.string().max(80) })).max(4),
 });
@@ -619,6 +631,19 @@ export const Job = z.object({
   updatedAt: z.number(),
 });
 export type Job = z.infer<typeof Job>;
+/** A build as the apps see it (in the snapshot). */
+export interface JobBrief {
+  id: string;
+  title: string;
+  status: Job["status"];
+  note: string;
+  toolId: string | null;
+  error: string | null;
+  updatedAt: number;
+  threadId: string | null;
+  when: Job["request"]["when"];
+  ownLook: boolean;
+}
 
 export interface Snapshot {
   now: number;
@@ -646,7 +671,7 @@ export interface Snapshot {
   /** tools the assistant built, newest first */
   tools: ToolInfo[];
   /** build jobs that aren't finished (or finished in the last day) */
-  jobs: { id: string; title: string; status: Job["status"]; note: string; toolId: string | null; error: string | null; updatedAt: number }[];
+  jobs: JobBrief[];
   weather: Weather | null;
   news: string;
   birthday: { name: string; inDays: number } | null;

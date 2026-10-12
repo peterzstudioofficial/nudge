@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { BuildRequest } from "@nudge/shared";
 import { Db } from "../db";
 import { Hub } from "../hub";
-import { builderService, estimateBuild, htmlFromText, iconFor } from "./builder";
+import { builderService, buildSystem, estimateBuild, htmlFromText, iconFor } from "./builder";
+import { brandFont, checkLogo } from "../brand";
+import { TOOL_TTL_MS } from "@nudge/shared";
 import type { OrClient } from "./openrouter";
 import { buildToolsServer, iconPng, injectHead } from "../tools-server";
 import type { Ctx } from "../context";
@@ -28,7 +30,7 @@ function fakeOr(over: Partial<OrClient> = {}) {
   return { or, calls };
 }
 
-const req = (o: Partial<BuildRequest> = {}): BuildRequest => ({ title: "Chem cards", brief: "Flashcards for GCSE chemistry, flip on tap, shuffle, track which ones I got wrong.", target: "phone", when: "now", where: "pi", toolId: null, attachments: [], ...o });
+const req = (o: Partial<BuildRequest> = {}): BuildRequest => ({ title: "Chem cards", brief: "Flashcards for GCSE chemistry, flip on tap, shuffle, track which ones I got wrong.", target: "phone", when: "now", where: "pi", toolId: null, style: null, keep: false, attachments: [], ...o });
 
 describe("tool builder", () => {
   it("builds now in OpenRouter's sandbox (no internet, zero retention) and saves the app", async () => {
@@ -145,3 +147,92 @@ describe("tools server", () => {
     expect(iconPng(192).length).toBeGreaterThan(100);
   });
 });
+
+describe("brand kit, style and keeping tools", () => {
+  it("builds in the Nudge style unless the request asks for its own look", () => {
+    const plain = buildSystem({ style: null }, null);
+    expect(plain).toContain("/brand/nudge.css");
+    expect(plain).toContain("overrides the Nudge style");
+    expect(plain).not.toContain("/brand/logo");
+    const own = buildSystem({ style: "bright pastel, light theme, rounded comic font" }, { name: "peterzstudio" });
+    expect(own).toContain('"bright pastel, light theme, rounded comic font"');
+    expect(own).toMatch(/overrides the Nudge style wherever they differ/);
+    expect(own).toContain("/brand/logo");
+    expect(own).toMatch(/never force it in/);
+  });
+
+  it("the sandbox build gets the look in its instructions", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const { or, calls } = fakeOr();
+    builderService({ hub, or, log: () => {}, say: () => {} });
+    hub.startJob(req({ style: "black and gold, like a theatre programme" }), 0.03, null);
+    await wait(40);
+    expect((calls.responses[0] as { instructions: string }).instructions).toContain("black and gold, like a theatre programme");
+  });
+
+  it("a tool goes a week after its last build unless it's kept", () => {
+    let now = 1_000_000;
+    const hub = new Hub(new Db(":memory:"), { clock: () => now });
+    const files = { "index.html": { mime: "text/html", data: new TextEncoder().encode(APP) } };
+    const a = hub.putTool({ title: "Cards", description: "", icon: "quiz", target: "phone", jobId: null }, files);
+    const b = hub.putTool({ title: "Timer", description: "", icon: "timer", target: "phone", jobId: null, keep: true }, files);
+    expect(a).toMatchObject({ keep: false, expiresAt: now + TOOL_TTL_MS });
+    expect(b).toMatchObject({ keep: true, expiresAt: null });
+    now += TOOL_TTL_MS - 1000;
+    expect(hub.sweepTools()).toEqual([]);
+    // a new version restarts the week
+    hub.putTool({ id: a.id, title: "Cards", description: "", icon: "quiz", target: "phone", jobId: null }, files);
+    now += 2000;
+    expect(hub.sweepTools()).toEqual([]);
+    now += TOOL_TTL_MS;
+    expect(hub.sweepTools()).toEqual(["Cards"]);
+    expect(hub.listTools().map((t) => t.title)).toEqual(["Timer"]);
+    // unkeeping starts a week from now; keeping again stops it
+    hub.setToolKeep(b.id, false);
+    expect(hub.tool(b.id)!.expiresAt).toBe(now + TOOL_TTL_MS);
+    hub.setToolKeep(b.id, true);
+    now += 2 * TOOL_TTL_MS;
+    expect(hub.sweepTools()).toEqual([]);
+    expect(hub.toolFile(a.id, "index.html")).toBeNull();
+  });
+
+  it("tools saved before keep/expiry existed are kept", () => {
+    const hub = new Hub(new Db(":memory:"));
+    const t = hub.putTool({ title: "Old", description: "", icon: "apps", target: "phone", jobId: null }, { "index.html": { mime: "text/html", data: new TextEncoder().encode(APP) } });
+    const { keep: _k, expiresAt: _e, ...legacy } = t;
+    hub.tools.put(legacy as typeof t);
+    expect(hub.tool(t.id)).toMatchObject({ keep: true, expiresAt: null });
+    expect(hub.sweepTools()).toEqual([]);
+  });
+
+  it("logos: images pass, SVGs with scripts or links out don't", () => {
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...new Array(20).fill(0)]);
+    expect(checkLogo("image/png", png).mime).toBe("image/png");
+    const svg = (body: string) => new TextEncoder().encode(`<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">${body}</svg>`);
+    expect(checkLogo("image/svg+xml", svg('<path d="M0 0h10v10z" fill="#ff4d17"/><use href="#a"/>')).mime).toBe("image/svg+xml");
+    for (const bad of ["<script>alert(1)</script>", '<rect onload="x()"/>', '<image href="https://evil.example/x.png"/>', "<foreignObject><p>hi</p></foreignObject>", '<a xlink:href="javascript:x()"/>', "<style>@import url(https://x.example/a.css)</style>"]) {
+      expect(() => checkLogo("image/svg+xml", svg(bad)), bad).toThrow();
+    }
+    expect(() => checkLogo("text/html", new TextEncoder().encode("<html><body>not an image</body></html>"))).toThrow(/PNG/);
+    expect(() => checkLogo("image/png", new Uint8Array(600 * 1024))).toThrow(/too big/);
+  });
+
+  it("serves the stylesheet, fonts and logo on the tools origin", async () => {
+    const hub = new Hub(new Db(":memory:"));
+    const app = await buildToolsServer({ cfg: { dev: false, allowLan: false, tlsCert: null, tlsKey: null }, hub } as unknown as Ctx);
+    const get = (url: string) => app.inject({ method: "GET", url, remoteAddress: "127.0.0.1" });
+    const css = await get("/brand/nudge.css");
+    expect(css.statusCode).toBe(200);
+    expect(css.body).toContain("--n-accent:#ff4d17");
+    expect(css.body).toContain("prefers-reduced-motion");
+    expect(brandFont("doto-900.woff2")?.length).toBeGreaterThan(1000);
+    expect((await get("/brand/fonts/dm-mono-400.woff2")).headers["content-type"]).toBe("font/woff2");
+    expect((await get("/brand/fonts/../../etc/passwd")).statusCode).not.toBe(200);
+    expect((await get("/brand/logo")).statusCode).toBe(404);
+    hub.setBrandLogo({ ...checkLogo("image/svg+xml", new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>')), name: "peterzstudio" });
+    const logo = await get("/brand/logo");
+    expect(logo.headers["content-type"]).toContain("image/svg+xml");
+    expect(logo.headers["content-security-policy"]).toContain("default-src 'none'");
+  });
+});
+

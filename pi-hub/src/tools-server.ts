@@ -3,6 +3,7 @@ import zlib from "node:zlib";
 import Fastify, { type FastifyInstance } from "fastify";
 import { isLoopback, isPrivateLan, isTailscale } from "./auth";
 import type { Ctx } from "./context";
+import { BRAND_CSS, brandFont } from "./brand";
 
 /**
  * Serves the tools the assistant built, on their own port — so their own origin. A tool is
@@ -31,7 +32,7 @@ const CSP = [
 /** What goes into every tool's <head>: manifest, icon, offline worker and an install button. */
 export function injectHead(html: string): string {
   const head = `<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#0a0a0c">
-<script>/* added by Nudge */(function(){if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});var d;addEventListener("beforeinstallprompt",function(e){e.preventDefault();d=e;var b=document.createElement("button");b.textContent="Install app";b.style.cssText="position:fixed;right:12px;bottom:12px;z-index:2147483647;padding:10px 14px;border-radius:12px;border:0;background:#ff4d17;color:#0b0b0d;font:600 14px system-ui,sans-serif;box-shadow:0 4px 18px #0006";b.onclick=function(){b.remove();d.prompt()};(document.body||document.documentElement).appendChild(b)})})();</script>`;
+<script>/* added by Nudge */(function(){if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});var d;addEventListener("beforeinstallprompt",function(e){e.preventDefault();d=e;var b=document.createElement("button");b.textContent="install app";b.style.cssText="position:fixed;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));z-index:2147483647;padding:11px 16px;border-radius:14px;border:0;background:#ff4d17;color:#0b0b0d;font:500 12px/1 'DM Mono',ui-monospace,monospace;letter-spacing:.06em;box-shadow:0 6px 24px #0007;opacity:0;transform:translateY(12px) scale(.96);transition:opacity .5s cubic-bezier(.32,.72,0,1),transform .5s cubic-bezier(.32,.72,0,1)";b.onclick=function(){b.remove();d.prompt()};(document.body||document.documentElement).appendChild(b);requestAnimationFrame(function(){requestAnimationFrame(function(){b.style.opacity="1";b.style.transform="none"})})})})();</script>`;
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => `${m}\n${head}`);
   if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => `${m}<head>${head}</head>`);
   return `${head}\n${html}`;
@@ -108,6 +109,19 @@ export async function buildToolsServer(ctx: Ctx): Promise<FastifyInstance> {
   const tool = (id: string) => hub.tools.get(id);
 
   app.get("/", async (_req, reply) => reply.type("text/plain").send("Nudge tools"));
+  // The Nudge look (brand.ts): a stylesheet, fonts and the studio logo, for any tool that wants them.
+  app.get("/brand/nudge.css", async (_req, reply) => reply.type("text/css; charset=utf-8").header("cache-control", "no-cache").send(BRAND_CSS));
+  app.get("/brand/fonts/:file", async (req, reply) => {
+    const f = brandFont((req.params as { file: string }).file);
+    if (!f) return reply.code(404).send("no such font");
+    return reply.type("font/woff2").header("cache-control", "max-age=604800").send(f);
+  });
+  app.get("/brand/logo", async (_req, reply) => {
+    const l = hub.brandLogo();
+    if (!l) return reply.code(404).send("no logo yet");
+    // An SVG opened on its own still can't run anything.
+    return reply.type(l.mime).header("cache-control", "no-cache").header("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:").send(Buffer.from(l.data));
+  });
   app.get("/t/:id", async (req, reply) => reply.redirect(`/t/${(req.params as { id: string }).id}/`));
   app.get("/t/:id/manifest.webmanifest", async (req, reply) => {
     const t = tool((req.params as { id: string }).id);
@@ -136,7 +150,7 @@ export async function buildToolsServer(ctx: Ctx): Promise<FastifyInstance> {
     if (!t) return reply.code(404).send("no such tool");
     const cache = `nudge-tool-${t.id}-v${t.version}`;
     // Network first so updates arrive; the cached copy when offline.
-    const js = `const C=${JSON.stringify(cache)};self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(["./"])))});self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith(${JSON.stringify(`nudge-tool-${t.id}-`)})&&x!==C).map(x=>caches.delete(x))))));self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(fetch(e.request).then(r=>{if(r.ok){const c=r.clone();caches.open(C).then(x=>x.put(e.request,c))}return r}).catch(()=>caches.match(e.request)))});`;
+    const js = `const C=${JSON.stringify(cache)};self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(["./"]).then(()=>c.add("/brand/nudge.css")).catch(()=>{})))});self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith(${JSON.stringify(`nudge-tool-${t.id}-`)})&&x!==C).map(x=>caches.delete(x))))));self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(fetch(e.request).then(r=>{if(r.ok){const c=r.clone();caches.open(C).then(x=>x.put(e.request,c))}return r}).catch(()=>caches.match(e.request)))});`;
     return reply.type("text/javascript").header("cache-control", "no-cache").header("service-worker-allowed", `/t/${t.id}/`).send(js);
   });
   app.get("/t/:id/*", async (req, reply) => {

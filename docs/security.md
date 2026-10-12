@@ -94,7 +94,14 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
   uploaded for that one job and deleted afterwards (OpenRouter's Files API isn't zero-retention
   while a file exists). Batch builds send only the build brief.
 - Android can't install an app silently: a tool opens in Chrome and one tap on "Install app" adds
-  it to the home screen.
+  it to the home screen. On the computer it opens in its own window with its own storage
+  (separate from the Nudge apps), or from a desktop shortcut; nothing installs without a tap.
+- The brand kit (stylesheet, fonts, logo) is served from the tools origin, so tools never need
+  the internet for it. The logo is owner-only to change, 512 KB max, must really be a PNG, JPEG,
+  WebP or SVG, and SVGs with scripts, event handlers, embedded pages or links out are refused.
+  It's served with a CSP that runs nothing even if opened on its own.
+- Tools you don't keep are deleted a week after their last build (files and all). Tools made
+  before this rule are kept.
 
 ### Handing work to Claude on the computer
 

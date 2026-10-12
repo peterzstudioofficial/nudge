@@ -2,6 +2,7 @@ import type { BuildRequest, Job, ToolTarget } from "@nudge/shared";
 import type { Hub } from "../hub";
 import type { OrClient } from "./openrouter";
 import { addSpend, spend } from "../agent/spend";
+import { brandGuide } from "../brand";
 
 /**
  * The tool builder. After a yes, it turns a request ("a flashcard app for chemistry on my
@@ -20,12 +21,18 @@ const MAX_PRICE = { prompt: "0.5", completion: "1.5" };
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export const BUILD_SYSTEM = `You build small, polished web apps ("tools") for a 15-year-old student in the UK.
-- One self-contained index.html: inline CSS, JavaScript and SVG. No frameworks from the internet, no CDNs, no external fonts, no network requests at all. It must work offline.
-- Mobile first: portrait phone, big touch targets, readable at arm's length; also fine on a laptop. Dark theme with one warm accent colour (#ff4d17) unless asked otherwise.
+- One self-contained index.html: inline CSS, JavaScript and SVG. No frameworks, CDNs, fonts or files from the internet and no network requests at all (the /brand/ files on the same server are fine). It must work offline.
+- Mobile first: portrait phone, big touch targets, readable at arm's length; also fine on a laptop.
+- Make it feel finished: smooth, quick motion; clear empty, loading and error states; nothing jumps around.
 - Save anything the user enters in localStorage under a key unique to this tool.
-- Include <meta name="viewport" content="width=device-width, initial-scale=1"> and a short <title>.
-- Keep it focused: do the one job well. Clear empty states. No ads, trackers, analytics or sign-ups.
+- Include <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"> and a short <title>.
+- Keep it focused: do the one job well. No ads, trackers, analytics or sign-ups.
 - Never include personal details beyond what the request itself says.`;
+
+/** The whole system prompt: the rules, then the look (the request's own style wins over the brand). */
+export function buildSystem(r: Pick<BuildRequest, "style">, logo: { name: string } | null): string {
+  return `${BUILD_SYSTEM}\n\nLook:\n${brandGuide({ style: r.style ?? null, logo })}`;
+}
 
 const SANDBOX_RULES = `You have a sandboxed Linux shell with no internet. Work like this:
 1. Write the app to out/index.html (extra files only if really needed, all under out/).
@@ -113,13 +120,13 @@ export function builderService(o: {
   function finish(j: Job, files: Record<string, { mime: string; data: Uint8Array }>, cost: number, summary: string) {
     const r = request(j);
     const tool = hub.putTool(
-      { id: r.toolId ?? undefined, title: r.title, description: (summary || r.brief).replace(/\s+/g, " ").slice(0, 300), icon: iconFor(`${r.title} ${r.brief}`), target: r.target, jobId: j.id },
+      { id: r.toolId ?? undefined, title: r.title, description: (summary || r.brief).replace(/\s+/g, " ").slice(0, 300), icon: iconFor(`${r.title} ${r.brief}`), target: r.target, jobId: j.id, keep: !!r.keep },
       files,
     );
-    hub.updateJob(j.id, { status: "done", toolId: tool.id, costUsd: +(j.costUsd + cost).toFixed(4), note: "ready in your Tools tab", error: null });
+    hub.updateJob(j.id, { status: "done", toolId: tool.id, costUsd: +(j.costUsd + cost).toFixed(4), note: tool.keep ? "ready in your Tools tab" : "ready · stays a week unless you keep it", error: null });
     if (cost) addSpend(hub, cost);
     hub.feed("agent", `Built "${r.title}" — it's in your Tools tab`);
-    note(j, `Built "${r.title}". Open it from the Tools tab on your phone${r.target === "phone" ? " and tap install to add it as an app" : ""}.`);
+    note(j, `Built "${r.title}". Open it from the Tools tab${r.target === "school" ? " or the tray on your computer" : " and tap install to add it as an app"}. ${tool.keep ? "" : "It tidies itself away in a week unless you tap keep."}`.trim());
     o.say("apps", `${r.title.toLowerCase()} is ready`, "IN YOUR PHONE'S TOOLS TAB", 5000);
   }
 
@@ -154,7 +161,7 @@ export function builderService(o: {
       const r = await or.responses(
         {
           model: s.buildModel,
-          instructions: `${BUILD_SYSTEM}\n\n${SANDBOX_RULES}`,
+          instructions: `${buildSystem(j.request, hub.brandLogo())}\n\n${SANDBOX_RULES}`,
           input: [{ role: "user", content: [{ type: "input_text", text: brief(j) }, ...fileIds.map((f) => ({ type: "input_file", file_id: f }))] }],
           tools: [{ type: "openrouter:bash", parameters: { environment: { type: "container_auto", network_policy: { type: "disabled" }, ...(fileIds.length ? { file_ids: fileIds } : {}) } } }],
           stop_server_tools_when: [{ type: "step_count_is", step_count: 25 }, { type: "max_cost", max_cost_in_dollars: 0.25 }],
@@ -212,7 +219,7 @@ export function builderService(o: {
             custom_id: id,
             body: {
               messages: [
-                { role: "system", content: `${BUILD_SYSTEM}\n\nReply with the complete index.html in one \`\`\`html code block, then one line saying what it does.` },
+                { role: "system", content: `${buildSystem(j.request, hub.brandLogo())}\n\nReply with the complete index.html in one \`\`\`html code block, then one line saying what it does.` },
                 { role: "user", content: [{ type: "text", text: brief(j) }, ...fileIds.map((f) => ({ type: "file", file: { file_id: f } }))] },
               ],
               max_tokens: 24_000,

@@ -5,6 +5,7 @@ import { getClient } from "../lib/hub";
 import { openTool } from "../lib/native";
 import { D, Ms, haptic, toast, toastError } from "../lib/ui";
 import { AskCard } from "./AskCard";
+import { BuildCard, useToolsInfo, type ToolsInfo } from "./ToolKit";
 
 /**
  * Talk to the assistant from the phone. Same assistant as the wall (same tools, same rules:
@@ -21,6 +22,8 @@ const SUGGEST = [
   "what's on my bag list?",
 ];
 const VOICE = "(voice)";
+/** what the small tools button starts a question with */
+const MAKE = "make me a tool that ";
 /** a follow-up carries on from the last answer for this long */
 const FOLLOW_MS = 20 * 60_000;
 
@@ -34,6 +37,18 @@ export function ChatTab({ snap }: { snap: Snapshot }) {
   const [fresh, setFresh] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
+  const tools = useToolsInfo(snap);
+  // The subtle way in to building something: start the sentence, then they finish it.
+  const startTool = () => {
+    haptic();
+    setText(MAKE);
+    requestAnimationFrame(() => {
+      const b = box.current;
+      if (!b) return;
+      b.focus();
+      b.setSelectionRange(MAKE.length, MAKE.length);
+    });
+  };
 
   const load = async () => {
     try {
@@ -107,7 +122,7 @@ export function ChatTab({ snap }: { snap: Snapshot }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {(threads ?? []).map((t) => (
-          <Turn key={t.id} t={t} snap={snap} onStop={() => void stop(t.id)} onRetry={() => void send(t.prompt)} />
+          <Turn key={t.id} t={t} snap={snap} tools={tools} onStop={() => void stop(t.id)} onRetry={() => void send(t.prompt)} />
         ))}
       </div>
       <div ref={end} />
@@ -133,7 +148,21 @@ export function ChatTab({ snap }: { snap: Snapshot }) {
               </span>
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 6, borderRadius: 22, background: "var(--c-13131a)", boxShadow: "inset 0 0 0 1px var(--c-1c1c23)" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, padding: 6, borderRadius: 22, background: "var(--c-13131a)", boxShadow: "inset 0 0 0 1px var(--c-1c1c23)" }}>
+            <button
+              className="tap"
+              aria-label="make a tool"
+              title="make a tool"
+              disabled={off}
+              onClick={startTool}
+              style={{
+                flex: "none", width: text ? 0 : 32, height: 36, marginRight: text ? -4 : 0, border: 0, padding: 0, borderRadius: "50%", background: "transparent", color: "var(--c-6d6d77)",
+                display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", opacity: text ? 0 : 1,
+                transition: "width .35s cubic-bezier(.32,.72,0,1), opacity .25s, margin .35s cubic-bezier(.32,.72,0,1)",
+              }}
+            >
+              <Ms style={{ fontSize: 19 }}>widgets</Ms>
+            </button>
             <textarea
               ref={box}
               value={text}
@@ -171,7 +200,8 @@ export function ChatTab({ snap }: { snap: Snapshot }) {
 
 const WHERE: Record<AgentThread["origin"], string> = { wall: "AT THE WALL", desktop: "ON THE COMPUTER", app: "" };
 
-function Turn({ t, snap, onStop, onRetry }: { t: AgentThread; snap: Snapshot; onStop: () => void; onRetry: () => void }) {
+function Turn({ t, snap, tools, onStop, onRetry }: { t: AgentThread; snap: Snapshot; tools: ToolsInfo | null; onStop: () => void; onRetry: () => void }) {
+  const builds = snap.jobs.filter((j) => j.threadId === t.id);
   const answer = answerOf(t);
   const sources = t.log.find((l) => l.icon === "public")?.text.split("\n").map((l) => {
     const [title, url] = l.split(" — ");
@@ -232,6 +262,8 @@ function Turn({ t, snap, onStop, onRetry }: { t: AgentThread; snap: Snapshot; on
         )}
 
         {t.status === "asking" && (ask ? <AskCard a={ask} /> : <div style={{ fontSize: 10, color: "var(--c-8e8e97)" }}>waiting for your yes on the wall or Today</div>)}
+
+        {builds.map((j) => <BuildCard key={j.id} job={j} snap={snap} info={tools} />)}
 
         {t.output && t.status !== "working" && (
           <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 7, padding: "7px 11px", borderRadius: 12, background: "var(--c-13131a)", fontSize: 10, color: "var(--c-b6b5af)" }}>

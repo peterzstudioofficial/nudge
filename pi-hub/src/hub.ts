@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import {
   addDays, autoTags, bankFor, BagItem, Birthday, canAddTask, canBreak, canClaim, canSkip, dateKey,
-  BuildRequest, ClaudeDesktop, ClaudeTask, DayKind, isExpensiveModel, Job, ToolInfo, DayState, DEFAULT_SETTINGS, FeedEvent, Handoff, hhmmToMinutes, isoWeekday, mmss, NewBagItem,
+  BuildRequest, ClaudeDesktop, ClaudeTask, DayKind, isExpensiveModel, Job, ToolInfo, TOOL_TTL_MS, DayState, DEFAULT_SETTINGS, FeedEvent, Handoff, hhmmToMinutes, isoWeekday, mmss, NewBagItem,
   NewNote, NewTask, NewTemplate, Note, NotePatch, OWNER_SETTINGS, PARENT_SETTINGS, parseDateKey, PointEntry,
   Reminder, Reward, Role, Session, Settings, SUBJECT_NAMES, sortTasks, Task, TaskPatch, Template, TermDate,
   termInfo, Timetable, CHURCHERS_2026_27, workedNow, Ask, AgentThread, SchoolItem, relativeDay, dueLabel,
@@ -10,6 +10,7 @@ import {
   type SchoolCtx, type WeekLetter, DAY_LONG, askNeedsHold, HOLD_MIN_SHOWN_MS,
 } from "@nudge/shared";
 import type { z } from "zod";
+import { brandGuide } from "./brand";
 import { Bus } from "./bus";
 import { Db } from "./db";
 import { HttpError, notFound, refuse } from "./errors";
@@ -990,7 +991,8 @@ export class Hub {
   }
 
   pendingHandoffs(): Handoff[] {
-    return this.handoffs.all().filter((h) => !h.doneAt);
+    // "open this tool on the computer" only makes sense for a few minutes
+    return this.handoffs.all().filter((h) => !h.doneAt && !(h.kind === "tool" && this.now() - h.createdAt > 10 * 60_000));
   }
   doneHandoff(id: string): void {
     this.handoffs.patch(id, (h) => ({ ...h, doneAt: this.now() }));
@@ -1061,11 +1063,37 @@ export class Hub {
   }
 
   listTools(): ToolInfo[] {
-    return this.tools.all().sort((a, b) => b.updatedAt - a.updatedAt);
+    return this.tools.all().map(toolDefaults).sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+  tool(id: string): ToolInfo | null {
+    const t = this.tools.get(id);
+    return t ? toolDefaults(t) : null;
+  }
+
+  /** Keep a tool for good, or let it go a week after its last build. */
+  setToolKeep(id: string, keep: boolean): ToolInfo {
+    const t = this.tool(id);
+    if (!t) throw notFound("no such tool");
+    const next = this.tools.put({ ...t, keep, expiresAt: keep ? null : Math.max(t.updatedAt, this.now()) + TOOL_TTL_MS });
+    this.feed("agent", keep ? `Keeping "${t.title}"` : `"${t.title}" will tidy itself away in a week`);
+    this.bus.changed("tools");
+    return next;
+  }
+
+  /** Tools nobody kept go a week after they were built. Returns the titles it tidied away. */
+  sweepTools(): string[] {
+    const gone: string[] = [];
+    for (const t of this.listTools()) {
+      if (t.keep || t.expiresAt == null || t.expiresAt > this.now()) continue;
+      this.deleteTool(t.id);
+      gone.push(t.title);
+    }
+    if (gone.length) this.feed("agent", `Tidied away ${gone.length === 1 ? `"${gone[0]}"` : `${gone.length} tools`} (a week old, not kept)`);
+    return gone;
   }
 
   /** Save a built tool (files are stored as blobs; paths are relative, no "..", max 5 MB total). */
-  putTool(info: Omit<ToolInfo, "id" | "bytes" | "version" | "createdAt" | "updatedAt"> & { id?: string }, files: Record<string, { mime: string; data: Uint8Array }>): ToolInfo {
+  putTool(info: Omit<ToolInfo, "id" | "bytes" | "version" | "createdAt" | "updatedAt" | "keep" | "expiresAt"> & { id?: string; keep?: boolean }, files: Record<string, { mime: string; data: Uint8Array }>): ToolInfo {
     const paths = Object.keys(files);
     if (!paths.includes("index.html")) throw new HttpError(400, "a tool needs an index.html");
     let bytes = 0;
@@ -1079,12 +1107,44 @@ export class Hub {
     for (const old of this.db.kvGet<string[]>(`toolfiles:${id}`, [])) this.db.blobDel(`tool:${id}:${old}`);
     for (const pth of paths) this.db.blobPut(`tool:${id}:${pth}`, files[pth].mime, files[pth].data);
     this.db.kvSet(`toolfiles:${id}`, paths);
+    const keep = (prev ? toolDefaults(prev).keep : false) || !!info.keep;
     const t = this.tools.put({
       id, title: info.title, description: info.description, icon: info.icon, target: info.target, jobId: info.jobId,
       bytes, version: (prev?.version ?? 0) + 1, createdAt: prev?.createdAt ?? this.now(), updatedAt: this.now(),
+      keep, expiresAt: keep ? null : this.now() + TOOL_TTL_MS,
     });
     this.bus.changed("tools");
     return t;
+  }
+
+  /** The studio logo built tools may use (owner-uploaded; see brand.ts). */
+  brandLogo(): { mime: string; data: Uint8Array; name: string; at: number } | null {
+    const meta = this.db.kvGet<{ name: string; at: number } | null>("brandLogo", null);
+    const blob = meta ? this.db.blobGet("brand:logo") : null;
+    return meta && blob ? { ...blob, ...meta } : null;
+  }
+  setBrandLogo(logo: { mime: string; data: Uint8Array; name: string } | null): void {
+    if (logo) {
+      this.db.blobPut("brand:logo", logo.mime, logo.data);
+      this.db.kvSet("brandLogo", { name: logo.name, at: this.now() });
+    } else {
+      this.db.blobDel("brand:logo");
+      this.db.kvSet("brandLogo", null);
+    }
+    this.bus.changed("tools");
+  }
+
+  /** Ask the computer to open a tool (in its own window, or as a desktop app). */
+  openToolOnComputer(id: string, install: boolean): void {
+    const t = this.tool(id);
+    if (!t) throw notFound("no such tool");
+    this.handoffs.put({ id: newId(), kind: "tool", payload: { toolId: t.id, title: t.title, install }, createdAt: this.now(), doneAt: null });
+    this.bus.changed("handoffs");
+  }
+  /** The computer checked in during the last few minutes. */
+  pcOnline(): boolean {
+    const d = this.claudeDesktop();
+    return !!d && this.now() - d.at < 3 * 60_000;
   }
 
   toolFile(id: string, pth: string): { mime: string; data: Uint8Array } | null {
@@ -1149,6 +1209,11 @@ export function minutesUntil(hhmm: string, nowMins: number): number {
 }
 
 /** The instructions Claude Code gets when it builds a tool on the computer. */
+/** Tools saved before keep/expiry existed are kept (nothing someone made disappears by surprise). */
+function toolDefaults(t: ToolInfo): ToolInfo {
+  return t.keep === undefined ? { ...t, keep: true, expiresAt: null } : t;
+}
+
 export function buildTaskForClaude(r: BuildRequest): string {
   return [
     `Build "${r.title}" as a small web app for ${r.target === "phone" ? "a phone (portrait, touch)" : r.target === "school" ? "school work on a laptop" : "phone and laptop"}.`,
@@ -1158,6 +1223,7 @@ export function buildTaskForClaude(r: BuildRequest): string {
     "Rules:",
     "- Put the finished app in ./out/ with index.html as the entry point. Prefer ONE self-contained index.html (inline CSS/JS/SVG).",
     "- It must work offline: no CDNs, no external fonts, no network requests. Store data in localStorage.",
+    ...brandGuide({ style: r.style ?? null, logo: null, forClaude: true }).split("\n").map((l) => (l.startsWith("-") ? l : `- ${l}`)),
     "- Keep ./out under 5 MB. Don't install global packages or push anything anywhere.",
     "- Finish with a two-line summary of what you built.",
   ].join("\n");

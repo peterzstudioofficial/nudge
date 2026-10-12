@@ -1,6 +1,6 @@
 # Next steps
 
-Everything in the repo is built and tested (unit tests, a 50-check end-to-end run, a real install
+Everything in the repo is built and tested (unit tests, a 55-check end-to-end run, a real install
 in Debian, the Windows installer and three Android apps, all in CI). What's left needs hardware,
 accounts or decisions only you can make. In order:
 
@@ -36,6 +36,19 @@ accounts or decisions only you can make. In order:
       look in Nothing's Glyph app for a setting that lets other apps use the Glyphs, and tell me.
 - [ ] Optional: Settings → **wake word**, **lights**, **phone lock** (asks for usage access).
 
+## 3b. Your own apps (tool builder)
+
+- [ ] Tools tab → **add your logo**: pick the peterzstudio logo (PNG with a transparent
+      background, or a plain SVG). Tools use it only where it fits.
+- [ ] Ask tab → the small **widgets** button (left of the box) → finish "make me a tool that…",
+      e.g. "…tests me on my Inspector Calls quotes". Check the cost, hold yes.
+- [ ] Want a different look? Say so ("light, pastel, like a film poster") or pick **my own look**
+      in Tools → ask for a tool. Your words beat the Nudge style.
+- [ ] When it's ready: tap **open**, then **install app** in Chrome to put it on the home screen.
+- [ ] Keep the good ones (the **keep** switch). Anything not kept tidies itself away after a week.
+- [ ] Hold a tool (or ⋯) → **open on my computer** / **put it on my computer's desktop**
+      (the PC needs Nudge running).
+
 ## 4. Dad's phone
 
 - [ ] Install `nudge-android-parent`; pair it with a **parent** code (wall: pair → parent).
@@ -49,6 +62,7 @@ accounts or decisions only you can make. In order:
 - [ ] Tray → **Sign in to school…** once, so the wall can read SharePoint and Outlook.
 - [ ] Optional: Claude Code signed in with your Pro plan; tray → **Add Nudge to Claude…**.
 - [ ] Ctrl+Shift+Space anywhere: Ask Nudge.
+- [ ] Tray → **My tools** → a tool → **Open** or **Add to desktop**.
 
 ## 6. Tell me (so I can finish the last bits)
 
@@ -56,6 +70,7 @@ accounts or decisions only you can make. In order:
       has none yet, so the wall only reads Outlook for now.
 - [ ] How the wake word does in your room after a day: misses, or times it woke on its own.
 - [ ] Whether the Glyph Bar works on Nothing OS 5.0.
+- [ ] The first tool you build: did it look and feel right? Anything about the style to change?
 - [ ] Anything that feels slow, confusing or wrong. Screenshots help.
 
 ## Later (optional)

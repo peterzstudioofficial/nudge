@@ -276,7 +276,17 @@ function buildTray() {
       {
         label: "My tools",
         enabled: !!snap?.tools.length,
-        submenu: (snap?.tools ?? []).slice(0, 15).map((t) => ({ label: t.title, click: () => void openToolInBrowser(t.id) })),
+        submenu: (snap?.tools ?? []).slice(0, 15).map((t) => ({
+          label: t.title,
+          submenu: [
+            { label: "Open", click: () => void openTool(t.id) },
+            { label: "Add to desktop", click: () => addToolToDesktop(t.id) },
+            { label: "Open in browser", click: () => void openToolInBrowser(t.id) },
+            { type: "separator" as const },
+            { label: t.keep ? "Kept for good" : `Goes in ${Math.max(1, Math.ceil(((t.expiresAt ?? Date.now()) - Date.now()) / 86400_000))} days`, enabled: false },
+            { label: "Keep it", type: "checkbox" as const, checked: t.keep, click: (i) => void client?.send("PATCH", `/api/tools/${t.id}`, { keep: i.checked }).catch(() => {}) },
+          ],
+        })),
       },
       {
         label: "Claude on this computer",
@@ -304,11 +314,85 @@ function buildTray() {
   );
 }
 
-/** Built tools open in the normal browser (their own origin on the wall; installable there too). */
+/* ---------------------------------- tools --------------------------------- */
+// Tools the assistant built open like apps: their own window, their own storage (a separate
+// partition from the Nudge apps, and their own origin on the wall), and a desktop shortcut on ask.
+
+const toolWins = new Map<string, BrowserWindow>();
+async function toolsOrigin(): Promise<string | null> {
+  const r = await client?.get<{ origin: string }>("/api/tools").catch(() => null);
+  return r?.origin && /^https?:\/\//.test(r.origin) ? r.origin.replace(/\/$/, "") : null;
+}
+
+async function openTool(id: string) {
+  const open = toolWins.get(id);
+  if (open && !open.isDestroyed()) {
+    if (open.isMinimized()) open.restore();
+    open.show();
+    open.focus();
+    return;
+  }
+  const origin = await toolsOrigin();
+  if (!origin) return void notify({ icon: "wifi_off", line: "can't reach the wall", sub: "TOOLS OPEN WHEN IT'S ON" });
+  const t = snap?.tools.find((x) => x.id === id);
+  const home = `${origin}/t/${encodeURIComponent(id)}/`;
+  const wide = t?.target === "school";
+  const win = new BrowserWindow({
+    width: wide ? 1100 : 440,
+    height: wide ? 760 : 820,
+    minWidth: 320,
+    minHeight: 420,
+    title: t?.title ?? "Nudge tool",
+    autoHideMenuBar: true,
+    show: false,
+    backgroundColor: "#0a0a0c",
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: true, partition: "persist:tools" },
+  });
+  toolWins.set(id, win);
+  win.on("closed", () => toolWins.delete(id));
+  // Fade in once painted, so it never flashes white.
+  win.once("ready-to-show", () => win.show());
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (e, url) => {
+    if (!url.startsWith(home)) e.preventDefault();
+  });
+  win.webContents.session.setPermissionRequestHandler((_wc, perm, cb) => cb(perm === "media" || perm === "clipboard-sanitized-write"));
+  void fetch(`${home}icon-192.png`)
+    .then((r) => (r.ok ? r.arrayBuffer() : null))
+    .then((b) => b && !win.isDestroyed() && win.setIcon(nativeImage.createFromBuffer(Buffer.from(b))))
+    .catch(() => {});
+  void win.loadURL(home).catch(() => {});
+}
+
+/** A desktop shortcut that opens the tool straight from Windows (via this app, so no browser bar). */
+function addToolToDesktop(id: string) {
+  const t = snap?.tools.find((x) => x.id === id);
+  if (!t) return;
+  if (process.platform !== "win32") return void openToolInBrowser(id);
+  const name = t.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").trim().slice(0, 60) || "Nudge tool";
+  const ok = shell.writeShortcutLink(path.join(app.getPath("desktop"), `${name}.lnk`), "create", {
+    target: process.execPath,
+    args: app.isPackaged ? `--tool=${id}` : `"${app.getAppPath()}" --tool=${id}`,
+    description: t.description || t.title,
+    icon: process.execPath,
+    iconIndex: 0,
+  });
+  void notify(ok ? { icon: "desktop_windows", line: `${t.title.toLowerCase()} is on your desktop`, sub: "DOUBLE-CLICK TO OPEN" } : { icon: "error", line: "couldn't add the shortcut" });
+}
+
+/** Or in the normal browser, which can install it too. */
 async function openToolInBrowser(id: string) {
-  if (!client) return;
-  const r = await client.get<{ origin: string }>("/api/tools").catch(() => null);
-  if (r?.origin && /^https?:\/\//.test(r.origin)) void shell.openExternal(`${r.origin}/t/${encodeURIComponent(id)}/`);
+  const origin = await toolsOrigin();
+  if (origin) void shell.openExternal(`${origin}/t/${encodeURIComponent(id)}/`);
+}
+
+const toolArg = (argv: string[]) => argv.find((a) => a.startsWith("--tool="))?.slice(7).replace(/[^\w-]/g, "") || null;
+let pendingTool: string | null = toolArg(process.argv);
+function openPendingTool() {
+  if (!pendingTool || !client) return;
+  const id = pendingTool;
+  pendingTool = null;
+  void openTool(id);
 }
 
 /** Tell the hub what Claude can do on this computer (folder names only). */
@@ -373,6 +457,7 @@ function connect(p: Pairing) {
   void checkHandoffs();
   reportClaude();
   buildTray();
+  openPendingTool();
 }
 
 function unpair() {
@@ -401,6 +486,14 @@ async function checkHandoffs() {
       if (h.kind === "compose") await openDraft(client, h);
       else if (h.kind === "claude") void handleClaude(client, h, prefs());
       else if (h.kind === "chat") void handleChat(client, h, prefs(), (sid) => (setPrefs({ claudeChatSession: sid }), buildTray()));
+      else if (h.kind === "tool") {
+        // Sent from the phone a moment ago: open it here (and pin it to the desktop if asked).
+        await client.request("POST", `/api/handoffs/${h.id}/done`).catch(() => {});
+        if (Date.now() - h.createdAt > 10 * 60_000) continue;
+        await client.snapshot().catch(() => {});
+        if (h.payload.install) addToolToDesktop(h.payload.toolId);
+        void openTool(h.payload.toolId);
+      }
     }
   } catch {
     /* offline */
@@ -546,7 +639,13 @@ function extensionDir(): string {
 
 /* --------------------------------- start ---------------------------------- */
 
-app.on("second-instance", () => (pairing ? openHud() : openPair()));
+app.on("second-instance", (_e, argv) => {
+  if (!pairing) return openPair();
+  // A tool's desktop shortcut runs Nudge again with --tool=<id>.
+  pendingTool = toolArg(argv);
+  if (pendingTool) openPendingTool();
+  else openHud();
+});
 app.on("window-all-closed", () => {
   /* keep running in the tray */
 });
@@ -574,8 +673,9 @@ void app.whenReady().then(() => {
   setInterval(() => syncBlocking(snap), 30_000);
   const p = loadPairing();
   if (p) {
+    const fromShortcut = !!pendingTool;
     connect(p);
-    if (!process.argv.includes("--hidden")) openHud();
+    if (!process.argv.includes("--hidden") && !fromShortcut) openHud();
   } else {
     openPair();
   }

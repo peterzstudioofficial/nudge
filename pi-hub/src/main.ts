@@ -174,6 +174,8 @@ async function main() {
     setInterval(run, ms).unref();
   };
   every(30_000, () => hub.heartbeat());
+  // Tools nobody kept go a week after their last build.
+  every(60 * 60_000, () => void hub.sweepTools());
   every(60 * 60_000, () => ctx.weather.refresh());
   every(60 * 60_000, () => ctx.news.refresh());
   every(7 * 24 * 3600_000, () => refreshTermDates(hub, log), !cfg.dev);

@@ -93,6 +93,16 @@ The steps are `vault` → `reader` → `extract` → `classify` → `actions`:
   API at half price, falling back to an overnight sandbox build. Attachments go up with the Files
   API for that one job and are deleted after. "computer" hands the job to Claude Code on the PC,
   which builds in `Documents/Nudge Builds/<job>` and uploads `out/`.
+- `brand.ts` is the Nudge look for tools: `/brand/nudge.css` (tokens, the three fonts, a few
+  components, the Nudge motion, light/dark, reduced motion), the fonts themselves (copied next to
+  the bundle by `build.mjs`) and the optional studio logo at `/brand/logo`, all on the tools
+  origin. The builder is told to use them by default and to follow the request's own look
+  (`style`, or anything the brief says) wherever it differs. The logo is "only where it fits".
+- Tools have `keep` / `expiresAt`: not kept means it goes a week after its last build (a new
+  version restarts the week). `hub.sweepTools()` runs hourly. Tools from before this are kept.
+- "Open on my computer" is a `tool` hand-off: the Windows app opens the tool in its own window
+  (separate `persist:tools` partition) and, if asked, writes a desktop shortcut that runs
+  `Nudge.exe --tool=<id>`. The tray's My tools menu does the same.
 - `tools-server.ts` serves built tools on their own port (8790), so their own origin: they can't
   read the apps' storage or keys, and `connect-src 'self'` keeps them off the internet. Each gets
   a manifest, PNG icons and an offline service worker, so Chrome on Android offers "Install app".

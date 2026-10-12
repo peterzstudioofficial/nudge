@@ -316,7 +316,10 @@ export function agentService(o: Opts): AgentService {
     const big = wantsBig(thread.prompt);
     if (big) list.push(
       tool("my_tools", "The tools (small apps) already built for the student, with their ids.", z.object({}), "read", async () =>
-        JSON.stringify(hub.listTools().map((t) => ({ id: t.id, title: t.title, description: t.description, for: t.target, updated: new Date(t.updatedAt).toISOString().slice(0, 10) }))),
+        JSON.stringify(hub.listTools().map((t) => ({
+          id: t.id, title: t.title, description: t.description, for: t.target, updated: new Date(t.updatedAt).toISOString().slice(0, 10),
+          kept: t.keep, ...(t.expiresAt ? { goes: new Date(t.expiresAt).toISOString().slice(0, 10) } : {}),
+        }))),
       ),
     );
     if (mode === "watch") return list;
@@ -351,6 +354,19 @@ export function agentService(o: Opts): AgentService {
           if (!r || !hub.cancelReminder(id)) return "No upcoming reminder with that id.";
           step("cancel a reminder");
           return `Cancelled: "${r.text}".`;
+        },
+      ),
+      tool(
+        "keep_tool",
+        "Keep one of their built tools for good (keep: true), or let it tidy itself away a week after its last build (keep: false). Ids from my_tools. Only when they ask.",
+        z.object({ id: z.string().min(1).max(64), keep: z.boolean() }),
+        "save",
+        async ({ id, keep }) => {
+          if (thread.prompt !== CONNECTOR && !/keep|save|forever|delete|get rid|bin|tidy|don'?t need/i.test(thread.prompt)) return "Only when they ask to keep or drop a tool.";
+          if (!hub.tool(id)) return "No tool with that id (see my_tools).";
+          const t = hub.setToolKeep(id, keep);
+          step(keep ? "keep a tool" : "let a tool go");
+          return keep ? `Keeping "${t.title}" for good.` : `"${t.title}" will tidy itself away in a week.`;
         },
       ),
       tool(
@@ -494,7 +510,9 @@ export function agentService(o: Opts): AgentService {
           "It becomes an offline web app in the Tools tab on their phone, installable like an app. It's a big job: it's shown with its cost and only starts after they say yes. " +
           "where: 'pi' = a cheap model builds and tests it in a sandbox" +
           (buildWhere.length > 1 ? "; 'computer' = Claude Code on their PC builds it (for bigger or trickier things)" : "") +
-          ". when: 'now', or 'later' (half price, usually ready within the hour). Write the brief as a full spec: screens, features, what data it keeps. Use improve_tool_id to change an existing tool (see my_tools).",
+          ". when: 'now', or 'later' (half price, usually ready within the hour). Write the brief as a full spec: screens, features, what data it keeps. Use improve_tool_id to change an existing tool (see my_tools). " +
+          "It's built in the Nudge style by default; set style ONLY if the student asked for a particular look (colours, theme, mood), in their words. " +
+          "New tools tidy themselves away after a week unless kept; set keep: true only if they said they want to keep it.",
         z.object({
           title: z.string().min(2).max(60),
           brief: z.string().min(20).max(6000),
@@ -502,13 +520,15 @@ export function agentService(o: Opts): AgentService {
           when: z.enum(["now", "later"]),
           where: z.enum(buildWhere as unknown as [string, ...string[]]),
           improve_tool_id: z.string().max(40).optional(),
+          style: z.string().max(400).optional(),
+          keep: z.boolean().optional(),
         }),
         "ask",
         async (i) => {
           if (outboundLeft() <= 0) return TOO_MANY;
           if (i.improve_tool_id && !hub.tools.get(i.improve_tool_id)) return "error: no tool with that id (see my_tools)";
           step("plan the build");
-          const request = { title: i.title, brief: i.brief, target: i.target as "phone" | "school" | "any", when: i.when as "now" | "later", where: i.where as "pi" | "computer", toolId: i.improve_tool_id ?? null, attachments: [] };
+          const request = { title: i.title, brief: i.brief, target: i.target as "phone" | "school" | "any", when: i.when as "now" | "later", where: i.where as "pi" | "computer", toolId: i.improve_tool_id ?? null, style: i.style?.trim() || null, keep: !!i.keep, attachments: [] };
           const est = estimateBuild(request);
           const ask = hub.createAsk({
             kind: "build",
@@ -517,6 +537,7 @@ export function agentService(o: Opts): AgentService {
             rows: [
               { k: "WHERE", v: i.where === "computer" ? "claude code on your pc" : "the pi, in a sandbox" },
               { k: "WHEN", v: i.when === "later" ? "later · half price" : "now · a few minutes" },
+              { k: "LOOK", v: request.style ? request.style.slice(0, 40).toLowerCase() : "nudge style" },
               { k: "COST", v: i.where === "computer" ? "your claude plan" : `about $${Math.max(est, 0.001).toFixed(3)}` },
             ],
             payload: { request, estUsd: est },

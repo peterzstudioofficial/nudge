@@ -17,6 +17,7 @@ import { applySetup, SetupPack } from "./setup";
 import { spend } from "./agent/spend";
 import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
 import { estimateBuild, iconFor } from "./builder/builder";
+import { checkLogo } from "./brand";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import { forget, memories, remember } from "./agent/brain";
 import { addDoc, docFile, listDocs, removeDoc } from "./rag/library";
@@ -522,7 +523,48 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   };
   app.get("/api/tools", async (req) => {
     need(req, "notes");
-    return { origin: toolsOrigin(req), tools: hub.listTools(), jobs: hub.activeJobs().map((j) => ({ ...j, request: { ...j.request, brief: j.request.brief.slice(0, 400) } })) };
+    return {
+      origin: toolsOrigin(req), tools: hub.listTools(), pcOnline: hub.pcOnline(), logo: !!hub.brandLogo(),
+      jobs: hub.activeJobs().map((j) => ({ ...j, request: { ...j.request, brief: j.request.brief.slice(0, 400) } })),
+    };
+  });
+  // Keep a tool for good, or let it tidy itself away a week after its last build.
+  app.patch("/api/tools/:id", async (req) => {
+    need(req, "settings.owner");
+    const b = parse(z.object({ keep: z.boolean() }), req.body);
+    return hub.setToolKeep((req.params as { id: string }).id, b.keep);
+  });
+  // From the phone: open a tool on the computer (its own window, or added to the desktop).
+  app.post("/api/tools/:id/computer", async (req) => {
+    need(req, "settings.owner");
+    const b = parse(z.object({ install: z.boolean().default(false) }), req.body ?? {});
+    if (!hub.pcOnline()) throw new HttpError(409, "your computer isn't on (or Nudge isn't running on it)");
+    hub.openToolOnComputer((req.params as { id: string }).id, b.install);
+    return { ok: true };
+  });
+  // The studio logo tools may use (see brand.ts): owner only, checked so an SVG can't carry scripts.
+  app.get("/api/brand", async (req) => {
+    need(req, "notes");
+    const l = hub.brandLogo();
+    // a data: preview, since the apps' own pages only show images from the hub itself
+    return { logo: l ? { name: l.name, mime: l.mime, bytes: l.data.length, at: l.at, preview: `data:${l.mime};base64,${Buffer.from(l.data).toString("base64")}` } : null };
+  });
+  app.put("/api/brand/logo", async (req) => {
+    need(req, "settings.owner");
+    const b = parse(z.object({ name: z.string().trim().min(1).max(40), mime: z.string().max(80), data: z.string().max(800_000) }), req.body);
+    let logo;
+    try {
+      logo = checkLogo(b.mime, new Uint8Array(Buffer.from(b.data, "base64")));
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message);
+    }
+    hub.setBrandLogo({ ...logo, name: b.name });
+    return { ok: true };
+  });
+  app.delete("/api/brand/logo", async (req) => {
+    need(req, "settings.owner");
+    hub.setBrandLogo(null);
+    return { ok: true };
   });
   app.delete("/api/tools/:id", async (req) => {
     need(req, "settings.owner");
@@ -545,6 +587,8 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
         when: z.enum(["now", "later"]),
         where: z.enum(["pi", "computer"]),
         toolId: z.string().max(40).nullable().default(null),
+        style: z.string().trim().max(400).nullable().default(null),
+        keep: z.boolean().default(false),
         attachments: z.array(z.object({ name: z.string().min(1).max(120), mime: z.string().max(80), data: z.string().max(11_000_000) })).max(4).default([]),
       }),
       req.body,
@@ -559,7 +603,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
       return { id, name: a.name.replace(/[^\w .-]/g, "_"), mime: a.mime };
     });
     if (total > 8 * 1024 * 1024) throw new HttpError(413, "attachments are too big (8 MB max)");
-    const request = { title: b.title, brief: b.brief, target: b.target, when: b.when, where: b.where, toolId: b.toolId, attachments };
+    const request = { title: b.title, brief: b.brief, target: b.target, when: b.when, where: b.where, toolId: b.toolId, style: b.style || null, keep: b.keep, attachments };
     const est = estimateBuild(request);
     return hub.createAsk({
       kind: "build",
@@ -568,6 +612,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
       rows: [
         { k: "WHERE", v: b.where === "computer" ? "claude code on your pc" : "the pi, in a sandbox" },
         { k: "WHEN", v: b.when === "later" ? "later · half price" : "now · a few minutes" },
+        { k: "LOOK", v: request.style ? request.style.slice(0, 40).toLowerCase() : "nudge style" },
         { k: "COST", v: b.where === "computer" ? "your claude plan" : `about $${Math.max(est, 0.001).toFixed(3)}` },
       ],
       payload: { request, estUsd: est },
@@ -584,7 +629,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const files: Record<string, { mime: string; data: Uint8Array }> = {};
     for (const [pth, data] of Object.entries(b.files)) files[pth] = { mime: mimeOf(pth), data: new Uint8Array(Buffer.from(data, "base64")) };
     const r = j.request;
-    const t = hub.putTool({ id: r.toolId ?? undefined, title: r.title, description: (b.summary || r.brief).replace(/\s+/g, " ").slice(0, 300), icon: iconFor(`${r.title} ${r.brief}`), target: r.target, jobId: j.id }, files);
+    const t = hub.putTool({ id: r.toolId ?? undefined, title: r.title, description: (b.summary || r.brief).replace(/\s+/g, " ").slice(0, 300), icon: iconFor(`${r.title} ${r.brief}`), target: r.target, jobId: j.id, keep: !!r.keep }, files);
     hub.updateJob(id, { status: "done", toolId: t.id, note: "ready in your Tools tab", error: null });
     hub.feed("agent", `Built "${r.title}" on the computer — it's in your Tools tab`);
     sayOnWall(ctx, "apps", `${r.title.toLowerCase()} is ready`, "IN YOUR PHONE'S TOOLS TAB", 5000);
