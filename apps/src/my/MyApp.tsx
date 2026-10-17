@@ -5,7 +5,7 @@ import {
   type Settings, type CalEvent, type Birthday, SUBJECT_NAMES, dueLabel, relativeDay,
 } from "@nudge/shared";
 import { getClient, patchSettings, savePairing, useHubGet, useSnapshot } from "../lib/hub";
-import { D, DOTO, Ms, Sheet, haptic, inputStyle, toast, toastError } from "../lib/ui";
+import { D, DOTO, Ms, Sheet, Toggle, haptic, inputStyle, toast, toastError } from "../lib/ui";
 import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
 import { ToolsTab } from "./ToolsTab";
@@ -486,52 +486,47 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
     const r = await Notification.requestPermission();
     setNotify(r === "granted");
   };
-  const groups: { head: string; rows: { name: string; meta: string; on: boolean; locked?: boolean; go: () => void }[] }[] = [
+  const lights = Object.keys(s.lightMap ?? {}).length;
+  const groups: { head: string; rows: SettingRowDef[] }[] = [
     { head: "ASSISTANT", rows: [
-      { name: "assistant", meta: s.ai ? "ON" : "OFF", on: s.ai, go: () => set({ ai: !s.ai, ...(s.ai ? { wakeWord: false } : {}) }) },
-      { name: "wake word", meta: s.ai && s.wakeWord ? "NUDGE" : "OFF", on: s.ai && s.wakeWord, locked: !s.ai, go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
-      { name: "answers from", meta: s.aiEngine === "claude" ? "MY CLAUDE (PC)" : "QUICK MODEL", on: s.aiEngine === "claude", locked: !s.ai, go: () => s.ai && set({ aiEngine: s.aiEngine === "claude" ? "openrouter" : "claude" }).then(() => s.aiEngine !== "claude" && toast("computer", "switch it on in the Nudge tray on your PC too", 4200)) },
-      { name: "what it knows about you", meta: "SEE ALL", on: true, go: () => setBrainOpen(true) },
-      { name: "documents it can read", meta: `${lib?.length ?? 0} ${lib?.length === 1 ? "FILE" : "FILES"}`, on: true, go: () => setLibOpen(true) },
+      { name: "assistant", kind: "switch", on: s.ai, go: () => set({ ai: !s.ai, ...(s.ai ? { wakeWord: false } : {}) }) },
+      { name: "wake word", kind: "switch", on: s.ai && s.wakeWord, locked: !s.ai, sub: s.ai ? "say \"nudge\" to the wall" : "needs the assistant on", go: () => s.ai && set({ wakeWord: !s.wakeWord }) },
+      { name: "answers from", kind: "choice", value: s.aiEngine === "claude" ? "MY CLAUDE (PC)" : "QUICK MODEL", locked: !s.ai, go: () => s.ai && set({ aiEngine: s.aiEngine === "claude" ? "openrouter" : "claude" }).then(() => s.aiEngine !== "claude" && toast("computer", "switch it on in the Nudge tray on your PC too", 4200)) },
+      { name: "what it knows about you", kind: "open", go: () => setBrainOpen(true) },
+      { name: "documents it can read", kind: "open", value: `${lib?.length ?? 0}`, go: () => setLibOpen(true) },
     ] },
     { head: "THE WALL", rows: [
-      { name: "icon keys", meta: s.iconKeys ? "SYMBOLS" : "WORDS", on: s.iconKeys, go: () => set({ iconKeys: !s.iconKeys }) },
-      { name: "dim at night", meta: s.dimAtNight ? "AUTO" : "OFF", on: s.dimAtNight, go: () => set({ dimAtNight: !s.dimAtNight }) },
-      { name: "lie in at weekends", meta: s.lieInWeekends ? "ON" : "OFF", on: s.lieInWeekends, go: () => set({ lieInWeekends: !s.lieInWeekends }) },
-      { name: "lights", meta: `${Object.keys(s.lightMap ?? {}).length || "NO"} CUSTOM`, on: Object.keys(s.lightMap ?? {}).length > 0, go: () => setLightsOpen(true) },
+      { name: "icon keys", kind: "choice", value: s.iconKeys ? "SYMBOLS" : "WORDS", go: () => set({ iconKeys: !s.iconKeys }) },
+      { name: "dim at night", kind: "switch", on: s.dimAtNight, go: () => set({ dimAtNight: !s.dimAtNight }) },
+      { name: "lie in at weekends", kind: "switch", on: s.lieInWeekends, go: () => set({ lieInWeekends: !s.lieInWeekends }) },
+      { name: "lights", kind: "open", value: lights ? `${lights} CUSTOM` : "", go: () => setLightsOpen(true) },
     ] },
     { head: "SCHOOL", rows: [
-      { name: "read school mail", meta: s.schoolMail ? "ON" : "OFF", on: s.schoolMail, go: () => set({ schoolMail: !s.schoolMail }) },
+      { name: "read school mail", kind: "switch", on: s.schoolMail, go: () => set({ schoolMail: !s.schoolMail }) },
     ] },
     { head: "PEOPLE", rows: [
-      { name: "birthdays", meta: `${bdays?.length ?? 0} SAVED`, on: true, go: () => setBdOpen(true) },
+      { name: "birthdays", kind: "open", value: `${bdays?.length ?? 0}`, go: () => setBdOpen(true) },
     ] },
     { head: "THIS PHONE", rows: [
       // A Nothing phone whose software won't share the lights: say why, don't just hide it.
-      ...(glyphHere?.nothing && !glyphHere.supported ? [{ name: "glyph lights", meta: "NOT AVAILABLE", on: false, locked: true, go: () => toast("light_mode", `${glyphHere.reason || "Nothing didn't allow it"}. see docs/nothing-phone.md`, 5000) }] : []),
-      ...(glyphHere?.supported ? [{ name: "glyph lights", meta: glyphLit ? "SESSIONS" : "OFF", on: glyphLit, go: () => { setGlyphOn(!glyphLit); setGlyphLit(!glyphLit); toast("light_mode", glyphLit ? "glyph lights off" : "glyph lights on the back while nudge is open"); } }] : []),
-      { name: "appearance", meta: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), on: true, go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
-      { name: "google keep", meta: s.googleKeep ? "SHARE" : "LOCAL", on: s.googleKeep, go: () => set({ googleKeep: !s.googleKeep }) },
-      ...(nat ? [{ name: "phone lock", meta: lock ? "IN SESSIONS" : "OFF", on: lock, go: () => void togglePhoneLock(!lock).then((m) => { toast(lock ? "lock_open" : "lock", m); void refreshLock(); }).catch((e) => toast("lock", String((e as Error).message || e))) }] : []),
-      { name: "reminders", meta: notify ? "ON" : "OFF", on: notify, go: askNotify },
-      { name: "quiet after 11", meta: s.quietAfter11 ? "ON" : "OFF", on: s.quietAfter11, locked: true, go: () => toast("lock", "set in the parent app") },
+      ...(glyphHere?.nothing && !glyphHere.supported ? [{ name: "glyph lights", kind: "info" as const, value: "NOT AVAILABLE", locked: true, go: () => toast("light_mode", `${glyphHere.reason || "Nothing didn't allow it"}. see docs/nothing-phone.md`, 5000) }] : []),
+      ...(glyphHere?.supported ? [{ name: "glyph lights", kind: "switch" as const, on: glyphLit, sub: "the back lights up during sessions", go: () => { setGlyphOn(!glyphLit); setGlyphLit(!glyphLit); } }] : []),
+      { name: "appearance", kind: "choice", value: theme === "auto" ? "LIKE THE PHONE" : theme.toUpperCase(), go: () => { const n = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto"; setThemePref(n); setTheme(n); } },
+      { name: "google keep", kind: "switch", on: s.googleKeep, sub: "share notes to keep", go: () => set({ googleKeep: !s.googleKeep }) },
+      ...(nat ? [{ name: "phone lock", kind: "switch" as const, on: lock, sub: "distracting apps lock in sessions", go: () => void togglePhoneLock(!lock).then((m) => { toast(lock ? "lock_open" : "lock", m); void refreshLock(); }).catch((e) => toast("lock", String((e as Error).message || e))) }] : []),
+      { name: "reminders", kind: "switch", on: notify, go: askNotify },
+      { name: "quiet after 11", kind: "switch", on: s.quietAfter11, locked: true, sub: "set in the parent app", go: () => toast("lock", "set in the parent app") },
     ] },
   ];
   const school = snap.school;
   return (
     <div style={{ padding: "0 18px" }}>
       {groups.map((g) => (
-        <div key={g.head} style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 8, letterSpacing: ".24em", color: "var(--c-6d6d77)", paddingBottom: 4 }}>{g.head}</div>
-          {g.rows.map((r) => (
-            <div key={r.name} onClick={() => { if (!r.locked) haptic(); r.go(); }} style={{ display: "flex", alignItems: "center", gap: 12, height: 46, boxShadow: "inset 0 -1px 0 var(--c-17171d)", cursor: r.locked ? "default" : "pointer" }}>
-              <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: r.on ? "var(--c-f4f3ef)" : r.locked ? "var(--c-4a4a54)" : "var(--c-b6b5af)", transition: "color .3s" }}>{r.name}</span>
-              <span style={{ fontSize: 9, letterSpacing: ".1em", flex: "none", color: r.on ? "var(--c-8e8e97)" : "var(--c-5c5c66)" }}>{r.meta}</span>
-              <span style={{ width: 30, height: 4, borderRadius: 2, flex: "none", overflow: "hidden", background: "var(--c-22222a)" }}>
-                <span style={{ display: "block", width: 15, height: 4, borderRadius: 2, background: r.on ? "var(--c-ff4d17)" : r.locked ? "var(--c-33333c)" : "var(--c-8e8e97)", transform: `translateX(${r.on ? 15 : 0}px)`, transition: "transform .42s cubic-bezier(.22,1,.28,1),background-color .35s" }} />
-              </span>
-            </div>
-          ))}
+        <div key={g.head} style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 8, letterSpacing: ".24em", color: "var(--c-6d6d77)", padding: "0 4px 7px" }}>{g.head}</div>
+          <div style={{ borderRadius: 16, background: "var(--c-101017)", overflow: "hidden" }}>
+            {g.rows.map((r, i) => <SettingRow key={r.name} r={r} first={i === 0} />)}
+          </div>
         </div>
       ))}
       <div style={{ padding: 14, borderRadius: 14, background: "var(--c-13131a)", marginBottom: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -548,6 +543,49 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
       <BrainSheet open={brainOpen} onClose={() => setBrainOpen(false)} />
       <LibrarySheet open={libOpen} onClose={() => setLibOpen(false)} />
       <LightsSheet open={lightsOpen} onClose={() => setLightsOpen(false)} />
+    </div>
+  );
+}
+
+/** One settings row: a switch, a value that changes on tap, or a way into a sheet. */
+type SettingRowDef = { name: string; kind: "switch" | "choice" | "open" | "info"; on?: boolean; value?: string; sub?: string; locked?: boolean; go: () => void };
+
+function SettingRow({ r, first }: { r: SettingRowDef; first: boolean }) {
+  const [down, setDown] = useState(false);
+  const live = !r.locked;
+  const meta = { fontSize: 9, letterSpacing: ".1em", color: "var(--c-6d6d77)", flex: "none" } as const;
+  return (
+    <div
+      role={r.kind === "switch" ? undefined : "button"}
+      onPointerDown={() => live && setDown(true)}
+      onPointerUp={() => setDown(false)}
+      onPointerLeave={() => setDown(false)}
+      onPointerCancel={() => setDown(false)}
+      onClick={() => {
+        if (live) haptic();
+        r.go();
+      }}
+      style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, minHeight: 52, padding: "8px 14px", background: down ? "var(--c-17171d)" : "transparent", transition: down ? "none" : "background-color .35s ease", cursor: live ? "pointer" : "default", userSelect: "none" }}
+    >
+      {!first && <span style={{ position: "absolute", left: 14, right: 0, top: 0, height: 1, background: "var(--c-1a1a22)" }} />}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, color: live ? "var(--c-f4f3ef)" : "var(--c-5c5c66)", transition: "color .3s" }}>{r.name}</div>
+        {r.sub && <div style={{ fontSize: 9.5, color: "var(--c-6d6d77)", marginTop: 3 }}>{r.sub}</div>}
+      </div>
+      {r.kind === "switch" && <Toggle on={!!r.on} locked={r.locked} label={r.name} pressed={down} />}
+      {r.kind === "choice" && (
+        <span key={r.value} style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "6px 6px 6px 10px", borderRadius: 9, background: "var(--c-1a1a22)", fontSize: 9, letterSpacing: ".1em", color: live ? "var(--c-c9c8c2)" : "var(--c-5c5c66)", animation: "aSwap .3s cubic-bezier(.32,.72,0,1) both" }}>
+          {r.value}
+          <Ms style={{ fontSize: 13, color: "var(--c-6d6d77)" }}>unfold_more</Ms>
+        </span>
+      )}
+      {r.kind === "open" && (
+        <>
+          {r.value && <span style={meta}>{r.value}</span>}
+          <Ms style={{ fontSize: 17, color: "var(--c-5c5c66)", marginRight: -4 }}>chevron_right</Ms>
+        </>
+      )}
+      {r.kind === "info" && <span style={meta}>{r.value}</span>}
     </div>
   );
 }

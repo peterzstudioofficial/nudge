@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { getClient, loadPairing, useHubGet, useSnapshot } from "../lib/hub";
 
 const useSnapshotSettings = () => useSnapshot(getClient("owner")!).snap?.settings;
-import { Ms, Sheet, toast, toastError } from "../lib/ui";
+import { Ms, Sheet, Toggle, toast, toastError } from "../lib/ui";
 
 interface LibDoc {
   id: string;
@@ -127,9 +127,7 @@ export function LibrarySheet({ open, onClose }: { open: boolean; onClose: () => 
             {better ? "Meaning-matching runs on OpenRouter (zero retention, about 2p per 1,000 pages)." : "Runs on the wall for free. Switch on for a stronger match via OpenRouter (zero retention, about 2p per 1,000 pages)."}
           </div>
         </div>
-        <span style={{ width: 30, height: 4, borderRadius: 2, flex: "none", overflow: "hidden", background: "var(--c-22222a)" }}>
-          <span style={{ display: "block", width: 15, height: 4, borderRadius: 2, background: better ? "var(--c-ff4d17)" : "var(--c-8e8e97)", transform: `translateX(${better ? 15 : 0}px)`, transition: "transform .42s cubic-bezier(.22,1,.28,1),background-color .35s" }} />
-        </span>
+        <Toggle on={better} label="sharper search" />
       </div>
     </Sheet>
   );

@@ -3,7 +3,7 @@ import type { JobBrief, Snapshot, ToolInfo } from "@nudge/shared";
 import { getClient, useHubGet } from "../lib/hub";
 import { openTool } from "../lib/native";
 import { glyphFlash } from "../lib/glyph";
-import { Ms, Sheet, haptic, toast, toastError } from "../lib/ui";
+import { Ms, Sheet, Toggle, haptic, toast, toastError } from "../lib/ui";
 
 /**
  * The pieces shared by the Tools tab and the Ask tab: a tool's icon, its "keep / goes in 5 days"
@@ -62,7 +62,6 @@ export function KeepPill({ t }: { t: ToolInfo }) {
 
 export async function setKeep(t: ToolInfo, keep: boolean) {
   const client = getClient("owner")!;
-  haptic(keep ? "confirm" : "tick");
   // the switch moves under the finger; the hub's answer confirms it (or puts it back)
   client.optimistic((s) => ({ ...s, tools: s.tools.map((x) => (x.id === t.id ? { ...x, keep, expiresAt: keep ? null : Date.now() + WEEK } : x)) }));
   try {
@@ -75,14 +74,9 @@ export async function setKeep(t: ToolInfo, keep: boolean) {
   }
 }
 
-/** A small iOS-style switch. */
+/** The switch used in the tool screens (the same one as Settings). */
 export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <span role="switch" aria-checked={on} aria-label={label} tabIndex={0} className="tap" onClick={() => onChange(!on)} onKeyDown={(e) => (e.key === " " || e.key === "Enter") && onChange(!on)}
-      style={{ flex: "none", width: 42, height: 26, borderRadius: 13, padding: 3, background: on ? "var(--c-ff4d17)" : "var(--c-2a2a33)", transition: "background-color .3s cubic-bezier(.32,.72,0,1)", cursor: "pointer" }}>
-      <span style={{ display: "block", width: 20, height: 20, borderRadius: 10, background: on ? "var(--c-0b0b0d)" : "var(--c-8e8e97)", transform: on ? "translateX(16px)" : "none", transition: "transform .32s cubic-bezier(.32,.72,0,1), background-color .3s" }} />
-    </span>
-  );
+  return <Toggle on={on} label={label} onChange={onChange} />;
 }
 
 /* --------------------------------- actions --------------------------------- */

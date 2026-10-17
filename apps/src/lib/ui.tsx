@@ -247,3 +247,47 @@ export function Btn({ children, onClick, dark = false, primary = false, disabled
     </button>
   );
 }
+
+/**
+ * A proper on/off switch: a white knob on a track that turns orange, sliding with the Nudge ease.
+ * While pressed the knob stretches towards where it's going, like a phone's own switches. Give it
+ * `onChange` to use it alone, or leave that out and pass `pressed` when a whole row is the target.
+ */
+export function Toggle({ on, locked = false, label, pressed = false, onChange }: { on: boolean; locked?: boolean; label: string; pressed?: boolean; onChange?: (v: boolean) => void }) {
+  const [down, setDown] = useState(false);
+  const W = 48, H = 28, P = 2, K = H - 2 * P;
+  const stretch = (down || pressed) && !locked ? 6 : 0;
+  const flip = () => {
+    if (locked || !onChange) return;
+    haptic();
+    onChange(!on);
+  };
+  return (
+    <span
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      aria-disabled={locked || undefined}
+      tabIndex={onChange && !locked ? 0 : -1}
+      onPointerDown={() => onChange && setDown(true)}
+      onPointerUp={() => setDown(false)}
+      onPointerLeave={() => setDown(false)}
+      onPointerCancel={() => setDown(false)}
+      onClick={onChange ? (e) => (e.stopPropagation(), flip()) : undefined}
+      onKeyDown={(e) => (e.key === " " || e.key === "Enter") && (e.preventDefault(), flip())}
+      style={{ position: "relative", flex: "none", width: W, height: H, borderRadius: H / 2, background: on ? "var(--c-ff4d17)" : "var(--c-2a2a33)", opacity: locked ? 0.6 : 1, cursor: onChange && !locked ? "pointer" : "inherit", transition: "background-color .3s ease, opacity .3s" }}
+    >
+      <span
+        style={{
+          position: "absolute", top: P, left: P, height: K, width: K + stretch, borderRadius: K / 2, background: "white",
+          boxShadow: "0 2px 5px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.08)",
+          transform: `translateX(${on ? W - 2 * P - K - stretch : 0}px)`,
+          transition: "transform .38s cubic-bezier(.32,.72,0,1), width .22s cubic-bezier(.32,.72,0,1)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {locked && <Ms style={{ fontSize: 13, color: "rgba(0,0,0,.45)" }}>lock</Ms>}
+      </span>
+    </span>
+  );
+}
