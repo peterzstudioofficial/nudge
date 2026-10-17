@@ -2,7 +2,7 @@ import type { BuildRequest, Job, ToolTarget } from "@nudge/shared";
 import type { Hub } from "../hub";
 import type { OrClient } from "./openrouter";
 import { addSpend, spend } from "../agent/spend";
-import { brandGuide } from "../brand";
+import { brandGuide, type BrandMarks } from "../brand";
 
 /**
  * The tool builder. After a yes, it turns a request ("a flashcard app for chemistry on my
@@ -30,8 +30,8 @@ export const BUILD_SYSTEM = `You build small, polished web apps ("tools") for a 
 - Never include personal details beyond what the request itself says.`;
 
 /** The whole system prompt: the rules, then the look (the request's own style wins over the brand). */
-export function buildSystem(r: Pick<BuildRequest, "style">, logo: { name: string } | null): string {
-  return `${BUILD_SYSTEM}\n\nLook:\n${brandGuide({ style: r.style ?? null, logo })}`;
+export function buildSystem(r: Pick<BuildRequest, "style">, marks: BrandMarks | null): string {
+  return `${BUILD_SYSTEM}\n\nLook:\n${brandGuide({ style: r.style ?? null, marks })}`;
 }
 
 const SANDBOX_RULES = `You have a sandboxed Linux shell with no internet. Work like this:
@@ -161,7 +161,7 @@ export function builderService(o: {
       const r = await or.responses(
         {
           model: s.buildModel,
-          instructions: `${buildSystem(j.request, hub.brandLogo())}\n\n${SANDBOX_RULES}`,
+          instructions: `${buildSystem(j.request, hub.brandMarks())}\n\n${SANDBOX_RULES}`,
           input: [{ role: "user", content: [{ type: "input_text", text: brief(j) }, ...fileIds.map((f) => ({ type: "input_file", file_id: f }))] }],
           tools: [{ type: "openrouter:bash", parameters: { environment: { type: "container_auto", network_policy: { type: "disabled" }, ...(fileIds.length ? { file_ids: fileIds } : {}) } } }],
           stop_server_tools_when: [{ type: "step_count_is", step_count: 25 }, { type: "max_cost", max_cost_in_dollars: 0.25 }],
@@ -219,7 +219,7 @@ export function builderService(o: {
             custom_id: id,
             body: {
               messages: [
-                { role: "system", content: `${buildSystem(j.request, hub.brandLogo())}\n\nReply with the complete index.html in one \`\`\`html code block, then one line saying what it does.` },
+                { role: "system", content: `${buildSystem(j.request, hub.brandMarks())}\n\nReply with the complete index.html in one \`\`\`html code block, then one line saying what it does.` },
                 { role: "user", content: [{ type: "text", text: brief(j) }, ...fileIds.map((f) => ({ type: "file", file: { file_id: f } }))] },
               ],
               max_tokens: 24_000,

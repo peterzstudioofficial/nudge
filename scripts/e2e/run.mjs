@@ -222,7 +222,8 @@ const svg = (body) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewB
 check("a logo with a script in it is refused", (await owner("PUT", "/api/brand/logo", { name: "studio", mime: "image/svg+xml", data: svg("<script>alert(1)</script>") })).status === 400);
 check("a plain logo is kept for tools to use", (await owner("PUT", "/api/brand/logo", { name: "studio", mime: "image/svg+xml", data: svg('<circle cx="5" cy="5" r="4" fill="#ff4d17"/>') })).status === 200 && (await fetch(`${TOOLS}/brand/logo`)).ok);
 await phone.locator(".ms", { hasText: /^apps$/ }).first().click(); await phone.waitForTimeout(900);
-check("the Tools tab shows the logo is set", /your logo/i.test(await phone.evaluate(() => document.body.innerText)));
+const toolsTxt = await phone.evaluate(() => document.body.innerText);
+check("the Tools tab shows the logo is set", /your logo/i.test(toolsTxt) && !/add your logo/i.test(toolsTxt));
 const notes = await b.newPage({ viewport: { width: 412, height: 912 } });
 notes.on("pageerror", (e) => errs.push("notes: " + e));
 await notes.goto(`${HUB}/app/index.html`);

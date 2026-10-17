@@ -11,10 +11,11 @@ import { BrandSheet, BuildCard, KeepPill, Switch, ToolIcon, ToolSheet, launch, u
  * themselves away a week after their last build. Big jobs wait here for your yes, with their cost.
  */
 export function ToolsTab({ snap }: { snap: Snapshot }) {
-  const info = useToolsInfo(snap);
   const [asking, setAsking] = useState<{ improve: ToolInfo | null } | null>(null);
   const [picked, setPicked] = useState<ToolInfo | null>(null);
   const [brand, setBrand] = useState(false);
+  // re-read when the logo sheet closes, so "add your logo" turns into "your logo"
+  const info = useToolsInfo(snap, brand);
   const builds = snap.asks.filter((a) => a.kind === "build");
   // finished builds show up as the tool itself (glowing for a moment); failures stay for an hour
   const jobs = snap.jobs.filter((j) => j.status !== "done" && (!["failed", "cancelled"].includes(j.status) || Date.now() - j.updatedAt < 3600_000));
@@ -33,7 +34,7 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
 
       {!snap.tools.length && !jobs.length && !builds.length && (
         <div style={{ padding: "26px 8px", fontSize: 11, color: "var(--c-8e8e97)", lineHeight: 1.6, animation: "aUp .4s cubic-bezier(.32,.72,0,1) both" }}>
-          No tools yet. Ask the assistant ("make me a line-learner for my musical scenes") or tap below. They come out in the Nudge style unless you ask for your own look, and big jobs always show their cost and wait for your yes.
+          No tools yet. Ask in the Ask tab ("make me a line-learner for my scenes") or tap below.
         </div>
       )}
       <button className="tap" onClick={() => setAsking({ improve: null })} style={{ ...btn(false), flex: "none", height: 46, marginTop: 4 }}>
@@ -41,11 +42,11 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
       </button>
       <div className="tap" role="button" onClick={() => setBrand(true)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", fontSize: 10.5, color: "var(--c-8e8e97)" }}>
         <Ms style={{ fontSize: 16, color: "var(--c-6d6d77)" }}>verified</Ms>
-        <span style={{ flex: 1 }}>{info?.logo ? "your logo: tools can use it where it fits" : "add your logo (optional)"}</span>
+        <span style={{ flex: 1 }}>{info?.logo ? "your logo" : "add your logo"}</span>
         <Ms style={{ fontSize: 15, color: "var(--c-43434c)" }}>chevron_right</Ms>
       </div>
       <div style={{ fontSize: 9, color: "var(--c-5f5f67)", lineHeight: 1.6, padding: "0 4px" }}>
-        Tools run on your wall, work offline and can't reach the internet. Ones you don't keep tidy themselves away after a week.
+        Tools work offline and can't reach the internet. Ones you don't keep go after a week.
       </div>
       <NewTool open={!!asking} improve={asking?.improve ?? null} onClose={() => setAsking(null)} />
       <ToolSheet t={live} info={info} onClose={() => setPicked(null)} onImprove={(t) => setAsking({ improve: t })} />
@@ -186,7 +187,7 @@ function NewTool({ open, improve, onClose }: { open: boolean; improve: ToolInfo 
         </label>
         <button className="tap" disabled={busy} onClick={() => void submit()} style={{ ...btn(true), flex: "none", height: 46, opacity: busy ? 0.5 : 1 }}>{busy ? "sending…" : "check the cost"}</button>
         <div style={{ fontSize: 9, color: "var(--c-5f5f67)", lineHeight: 1.6 }}>
-          Nothing starts until you say yes. Attached files are used for this build only, then deleted.
+          Nothing starts until you say yes. Attachments are deleted after the build.
         </div>
       </div>
     </Sheet>

@@ -102,8 +102,30 @@ ${Array.from({ length: 8 }, (_, i) => `.n-stagger>*:nth-child(${i + 2}){animatio
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
 `;
 
+/** The studio's own marks, as they're stored: the round logo and the wide wordmark. */
+export type BrandSlot = "logo" | "wordmark";
+export const BRAND_SLOTS: BrandSlot[] = ["logo", "wordmark"];
+export interface BrandMarks {
+  name: string;
+  logo: { w: number; h: number } | null;
+  wordmark: { w: number; h: number } | null;
+}
+
+/**
+ * The stylesheet, plus classes for the studio marks when there are any. A mark is drawn as a mask
+ * filled with the text colour, so a one-colour logo (black or white) shows on dark and light alike.
+ */
+export function brandCss(marks: BrandMarks | null): string {
+  const ratio = (d: { w: number; h: number }) => `${Math.round(d.w)}/${Math.round(d.h)}`;
+  const mark = (cls: string, slot: BrandSlot, d: { w: number; h: number } | null, height: number) =>
+    d
+      ? `.${cls}{display:inline-block;flex:none;height:${height}px;aspect-ratio:${ratio(d)};background-color:currentColor;-webkit-mask:url(/brand/${slot}) center/contain no-repeat;mask:url(/brand/${slot}) center/contain no-repeat}`
+      : `.${cls}{display:none}`;
+  return `${BRAND_CSS}${mark("n-logo", "logo", marks?.logo ?? null, 32)}\n${mark("n-wordmark", "wordmark", marks?.wordmark ?? null, 22)}\n`;
+}
+
 /** What the builder is told about the look. `style` (from the request) always wins over the brand. */
-export function brandGuide(o: { style: string | null; logo: { name: string } | null; forClaude?: boolean }): string {
+export function brandGuide(o: { style: string | null; marks: BrandMarks | null; forClaude?: boolean }): string {
   const link = o.forClaude
     ? `When it's served, /brand/nudge.css exists on the same server: link it with <link rel="stylesheet" href="/brand/nudge.css"> and also inline fallbacks for the colours below, so it still looks right opened as a local file.`
     : `Link the Nudge stylesheet: <link rel="stylesheet" href="/brand/nudge.css"> (same server, works offline). It gives the fonts and these classes, all optional: .n-app (page with safe-area padding), .n-title / .n-h (display headings), .n-label (tiny caps), .n-num (dotted digits for times and scores), .n-card, .n-row, .n-btn (+ .primary / .ghost), .n-input, .n-chip (+ .on), .n-bar > i (progress), .n-in / .n-pop / .n-fade / .n-stagger (entrance motion). Variables: --n-bg, --n-card, --n-raised, --n-line, --n-fg, --n-mid, --n-dim, --n-faint, --n-accent, --n-on-accent, --n-ok, --n-bad, --n-r, --n-ease. Override anything in your own <style>.`;
@@ -111,8 +133,10 @@ export function brandGuide(o: { style: string | null; logo: { name: string } | n
   const style = o.style?.trim()
     ? `The student asked for this look: "${o.style.trim()}". Follow it: it overrides the Nudge style wherever they differ (colours, fonts, theme, mood). Keep only the parts of the Nudge style they didn't ask to change, and still keep it accessible (contrast, touch targets).`
     : `If the brief itself asks for a particular look (colours, light theme, playful, a film's style...), that request overrides the Nudge style.`;
-  const logo = o.logo
-    ? `The maker's logo ("${o.logo.name}") is at /brand/logo. Use it only where it naturally belongs, e.g. small on a start or about screen; never force it in, never on every screen, never as a watermark, and leave it out if it doesn't fit. Give it alt text.`
+  const m = o.marks;
+  const which = m ? [m.logo && `<span class="n-logo" role="img" aria-label="${m.name}"></span> (the round mark)`, m.wordmark && `<span class="n-wordmark" role="img" aria-label="${m.name}"></span> (the wide wordmark)`].filter(Boolean) : [];
+  const logo = which.length
+    ? `The maker's studio is "${m!.name}". Its marks are one colour and take the text colour, so they suit dark and light: ${which.join(" and ")}; set height (or font colour) to size and tint them. Use one only where it naturally belongs, e.g. small on a start or about screen; never force it in, never on every screen, never as a watermark, and leave it out if it doesn't fit.`
     : "";
   return [link, look, style, logo].filter(Boolean).join("\n");
 }
@@ -121,8 +145,50 @@ export function brandGuide(o: { style: string | null; logo: { name: string } | n
 
 export const LOGO_MAX = 512 * 1024;
 
+/** Width and height of a PNG, WebP, JPEG or SVG (null if it can't tell). */
+export function imageSize(mime: string, data: Uint8Array): { w: number; h: number } | null {
+  const b = Buffer.from(data);
+  try {
+    if (mime === "image/png") return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+    if (mime === "image/webp") {
+      const kind = b.subarray(12, 16).toString("latin1");
+      if (kind === "VP8X") return { w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) };
+      if (kind === "VP8L") {
+        const v = b.readUInt32LE(21);
+        return { w: 1 + (v & 0x3fff), h: 1 + ((v >> 14) & 0x3fff) };
+      }
+      if (kind === "VP8 ") return { w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff };
+    }
+    if (mime === "image/jpeg") {
+      for (let i = 2; i + 9 < b.length; ) {
+        if (b[i] !== 0xff) return null;
+        const marker = b[i + 1];
+        if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) return { w: b.readUInt16BE(i + 7), h: b.readUInt16BE(i + 5) };
+        i += 2 + b.readUInt16BE(i + 2);
+      }
+    }
+    if (mime === "image/svg+xml") {
+      const head = b.toString("utf8", 0, 4096);
+      const vb = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(head);
+      if (vb) return { w: +vb[1], h: +vb[2] };
+      const w = /<svg[^>]*\swidth\s*=\s*["']([\d.]+)/i.exec(head), h = /<svg[^>]*\sheight\s*=\s*["']([\d.]+)/i.exec(head);
+      if (w && h) return { w: +w[1], h: +h[1] };
+    }
+  } catch {
+    /* a truncated header */
+  }
+  return null;
+}
+
 /** Checks an uploaded logo. SVGs must be plain drawings: no scripts, links out, or embedded pages. */
-export function checkLogo(mime: string, data: Uint8Array): { mime: string; data: Uint8Array } {
+export function checkLogo(mime: string, data: Uint8Array): { mime: string; data: Uint8Array; w: number; h: number } {
+  const ok = sniffLogo(mime, data);
+  const size = imageSize(ok.mime, data);
+  // unknown proportions → square (the round mark); a wordmark from an odd format still shows, just padded
+  return { ...ok, w: size?.w || 1, h: size?.h || 1 };
+}
+
+function sniffLogo(mime: string, data: Uint8Array): { mime: string; data: Uint8Array } {
   if (data.length > LOGO_MAX) throw new Error("that logo is too big (512 KB max)");
   if (data.length < 16) throw new Error("that file is empty");
   const b = Buffer.from(data);

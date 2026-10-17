@@ -115,7 +115,7 @@ export function ChatTab({ snap }: { snap: Snapshot }) {
         <div style={{ padding: "18px 2px 6px", animation: "aUp .35s ease-out both" }}>
           <div style={{ fontFamily: D, fontSize: 24, lineHeight: 1.05, color: "var(--c-f4f3ef)" }}>ask about school, your week, your notes and documents.</div>
           <div style={{ fontSize: 10, lineHeight: 1.6, color: "var(--c-8e8e97)", marginTop: 10 }}>
-            It can plan revision, draft emails to teachers, set reminders and timers, and put things up on the wall. Anything that sends or changes your week waits for you to hold yes.
+            Plans revision, drafts emails, sets reminders, builds small apps. Anything that sends or changes your week waits for your yes.
           </div>
         </div>
       )}

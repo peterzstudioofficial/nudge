@@ -190,11 +190,16 @@ describe("built tools: keep, logo, open on the computer", () => {
     const ok = await inject("PUT", "/api/brand/logo", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>') } });
     expect(ok.statusCode).toBe(200);
     const got = (await inject("GET", "/api/brand", { token: owner })).json();
-    expect(got.logo).toMatchObject({ name: "studio", mime: "image/svg+xml" });
+    expect(got).toMatchObject({ name: "studio", logo: { mime: "image/svg+xml" }, wordmark: null });
     expect(got.logo.preview).toMatch(/^data:image\/svg\+xml;base64,/);
+    const wide = await inject("PUT", "/api/brand/wordmark", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 100"><rect width="600" height="100"/></svg>') } });
+    expect(wide.statusCode).toBe(200);
+    expect((await inject("GET", "/api/brand", { token: owner })).json().wordmark).toMatchObject({ w: 600, h: 100 });
+    expect((await inject("PUT", "/api/brand/favicon", { token: owner, body: { name: "x", mime: "image/png", data: "" } })).statusCode).toBe(404);
     expect((await inject("PUT", "/api/brand/logo", { token: await pairAs("parent"), body: { name: "x", mime: "image/png", data: "" } })).statusCode).toBe(403);
     await inject("DELETE", "/api/brand/logo", { token: owner });
-    expect((await inject("GET", "/api/brand", { token: owner })).json().logo).toBeNull();
+    await inject("DELETE", "/api/brand/wordmark", { token: owner });
+    expect((await inject("GET", "/api/brand", { token: owner })).json()).toMatchObject({ logo: null, wordmark: null });
   });
 
   it("only sends a tool to the computer when it's on", async () => {

@@ -3,7 +3,7 @@ import zlib from "node:zlib";
 import Fastify, { type FastifyInstance } from "fastify";
 import { isLoopback, isPrivateLan, isTailscale } from "./auth";
 import type { Ctx } from "./context";
-import { BRAND_CSS, brandFont } from "./brand";
+import { BRAND_SLOTS, brandCss, brandFont, type BrandSlot } from "./brand";
 
 /**
  * Serves the tools the assistant built, on their own port — so their own origin. A tool is
@@ -110,14 +110,15 @@ export async function buildToolsServer(ctx: Ctx): Promise<FastifyInstance> {
 
   app.get("/", async (_req, reply) => reply.type("text/plain").send("Nudge tools"));
   // The Nudge look (brand.ts): a stylesheet, fonts and the studio logo, for any tool that wants them.
-  app.get("/brand/nudge.css", async (_req, reply) => reply.type("text/css; charset=utf-8").header("cache-control", "no-cache").send(BRAND_CSS));
+  app.get("/brand/nudge.css", async (_req, reply) => reply.type("text/css; charset=utf-8").header("cache-control", "no-cache").send(brandCss(hub.brandMarks())));
   app.get("/brand/fonts/:file", async (req, reply) => {
     const f = brandFont((req.params as { file: string }).file);
     if (!f) return reply.code(404).send("no such font");
     return reply.type("font/woff2").header("cache-control", "max-age=604800").send(f);
   });
-  app.get("/brand/logo", async (_req, reply) => {
-    const l = hub.brandLogo();
+  app.get("/brand/:slot", async (req, reply) => {
+    const slot = (req.params as { slot: string }).slot as BrandSlot;
+    const l = BRAND_SLOTS.includes(slot) ? hub.brandMark(slot) : null;
     if (!l) return reply.code(404).send("no logo yet");
     // An SVG opened on its own still can't run anything.
     return reply.type(l.mime).header("cache-control", "no-cache").header("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:").send(Buffer.from(l.data));

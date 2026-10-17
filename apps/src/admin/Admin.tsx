@@ -98,7 +98,7 @@ function School({ snap, disabled }: { snap: Snapshot; disabled: boolean }) {
   const st = snap.school;
   return (
     <>
-      <Section title="connection" note="Nudge reads your school SharePoint pages and your Outlook inbox list in a hidden browser on the wall, using a sign-in you do once in the Nudge app on your computer. It only reads — it can't send, delete or mark anything as read.">
+      <Section title="connection" note="The wall reads your SharePoint pages and Outlook inbox with a sign-in you do once on your computer. Read-only: it can't send, delete or mark anything as read.">
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, background: "var(--c-101015)", fontSize: 11, color: "var(--c-c9c8c2)" }}>
           <Ms style={{ fontSize: 18, color: st.needsSignIn ? "var(--c-ff4d17)" : st.signedIn ? "var(--c-1f7a4d)" : "var(--c-5f5f67)" }}>{st.signedIn && !st.needsSignIn ? "check_circle" : "error"}</Ms>
           <span style={{ flex: 1 }}>{st.running ? "reading school now…" : st.signedIn ? (st.needsSignIn ? "signed out — sign in again on your computer" : `signed in · last read ${st.lastOk ? new Date(st.lastOk).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "never"}`) : "not signed in yet"}{st.lastError && !st.needsSignIn ? ` · ${st.lastError}` : ""}</span>
@@ -124,7 +124,7 @@ function School({ snap, disabled }: { snap: Snapshot; disabled: boolean }) {
           </div>
         )}
       </Section>
-      <Section title="school mail" note="Only the inbox list is read (sender, subject, preview). Messages are never opened, so nothing is marked as read. Optionally, only keep mail from these senders (comma separated, e.g. @school.org.uk).">
+      <Section title="school mail" note="Only the inbox list is read (sender, subject, preview), so nothing is marked as read. Optional: keep only mail from these senders, e.g. @school.org.uk.">
         <div style={{ display: "flex", gap: 8 }}>
           <input disabled={disabled} style={{ ...inp, flex: 1 }} value={senders} onChange={(e) => setSenders(e.target.value)} placeholder="@yourschool.org.uk" />
           {!disabled && <Btn dark style={{ width: 120, height: 40 }} onClick={() => save({ schoolMailSenders: senders.split(",").map((x) => x.trim()).filter(Boolean) })}>save</Btn>}
@@ -217,7 +217,7 @@ function Week({ cfg, reload, disabled }: { cfg: Config; reload: () => void; disa
   const slots = cfg.schoolDay.slots;
   return (
     <>
-      <Section title="timetable" note="Shown on the wall and the phone, used to pack the bag and to work out when homework is due. Two-week timetables alternate A / B through each term, skipping half term. Each lesson fills the next bell slot; 2× makes it a double.">
+      <Section title="timetable" note="Drives the wall, the phone, the bag and homework due dates. Two-week timetables alternate A / B, skipping half term. 2× makes a double.">
         <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
           <Chip icon={twoWeeks ? "check_box" : "check_box_outline_blank"} label="two-week timetable" go={() => !disabled && toggleTwoWeeks()} />
           {twoWeeks && (["A", "B"] as const).map((w) => (
@@ -298,7 +298,7 @@ function Week({ cfg, reload, disabled }: { cfg: Config; reload: () => void; disa
 
       <Calendar disabled={disabled} reload={reload} />
 
-      <Section title="term dates · churcher's college" note="From the school's 2026/27 calendar. Weeks A / B restart at the letter shown each term; importing a term's calendar PDF sets it automatically.">
+      <Section title="term dates · churcher's college" note="From the 2026/27 calendar. Importing a term's calendar PDF sets weeks A / B for you.">
         {terms.map((t, i) => (
           <div key={t.term} style={{ padding: 12, borderRadius: 12, background: "var(--c-101015)", marginBottom: 8 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
@@ -375,7 +375,7 @@ function Calendar({ disabled, reload }: { disabled: boolean; reload: () => void 
     }
   };
   return (
-    <Section title="school calendar" note="Upload each term's calendar PDF: the wall keeps term dates, your year's events, mocks, parents' evenings and creative things, and learns which weeks are A and B. Sports fixtures and other years are left out.">
+    <Section title="school calendar" note="Upload each term's calendar PDF: the wall keeps term dates, your year's events, mocks and parents' evenings, and learns weeks A and B.">
       {!disabled && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           <Btn dark style={{ width: 190, height: 38 }} disabled={busy} onClick={() => pick("application/pdf", readPdf)}>{busy ? "reading…" : "upload calendar PDF"}</Btn>
@@ -468,7 +468,7 @@ function People({ snap, cfg, reload }: { snap: Snapshot; cfg: Config; reload: ()
         <Btn dark style={{ width: 120, height: 38, marginTop: 8 }} onClick={saveMe}>save</Btn>
       </Section>
 
-      <Section title="weekly commitments" note="Rehearsals, clubs, lessons outside school. Shown on your phone, known to the assistant, and homework is planned around them (an evening with rehearsal till six gets less).">
+      <Section title="weekly commitments" note="Rehearsals, clubs, lessons outside school. Homework is planned around them.">
         {list.map((a, i) => {
           const upd = (p: Partial<Activity>) => setActList(list.map((x, j) => (j === i ? { ...x, ...p } : x)));
           return (
@@ -493,7 +493,7 @@ function People({ snap, cfg, reload }: { snap: Snapshot; cfg: Config; reload: ()
         </div>
       </Section>
 
-      <Section title="your teachers" note="Matched from the codes on your timetable. The staff list stays on the wall only — it's never shown in the parent app. Emails from your teachers get filed under their subject.">
+      <Section title="your teachers" note="Matched from your timetable codes. Never shown in the parent app. Their emails are filed under their subject.">
         {(staff?.matches ?? []).map((m) => (
           <div key={m.code} style={{ display: "flex", gap: 10, alignItems: "center", height: 36, fontSize: 11, boxShadow: "inset 0 -1px 0 var(--c-17171d)" }}>
             <span style={{ width: 4, height: 16, borderRadius: 2, background: tint(m.subject) }} />
@@ -508,7 +508,7 @@ function People({ snap, cfg, reload }: { snap: Snapshot; cfg: Config; reload: ()
         <Btn dark style={{ width: 150, height: 38, marginTop: 8 }} disabled={!paste.trim()} onClick={addStaff}>add to staff list</Btn>
       </Section>
 
-      <Section title="birthdays" note="One per line, Name: DD/MM. Shown on the wall up to three days ahead. Also editable on your phone (settings › birthdays).">
+      <Section title="birthdays" note="One per line, Name: DD/MM. Shown on the wall three days ahead.">
         <textarea style={{ ...inp, width: "100%", height: 260, padding: 12, lineHeight: 1.55, resize: "vertical", fontFamily: "inherit" }} value={bd} onChange={(e) => setBd(e.target.value)} />
         <Btn dark style={{ width: 150, height: 38, marginTop: 8 }} onClick={saveBd}>save birthdays</Btn>
       </Section>
@@ -619,7 +619,7 @@ function Wall({ snap, cfg, reload, disabled }: { snap: Snapshot; cfg: Config; re
             {GEMINI_VOICES.map(([n, d]) => <option key={n} value={n}>{n} · {d}</option>)}
           </select>
         </div>
-        <div style={{ fontSize: 10, color: "var(--c-5f5f67)", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Every text request is routed to zero-data-retention providers that don't collect data; if none is free for the model it fails rather than falling back to one that keeps data. Web search and page reading run on OpenRouter (a few tenths of a penny a search, capped per question); searches only ever contain the topic, never your name or school, and sites blocked by a parent stay blocked. The tutor is a stronger model the assistant can ask on hard questions; it only sees the question. Big, expensive models (Claude, "pro" tiers) are blocked here: heavy jobs go to Claude Code on your computer instead. The monthly limit stops all cloud AI until next month (or until you raise it). Search over your notes, school stuff and calendar runs on the hub; only the few results a question needs go out with it. Voice notes are turned into text on the hub too. Spoken answers use the same voice as live chat (Gemini's cheapest speech model, about a tenth of a penny per answer, and each phrase is only paid for once). Talking to the wall uses Gemini Live when a key is set (Google keeps paid-tier requests briefly for abuse checks only, and doesn't train on them); without it, speech is turned into text on the hub and goes to the text model.</div>
+        <div style={{ fontSize: 10, color: "var(--c-5f5f67)", marginTop: 8, lineHeight: 1.5 }}>Keys live only on the hub (sudo nudge key openrouter | gemini | composio). Text goes only to zero-data-retention providers, and fails rather than falling back. Searches carry the topic, never your name or school. Big models are blocked; heavy jobs go to Claude Code on your computer. The monthly limit stops all cloud AI until next month. Details: docs/security.md.</div>
       </Section>
       {!disabled && <Apps />}
     </>
@@ -644,7 +644,7 @@ function Apps() {
   };
   const byKit = new Map(data.connected.map((c) => [c.toolkit, c]));
   return (
-    <Section title="connected apps" note="Let the assistant use your other apps (through Composio). Reading happens straight away; anything that would send, post, add or delete shows you exactly what it will do and waits for your yes. Sign-ins are held by Composio, not on the wall.">
+    <Section title="connected apps" note="Lets the assistant use your other apps through Composio. Reading is instant; anything that sends, posts, adds or deletes waits for your yes.">
       {!data.on && <div style={{ fontSize: 11, color: "var(--c-8e8e97)", marginBottom: 10 }}>Off — add a Composio key on the hub: <span style={{ fontFamily: DOTO, fontWeight: 900 }}>sudo nudge key composio</span></div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
         {[...data.suggested, ...data.toolkits.filter((t) => !data.suggested.some((x) => x.slug === t)).map((t) => ({ slug: t, name: t }))].map((t) => {

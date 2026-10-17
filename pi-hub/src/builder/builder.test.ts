@@ -4,6 +4,7 @@ import { Db } from "../db";
 import { Hub } from "../hub";
 import { builderService, buildSystem, estimateBuild, htmlFromText, iconFor } from "./builder";
 import { brandFont, checkLogo } from "../brand";
+import { applySetup, SetupPack } from "../setup";
 import { TOOL_TTL_MS } from "@nudge/shared";
 import type { OrClient } from "./openrouter";
 import { buildToolsServer, iconPng, injectHead } from "../tools-server";
@@ -153,11 +154,12 @@ describe("brand kit, style and keeping tools", () => {
     const plain = buildSystem({ style: null }, null);
     expect(plain).toContain("/brand/nudge.css");
     expect(plain).toContain("overrides the Nudge style");
-    expect(plain).not.toContain("/brand/logo");
-    const own = buildSystem({ style: "bright pastel, light theme, rounded comic font" }, { name: "peterzstudio" });
+    expect(plain).not.toContain("n-logo");
+    const own = buildSystem({ style: "bright pastel, light theme, rounded comic font" }, { name: "PeterZ Studio", logo: { w: 1, h: 1 }, wordmark: null });
     expect(own).toContain('"bright pastel, light theme, rounded comic font"');
     expect(own).toMatch(/overrides the Nudge style wherever they differ/);
-    expect(own).toContain("/brand/logo");
+    expect(own).toContain('class="n-logo" role="img" aria-label="PeterZ Studio"');
+    expect(own).not.toContain("n-wordmark");
     expect(own).toMatch(/never force it in/);
   });
 
@@ -229,10 +231,26 @@ describe("brand kit, style and keeping tools", () => {
     expect((await get("/brand/fonts/dm-mono-400.woff2")).headers["content-type"]).toBe("font/woff2");
     expect((await get("/brand/fonts/../../etc/passwd")).statusCode).not.toBe(200);
     expect((await get("/brand/logo")).statusCode).toBe(404);
-    hub.setBrandLogo({ ...checkLogo("image/svg+xml", new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>')), name: "peterzstudio" });
+    // no marks yet: the classes hide, so a tool that uses one shows nothing rather than a block
+    expect(css.body).toContain(".n-logo{display:none}");
+    hub.setBrandMark("logo", checkLogo("image/svg+xml", new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle r="4"/></svg>')), "PeterZ Studio");
+    hub.setBrandMark("wordmark", checkLogo("image/png", iconPng(192)));
+    const css2 = (await get("/brand/nudge.css")).body;
+    expect(css2).toContain("mask:url(/brand/logo)");
+    expect(css2).toMatch(/\.n-wordmark\{[^}]*aspect-ratio:192\/192/);
+    expect(hub.brandMarks()).toMatchObject({ name: "PeterZ Studio", logo: { w: 10, h: 10 }, wordmark: { w: 192, h: 192 } });
+    expect((await get("/brand/wordmark")).headers["content-type"]).toBe("image/png");
+    expect((await get("/brand/../hub.db")).statusCode).not.toBe(200);
     const logo = await get("/brand/logo");
     expect(logo.headers["content-type"]).toContain("image/svg+xml");
     expect(logo.headers["content-security-policy"]).toContain("default-src 'none'");
   });
-});
 
+  it("a setup pack can carry the studio's name and marks", () => {
+    const hub = new Hub(new Db(":memory:"));
+    const png = `data:image/png;base64,${iconPng(192).toString("base64")}`;
+    expect(applySetup(hub, SetupPack.parse({ brand: { name: "PeterZ Studio", logo: png, wordmark: png } }))).toEqual(["logo", "wordmark"]);
+    expect(hub.brandMarks()?.name).toBe("PeterZ Studio");
+    expect(() => applySetup(hub, SetupPack.parse({ brand: { name: "x", logo: `data:text/html;base64,${Buffer.from("<html><body>not an image at all</body></html>").toString("base64")}` } }))).toThrow(/PNG/);
+  });
+});

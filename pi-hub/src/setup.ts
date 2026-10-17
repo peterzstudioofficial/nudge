@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Activity, Birthday, CalEvent, FormTime, HomeworkPlan, SchoolDay, Settings, Teacher, TermDate, Timetable } from "@nudge/shared";
 import { type Hub, newId } from "./hub";
 import { remember } from "./agent/brain";
+import { BRAND_SLOTS, checkLogo } from "./brand";
 
 /** A setup file: everything personal that isn't in the code (timetable, staff, birthdays…). */
 export const SetupPack = z.object({
@@ -16,6 +17,14 @@ export const SetupPack = z.object({
   events: z.array(CalEvent.omit({ id: true, source: true })).max(1000).optional(),
   activities: z.array(Activity.omit({ id: true })).max(40).optional(),
   settings: Settings.pick({ ownerName: true, yearGroup: true, house: true, profile: true, interests: true }).partial().optional(),
+  /** the studio's name and marks (data: URLs) that built tools may use */
+  brand: z
+    .object({
+      name: z.string().trim().min(1).max(40),
+      logo: z.string().max(800_000).optional(),
+      wordmark: z.string().max(800_000).optional(),
+    })
+    .optional(),
   /** starting lines for the assistant's memory ("what Nudge knows about you") */
   memories: z.array(z.string().min(4).max(200)).max(60).optional(),
 });
@@ -41,6 +50,17 @@ export function applySetup(hub: Hub, pack: SetupPack): string[] {
     for (const e of pack.events) hub.events.put({ ...e, id: `cal:${newId().slice(0, 12)}`, source: "calendar" });
     done.push(`${pack.events.length} calendar dates`);
     hub.bus.changed("events");
+  }
+  if (pack.brand) {
+    const b = pack.brand;
+    for (const slot of BRAND_SLOTS) {
+      const url = b[slot];
+      if (!url) continue;
+      const m = /^data:([\w/+.-]+);base64,(.+)$/s.exec(url);
+      if (!m) throw new Error(`brand.${slot} must be a data: URL`);
+      hub.setBrandMark(slot, checkLogo(m[1], new Uint8Array(Buffer.from(m[2], "base64"))), b.name);
+      done.push(slot);
+    }
   }
   if (done.length) hub.feed("settings", `Setup imported: ${done.join(", ")}`);
   return done;

@@ -17,7 +17,7 @@ import { applySetup, SetupPack } from "./setup";
 import { spend } from "./agent/spend";
 import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
 import { estimateBuild, iconFor } from "./builder/builder";
-import { checkLogo } from "./brand";
+import { BRAND_SLOTS, checkLogo, type BrandSlot } from "./brand";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import { forget, memories, remember } from "./agent/brain";
 import { addDoc, docFile, listDocs, removeDoc } from "./rag/library";
@@ -524,7 +524,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   app.get("/api/tools", async (req) => {
     need(req, "notes");
     return {
-      origin: toolsOrigin(req), tools: hub.listTools(), pcOnline: hub.pcOnline(), logo: !!hub.brandLogo(),
+      origin: toolsOrigin(req), tools: hub.listTools(), pcOnline: hub.pcOnline(), logo: !!hub.brandMarks(),
       jobs: hub.activeJobs().map((j) => ({ ...j, request: { ...j.request, brief: j.request.brief.slice(0, 400) } })),
     };
   });
@@ -542,28 +542,38 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     hub.openToolOnComputer((req.params as { id: string }).id, b.install);
     return { ok: true };
   });
-  // The studio logo tools may use (see brand.ts): owner only, checked so an SVG can't carry scripts.
+  // The studio's marks tools may use (see brand.ts): owner only, checked so an SVG can't carry scripts.
   app.get("/api/brand", async (req) => {
     need(req, "notes");
-    const l = hub.brandLogo();
+    const marks = hub.brandMarks();
     // a data: preview, since the apps' own pages only show images from the hub itself
-    return { logo: l ? { name: l.name, mime: l.mime, bytes: l.data.length, at: l.at, preview: `data:${l.mime};base64,${Buffer.from(l.data).toString("base64")}` } : null };
+    const view = (slot: BrandSlot) => {
+      const m = hub.brandMark(slot);
+      return m ? { mime: m.mime, bytes: m.data.length, w: m.w, h: m.h, at: m.at, preview: `data:${m.mime};base64,${Buffer.from(m.data).toString("base64")}` } : null;
+    };
+    return { name: marks?.name ?? null, logo: view("logo"), wordmark: view("wordmark") };
   });
-  app.put("/api/brand/logo", async (req) => {
+  const slotOf = (req: FastifyRequest) => {
+    const slot = (req.params as { slot: string }).slot as BrandSlot;
+    if (!BRAND_SLOTS.includes(slot)) throw new HttpError(404, "logo or wordmark");
+    return slot;
+  };
+  app.put("/api/brand/:slot", async (req) => {
     need(req, "settings.owner");
+    const slot = slotOf(req);
     const b = parse(z.object({ name: z.string().trim().min(1).max(40), mime: z.string().max(80), data: z.string().max(800_000) }), req.body);
-    let logo;
+    let mark;
     try {
-      logo = checkLogo(b.mime, new Uint8Array(Buffer.from(b.data, "base64")));
+      mark = checkLogo(b.mime, new Uint8Array(Buffer.from(b.data, "base64")));
     } catch (e) {
       throw new HttpError(400, (e as Error).message);
     }
-    hub.setBrandLogo({ ...logo, name: b.name });
+    hub.setBrandMark(slot, mark, b.name);
     return { ok: true };
   });
-  app.delete("/api/brand/logo", async (req) => {
+  app.delete("/api/brand/:slot", async (req) => {
     need(req, "settings.owner");
-    hub.setBrandLogo(null);
+    hub.setBrandMark(slotOf(req), null);
     return { ok: true };
   });
   app.delete("/api/tools/:id", async (req) => {
@@ -861,7 +871,12 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   // One-shot setup file: timetable, bells, form time, homework plan, birthdays, staff, events, profile.
   app.post("/api/config/import", async (req) => {
     need(req, "settings.owner");
-    return { imported: applySetup(hub, parse(SetupPack, req.body)) };
+    const pack = parse(SetupPack, req.body);
+    try {
+      return { imported: applySetup(hub, pack) };
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message);
+    }
   });
   app.put("/api/config/terms", async (req) => (need(req, "settings.owner"), hub.setTerms(parse(z.array(TermDate).max(12), req.body)), { ok: true }));
   app.put("/api/config/timetable", async (req) => (need(req, "settings.owner"), hub.setTimetable(parse(Timetable, req.body)), { ok: true }));

@@ -10,7 +10,7 @@ import {
   type SchoolCtx, type WeekLetter, DAY_LONG, askNeedsHold, HOLD_MIN_SHOWN_MS,
 } from "@nudge/shared";
 import type { z } from "zod";
-import { brandGuide } from "./brand";
+import { brandGuide, type BrandMarks, type BrandSlot } from "./brand";
 import { Bus } from "./bus";
 import { Db } from "./db";
 import { HttpError, notFound, refuse } from "./errors";
@@ -1088,6 +1088,8 @@ export class Hub {
       this.deleteTool(t.id);
       gone.push(t.title);
     }
+    // "open this on the computer" asks the computer never picked up
+    for (const h of this.handoffs.all()) if (h.kind === "tool" && !h.doneAt && this.now() - h.createdAt > 10 * 60_000) this.handoffs.patch(h.id, (x) => ({ ...x, doneAt: this.now() }));
     if (gone.length) this.feed("agent", `Tidied away ${gone.length === 1 ? `"${gone[0]}"` : `${gone.length} tools`} (a week old, not kept)`);
     return gone;
   }
@@ -1117,20 +1119,28 @@ export class Hub {
     return t;
   }
 
-  /** The studio logo built tools may use (owner-uploaded; see brand.ts). */
-  brandLogo(): { mime: string; data: Uint8Array; name: string; at: number } | null {
-    const meta = this.db.kvGet<{ name: string; at: number } | null>("brandLogo", null);
-    const blob = meta ? this.db.blobGet("brand:logo") : null;
+  /** The studio's marks built tools may use (owner-uploaded, checked in brand.ts). */
+  brandMark(slot: BrandSlot): { mime: string; data: Uint8Array; w: number; h: number; at: number } | null {
+    const meta = this.db.kvGet<{ w: number; h: number; at: number } | null>(`brand:${slot}`, null);
+    const blob = meta ? this.db.blobGet(`brand:${slot}`) : null;
     return meta && blob ? { ...blob, ...meta } : null;
   }
-  setBrandLogo(logo: { mime: string; data: Uint8Array; name: string } | null): void {
-    if (logo) {
-      this.db.blobPut("brand:logo", logo.mime, logo.data);
-      this.db.kvSet("brandLogo", { name: logo.name, at: this.now() });
+  /** What the builder and the stylesheet need to know (null = no marks yet). */
+  brandMarks(): BrandMarks | null {
+    const logo = this.brandMark("logo"), wordmark = this.brandMark("wordmark");
+    if (!logo && !wordmark) return null;
+    const size = (m: typeof logo) => (m ? { w: m.w, h: m.h } : null);
+    return { name: this.db.kvGet("brandName", "my studio"), logo: size(logo), wordmark: size(wordmark) };
+  }
+  setBrandMark(slot: BrandSlot, mark: { mime: string; data: Uint8Array; w: number; h: number } | null, name?: string): void {
+    if (mark) {
+      this.db.blobPut(`brand:${slot}`, mark.mime, mark.data);
+      this.db.kvSet(`brand:${slot}`, { w: mark.w, h: mark.h, at: this.now() });
     } else {
-      this.db.blobDel("brand:logo");
-      this.db.kvSet("brandLogo", null);
+      this.db.blobDel(`brand:${slot}`);
+      this.db.kvSet(`brand:${slot}`, null);
     }
+    if (name?.trim()) this.db.kvSet("brandName", name.trim().slice(0, 40));
     this.bus.changed("tools");
   }
 
@@ -1223,7 +1233,7 @@ export function buildTaskForClaude(r: BuildRequest): string {
     "Rules:",
     "- Put the finished app in ./out/ with index.html as the entry point. Prefer ONE self-contained index.html (inline CSS/JS/SVG).",
     "- It must work offline: no CDNs, no external fonts, no network requests. Store data in localStorage.",
-    ...brandGuide({ style: r.style ?? null, logo: null, forClaude: true }).split("\n").map((l) => (l.startsWith("-") ? l : `- ${l}`)),
+    ...brandGuide({ style: r.style ?? null, marks: null, forClaude: true }).split("\n").map((l) => (l.startsWith("-") ? l : `- ${l}`)),
     "- Keep ./out under 5 MB. Don't install global packages or push anything anywhere.",
     "- Finish with a two-line summary of what you built.",
   ].join("\n");

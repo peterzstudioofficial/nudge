@@ -21,7 +21,8 @@ accounts or decisions only you can make. In order:
       a light should run across the matrix and the bar should fill.
 - [ ] Check `NUDGE_BAR_LEDS` in `/etc/nudge/gpio.env` matches your light bar.
 - [ ] Tailscale: scan the QR on first boot and sign in (free account).
-- [ ] Import your setup pack: `sudo nudge import nudge-setup.json`.
+- [ ] Import your setup pack: `sudo nudge import nudge-setup.json` (the file from the chat; it
+      also carries your logo and wordmark). Keep it private: it isn't in git.
 - [ ] Keys: `sudo nudge key openrouter` (or **Connect OpenRouter** in setup), `sudo nudge key gemini`
       for talking to it, optional `sudo nudge key composio` for Google Calendar, Notion and so on.
 
@@ -38,8 +39,8 @@ accounts or decisions only you can make. In order:
 
 ## 3b. Your own apps (tool builder)
 
-- [ ] Tools tab → **add your logo**: pick the peterzstudio logo (PNG with a transparent
-      background, or a plain SVG). Tools use it only where it fits.
+- [ ] Your logo and wordmark come in with the setup pack. Check them in Tools → **your logo**
+      (replace or remove there). Tools use them only where they fit, in their own text colour.
 - [ ] Ask tab → the small **widgets** button (left of the box) → finish "make me a tool that…",
       e.g. "…tests me on my Inspector Calls quotes". Check the cost, hold yes.
 - [ ] Want a different look? Say so ("light, pastel, like a film poster") or pick **my own look**
