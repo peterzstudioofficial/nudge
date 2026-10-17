@@ -39,10 +39,12 @@ export function useHubState() {
       b();
     };
   }, []);
+  // every second only while there is a session; otherwise twice a minute is plenty
   const [, force] = useState(0);
+  const counting = !!snap?.session; // running, paused or on a break: all show a live clock
   useEffect(() => {
-    const iv = setInterval(() => force((n) => n + 1), 1000);
+    const iv = setInterval(() => force((n) => n + 1), counting ? 1000 : 30_000);
     return () => clearInterval(iv);
-  }, []);
+  }, [counting]);
   return { snap, online };
 }

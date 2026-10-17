@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgentThread, Snapshot } from "@nudge/shared";
-import { getClient } from "../lib/hub";
+import { getClient, patchSettings } from "../lib/hub";
 import { openTool } from "../lib/native";
 import { D, Ms, haptic, toast, toastError } from "../lib/ui";
 import { AskCard } from "./AskCard";
@@ -105,7 +105,7 @@ export function ChatTab({ snap }: { snap: Snapshot }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 14, borderRadius: 14, background: "var(--c-13131a)", marginBottom: 14 }}>
           <Ms style={{ fontSize: 18, color: "var(--c-ff4d17)" }}>smart_toy</Ms>
           <span style={{ flex: 1, fontSize: 11, lineHeight: 1.45, color: "var(--c-b6b5af)" }}>The assistant is off.</span>
-          <button className="tap" onClick={() => void client.send("PATCH", "/api/settings", { ai: true }).then(() => client.snapshot()).catch(toastError)} style={{ border: 0, borderRadius: 10, padding: "8px 12px", background: "var(--c-ff4d17)", color: "var(--c-0b0b0d)", font: "inherit", fontSize: 10 }}>
+          <button className="tap" onClick={() => void patchSettings(client, { ai: true }).catch(toastError)} style={{ border: 0, borderRadius: 10, padding: "8px 12px", background: "var(--c-ff4d17)", color: "var(--c-0b0b0d)", font: "inherit", fontSize: 10 }}>
             turn on
           </button>
         </div>

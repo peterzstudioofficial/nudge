@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { glyphCell, glyphFrameAt, LIGHT_MOMENTS, type Glyph, type LightMoment, type LightPack } from "@nudge/shared";
-import { getClient, useHubGet, useSnapshot } from "../lib/hub";
+import { getClient, patchSettings, useHubGet, useSnapshot } from "../lib/hub";
 import { Ms, Sheet, toast, toastError } from "../lib/ui";
 
 const MOMENT_NAME: Record<LightMoment, string> = {
@@ -57,7 +57,7 @@ export function LightsSheet({ open, onClose }: { open: boolean; onClose: () => v
   const tapGlyph = async (ref: string) => {
     setPicked(ref);
     if (moment) {
-      await client.send("PATCH", "/api/settings", { lightMap: { ...map, [moment]: ref } }).catch(toastError);
+      await patchSettings(client, { lightMap: { ...map, [moment]: ref } }).catch(toastError);
       void client.snapshot();
       toast("light_mode", `${ref} for ${MOMENT_NAME[moment]}`);
       setMoment(null);
@@ -68,7 +68,7 @@ export function LightsSheet({ open, onClose }: { open: boolean; onClose: () => v
   const clearMoment = async (m: LightMoment) => {
     const next = { ...map };
     delete next[m];
-    await client.send("PATCH", "/api/settings", { lightMap: next }).catch(toastError);
+    await patchSettings(client, { lightMap: next }).catch(toastError);
     void client.snapshot();
     setMoment(null);
   };

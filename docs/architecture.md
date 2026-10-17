@@ -95,9 +95,11 @@ The steps are `vault` → `reader` → `extract` → `classify` → `actions`:
   which builds in `Documents/Nudge Builds/<job>` and uploads `out/`.
 - `brand.ts` is the Nudge look for tools: `/brand/nudge.css` (tokens, the three fonts, a few
   components, the Nudge motion, light/dark, reduced motion), the fonts themselves (copied next to
-  the bundle by `build.mjs`) and the optional studio logo at `/brand/logo`, all on the tools
-  origin. The builder is told to use them by default and to follow the request's own look
-  (`style`, or anything the brief says) wherever it differs. The logo is "only where it fits".
+  the bundle by `build.mjs`) and the studio's logo and wordmark at `/brand/logo` and
+  `/brand/wordmark` (from the setup pack; nothing in the apps changes them), all on the tools
+  origin. One-colour marks are drawn as masks in the text colour (`.n-logo`, `.n-wordmark`). The
+  builder uses all this by default and follows the request's own look (`style`, or anything the
+  brief says) wherever it differs. The marks are "only where they fit".
 - Tools have `keep` / `expiresAt`: not kept means it goes a week after its last build (a new
   version restarts the week). `hub.sweepTools()` runs hourly. Tools from before this are kept.
 - "Open on my computer" is a `tool` hand-off: the Windows app opens the tool in its own window

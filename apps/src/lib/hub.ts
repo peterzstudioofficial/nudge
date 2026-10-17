@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { HubClient, localKV, type Snapshot, type Role } from "@nudge/shared";
+import { HubClient, localKV, type Settings, type Snapshot, type Role } from "@nudge/shared";
 import { localMode, localNotesClient, setLocalMode, uploadLocalNotes } from "./localNotes";
 
 /**
@@ -91,12 +91,23 @@ export function useSnapshot(client: HubClient | null): { snap: Snapshot | null; 
     () => client?.last ?? null,
   );
   useEffect(() => (client ? client.onStatus(setOnline) : undefined), [client]);
-  // tick so countdowns move
+  // Tick so countdowns move: every second only while there is a session, otherwise twice a
+  // minute (for "now" / "in 5 min"), and never while the app is in the background. A whole-app
+  // re-render every second made scrolling and animations stutter for nothing.
   const [, force] = useState(0);
+  const counting = !!snap?.session; // running, paused or on a break: all show a live clock
   useEffect(() => {
-    const iv = setInterval(() => force((n) => n + 1), 1000);
-    return () => clearInterval(iv);
-  }, []);
+    const ms = counting ? 1000 : 30_000;
+    let iv = 0;
+    const start = () => {
+      window.clearInterval(iv);
+      if (document.visibilityState === "visible") iv = window.setInterval(() => force((n) => n + 1), ms);
+    };
+    const onVis = () => (start(), document.visibilityState === "visible" && force((n) => n + 1));
+    start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => (window.clearInterval(iv), document.removeEventListener("visibilitychange", onVis));
+  }, [counting]);
   return { snap, online };
 }
 
@@ -136,4 +147,17 @@ export function useHubGet<T>(client: HubClient | null, path: string | null, deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, path, n, ...deps]);
   return { data, reload: () => setN((x) => x + 1) };
+}
+
+/**
+ * Change settings with the switch moving at once (optimistic); the hub's answer then confirms it,
+ * or puts it back and the error is shown.
+ */
+export async function patchSettings(client: HubClient, p: Partial<Settings>): Promise<void> {
+  client.optimistic((s) => ({ ...s, settings: { ...s.settings, ...p } }));
+  try {
+    await client.send("PATCH", "/api/settings", p);
+  } finally {
+    void client.snapshot().catch(() => {});
+  }
 }

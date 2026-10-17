@@ -3,7 +3,7 @@ import {
   addDays, dateKey, mmss, relativeDay, sessionView, SUBJECT_NAMES, tint, type Device, type FeedEvent, type Settings,
   type Snapshot, type Task, type Template,
 } from "@nudge/shared";
-import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
+import { getClient, patchSettings, savePairing, useHubGet, useSnapshot } from "../lib/hub";
 import { Btn, D, DOTO, Field, haptic, inputStyle, Ms, Sheet, toast, toastError } from "../lib/ui";
 
 /** "parent app — rewards and progress." Light theme, from "Nudge Apps.dc.html". */
@@ -104,7 +104,7 @@ function RewardTab({ snap, openRules }: { snap: Snapshot; openRules: () => void 
             <span style={{ fontSize: 10 }}>{row.k}</span>
             <span style={{ flex: 1 }} />
             {pts === row.key ? (
-              <Stepper value={row.v} min={0} max={row.key === "pointsStart" ? 10 : 20} onChange={(v) => void client.send("PATCH", "/api/settings", { [row.key]: v }).then(() => client.snapshot()).catch(toastError)} prefix="+" />
+              <Stepper value={row.v} min={0} max={row.key === "pointsStart" ? 10 : 20} onChange={(v) => void patchSettings(client, { [row.key]: v }).catch(toastError)} prefix="+" />
             ) : (
               <span style={{ fontFamily: DOTO, fontWeight: 900, fontSize: 15, paddingRight: 7 }}>+{row.v}</span>
             )}
@@ -379,7 +379,7 @@ function RulesSheet({ open, onClose, snap, onUnpair }: { open: boolean; onClose:
   const [gateName, setGateName] = useState("");
   const [gateSubject, setGateSubject] = useState("art");
   const [appName, setAppName] = useState("");
-  const set = (p: Partial<Settings>) => void client.send("PATCH", "/api/settings", p).then(() => client.snapshot()).catch(toastError);
+  const set = (p: Partial<Settings>) => void patchSettings(client, p).catch(toastError);
   const makeCode = async (role: "parent" | "owner") => {
     try {
       const r = await client.send<{ code: string }>("POST", "/api/pairing-codes", { role });

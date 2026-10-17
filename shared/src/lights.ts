@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { GlyphFrame } from "./glyphDraw";
 
 /**
  * Content for the 5×5 light matrix.
@@ -38,28 +39,7 @@ export const LightPack = z
   .refine((p) => new Set(p.glyphs.map((g) => g.name)).size === p.glyphs.length, "glyph names must be different");
 export type LightPack = z.infer<typeof LightPack>;
 
-/** What the light daemon gets: just enough to draw it. */
-export interface GlyphFrame {
-  palette: string[];
-  frames: string[];
-  fps: number;
-  loop: boolean;
-  fade: boolean;
-}
 export const glyphFrame = (g: Glyph): GlyphFrame => ({ palette: g.palette, frames: g.frames, fps: g.fps, loop: g.loop, fade: g.fade });
-
-/** The colour of a cell at frame `f` ("" for off). */
-export function glyphCell(g: GlyphFrame, f: number, i: number): string {
-  const ch = g.frames[f % g.frames.length][i];
-  return ch === "." ? "" : g.palette[Number(ch) - 1] ?? "";
-}
-
-/** Which frame is showing `ms` after it started (the last one stays up if it doesn't loop). */
-export function glyphFrameAt(g: GlyphFrame, ms: number): number {
-  if (g.frames.length < 2) return 0;
-  const n = Math.floor((ms / 1000) * g.fps);
-  return g.loop ? n % g.frames.length : Math.min(n, g.frames.length - 1);
-}
 
 /* ---------------------------------- text ---------------------------------- */
 
@@ -202,9 +182,3 @@ export function findGlyph(ref: string, packs: LightPack[]): Glyph | null {
   return BUILTIN_GLYPHS.find((x) => x.name === a) ?? null;
 }
 
-/**
- * Wall moments a glyph can take over (Settings → lights): when one happens, the mapped glyph
- * plays instead of the built-in pattern. Never during a focus session.
- */
-export const LIGHT_MOMENTS = ["idle", "award", "unlock", "listen", "voice", "alarm", "bag", "timer"] as const;
-export type LightMoment = (typeof LIGHT_MOMENTS)[number];

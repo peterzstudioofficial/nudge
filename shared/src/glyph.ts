@@ -1,4 +1,5 @@
-import { askNeedsHold, type Ask, type Session } from "./model";
+import type { Ask, Session } from "./model";
+import { askNeedsHold } from "./hold";
 import { sessionView } from "./rules";
 
 /**

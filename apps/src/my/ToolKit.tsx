@@ -3,7 +3,7 @@ import type { JobBrief, Snapshot, ToolInfo } from "@nudge/shared";
 import { getClient, useHubGet } from "../lib/hub";
 import { openTool } from "../lib/native";
 import { glyphFlash } from "../lib/glyph";
-import { D, Ms, Sheet, haptic, inputStyle, toast, toastError } from "../lib/ui";
+import { Ms, Sheet, haptic, toast, toastError } from "../lib/ui";
 
 /**
  * The pieces shared by the Tools tab and the Ask tab: a tool's icon, its "keep / goes in 5 days"
@@ -11,14 +11,16 @@ import { D, Ms, Sheet, haptic, inputStyle, toast, toastError } from "../lib/ui";
  * live build card, and the studio-logo sheet.
  */
 
+/** how long an unkept tool stays (the hub decides; this is only for the instant switch) */
+const WEEK = 7 * 86400_000;
+
 export interface ToolsInfo {
   origin: string;
   pcOnline: boolean;
-  logo: boolean;
 }
-export function useToolsInfo(snap: Snapshot, also: unknown = null) {
+export function useToolsInfo(snap: Snapshot) {
   const client = getClient("owner")!;
-  return useHubGet<ToolsInfo>(client, "/api/tools", [snap.tools.length, snap.tools[0]?.updatedAt, snap.jobs.length, also]).data;
+  return useHubGet<ToolsInfo>(client, "/api/tools", [snap.tools.length, snap.tools[0]?.updatedAt, snap.jobs.length]).data;
 }
 
 export const toolUrl = (info: ToolsInfo | null, t: ToolInfo) => (info ? `${info.origin}/t/${t.id}/` : null);
@@ -61,12 +63,15 @@ export function KeepPill({ t }: { t: ToolInfo }) {
 export async function setKeep(t: ToolInfo, keep: boolean) {
   const client = getClient("owner")!;
   haptic(keep ? "confirm" : "tick");
+  // the switch moves under the finger; the hub's answer confirms it (or puts it back)
+  client.optimistic((s) => ({ ...s, tools: s.tools.map((x) => (x.id === t.id ? { ...x, keep, expiresAt: keep ? null : Date.now() + WEEK } : x)) }));
   try {
     await client.send("PATCH", `/api/tools/${t.id}`, { keep });
     toast(keep ? "bookmark_added" : "schedule", keep ? `keeping ${t.title.toLowerCase()}` : "it'll tidy itself away in a week");
     void client.snapshot();
   } catch (e) {
     toastError(e);
+    void client.snapshot().catch(() => {});
   }
 }
 
@@ -237,88 +242,5 @@ export function BuildCard({ job, snap, info }: { job: JobBrief; snap: Snapshot; 
         </div>
       )}
     </div>
-  );
-}
-
-/* ---------------------------------- logo ---------------------------------- */
-
-type Mark = { mime: string; bytes: number; w: number; h: number; at: number; preview: string } | null;
-const SLOTS = [
-  { slot: "logo", label: "logo", hint: "the round mark", h: 64 },
-  { slot: "wordmark", label: "wordmark", hint: "the wide one", h: 34 },
-] as const;
-
-/** A one-colour mark drawn in the text colour, so a black or a white logo shows on either theme. */
-function MarkPreview({ m, h }: { m: Mark; h: number }) {
-  if (!m) return <span style={{ fontSize: 10, color: "var(--c-5f5f67)" }}>none yet</span>;
-  const mask = `url("${m.preview}") center/contain no-repeat`;
-  return <span key={m.at} role="img" aria-label="preview" style={{ display: "block", height: h, aspectRatio: `${m.w}/${m.h}`, maxWidth: "100%", background: "var(--c-f4f3ef)", WebkitMask: mask, mask, animation: "popIn .5s cubic-bezier(.34,1.56,.64,1) both" }} />;
-}
-
-/** The studio's marks the builder may use (only where they fit). Owner only; checked on the hub. */
-export function BrandSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const client = getClient("owner")!;
-  const { data, reload } = useHubGet<{ name: string | null; logo: Mark; wordmark: Mark }>(client, open ? "/api/brand" : null, [open]);
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
-  const file = useRef<HTMLInputElement>(null);
-  const [slot, setSlot] = useState<"logo" | "wordmark">("logo");
-  useEffect(() => void setName(data?.name ?? ""), [data?.name]);
-
-  const upload = async (f: File) => {
-    if (f.size > 512 * 1024) return toast("image", "too big (512 KB max)");
-    setBusy(slot);
-    try {
-      const b64 = await new Promise<string>((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(String(r.result).split(",")[1] ?? "");
-        r.onerror = () => rej(r.error);
-        r.readAsDataURL(f);
-      });
-      await client.send("PUT", `/api/brand/${slot}`, { name: name.trim() || "my studio", mime: f.type || "application/octet-stream", data: b64 });
-      haptic("confirm");
-      reload();
-    } catch (e) {
-      toastError(e);
-    } finally {
-      setBusy(null);
-      if (file.current) file.current.value = "";
-    }
-  };
-  const remove = async (s: string) => {
-    await client.send("DELETE", `/api/brand/${s}`).catch(toastError);
-    reload();
-  };
-
-  return (
-    <Sheet open={open} onClose={onClose} title="your logo" dark>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <input style={{ ...inputStyle(true), width: "100%" }} placeholder="studio name" aria-label="studio name" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-        <input ref={file} type="file" accept="image/png,image/svg+xml,image/webp,image/jpeg" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
-        {SLOTS.map((x) => {
-          const m = data?.[x.slot] ?? null;
-          return (
-            <div key={x.slot} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, background: "var(--c-101017)" }}>
-              <div style={{ flex: 1, minWidth: 0, height: 72, display: "flex", alignItems: "center" }}>
-                <MarkPreview m={m} h={x.h} />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                <span className="tap" role="button" onClick={() => (setSlot(x.slot), file.current?.click())} style={{ fontSize: 11, color: "var(--c-ff4d17)", opacity: busy === x.slot ? 0.5 : 1 }}>
-                  {busy === x.slot ? "checking…" : m ? `replace ${x.label}` : `add ${x.label}`}
-                </span>
-                {m ? (
-                  <span className="tap" role="button" onClick={() => void remove(x.slot)} style={{ fontSize: 10, color: "var(--c-6d6d77)" }}>remove</span>
-                ) : (
-                  <span style={{ fontSize: 9, color: "var(--c-5f5f67)" }}>{x.hint}</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        <div style={{ fontSize: 9.5, color: "var(--c-5f5f67)", lineHeight: 1.6 }}>
-          One-colour PNG or SVG with a transparent background, up to 512 KB. Tools show it in their own text colour, only where it fits.
-        </div>
-      </div>
-    </Sheet>
   );
 }

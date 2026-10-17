@@ -10,4 +10,6 @@ export * from "./client";
 export * from "./school";
 export * from "./focus";
 export * from "./lights";
+export * from "./glyphDraw";
+export * from "./hold";
 export * from "./glyph";

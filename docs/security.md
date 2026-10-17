@@ -97,8 +97,9 @@ It uses Peter's real Microsoft session, so it's fenced in several ways.
   it to the home screen. On the computer it opens in its own window with its own storage
   (separate from the Nudge apps), or from a desktop shortcut; nothing installs without a tap.
 - The brand kit (stylesheet, fonts, logo) is served from the tools origin, so tools never need
-  the internet for it. The logo is owner-only to change, 512 KB max, must really be a PNG, JPEG,
-  WebP or SVG, and SVGs with scripts, event handlers, embedded pages or links out are refused.
+  the internet for it. The logo and wordmark only come in with the setup pack (no app can change
+  them); each is 512 KB max, must really be a PNG, JPEG, WebP or SVG, and SVGs with scripts,
+  event handlers, embedded pages or links out are refused.
   It's served with a CSP that runs nothing even if opened on its own.
 - Tools you don't keep are deleted a week after their last build (files and all). Tools made
   before this rule are kept.

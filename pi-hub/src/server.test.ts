@@ -181,25 +181,17 @@ describe("built tools: keep, logo, open on the computer", () => {
     expect((await inject("PATCH", "/api/tools/nope", { token: owner, body: { keep: true } })).statusCode).toBe(404);
   });
 
-  it("takes a plain logo and refuses one with a script in it", async () => {
+  it("the logos only come in with the setup pack, and a bad one is refused", async () => {
     const owner = await pairAs("owner");
-    const b64 = (s: string) => Buffer.from(s).toString("base64");
-    const bad = await inject("PUT", "/api/brand/logo", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') } });
+    const url = (svg: string) => `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+    const bad = await inject("POST", "/api/config/import", { token: owner, body: { brand: { name: "studio", logo: url('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') } } });
     expect(bad.statusCode).toBe(400);
     expect(bad.json().error).toMatch(/scripts/);
-    const ok = await inject("PUT", "/api/brand/logo", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>') } });
-    expect(ok.statusCode).toBe(200);
-    const got = (await inject("GET", "/api/brand", { token: owner })).json();
-    expect(got).toMatchObject({ name: "studio", logo: { mime: "image/svg+xml" }, wordmark: null });
-    expect(got.logo.preview).toMatch(/^data:image\/svg\+xml;base64,/);
-    const wide = await inject("PUT", "/api/brand/wordmark", { token: owner, body: { name: "studio", mime: "image/svg+xml", data: b64('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 100"><rect width="600" height="100"/></svg>') } });
-    expect(wide.statusCode).toBe(200);
-    expect((await inject("GET", "/api/brand", { token: owner })).json().wordmark).toMatchObject({ w: 600, h: 100 });
-    expect((await inject("PUT", "/api/brand/favicon", { token: owner, body: { name: "x", mime: "image/png", data: "" } })).statusCode).toBe(404);
-    expect((await inject("PUT", "/api/brand/logo", { token: await pairAs("parent"), body: { name: "x", mime: "image/png", data: "" } })).statusCode).toBe(403);
-    await inject("DELETE", "/api/brand/logo", { token: owner });
-    await inject("DELETE", "/api/brand/wordmark", { token: owner });
-    expect((await inject("GET", "/api/brand", { token: owner })).json()).toMatchObject({ logo: null, wordmark: null });
+    const ok = await inject("POST", "/api/config/import", { token: owner, body: { brand: { name: "studio", logo: url('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle r="4"/></svg>'), wordmark: url('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 100"><rect width="600" height="100"/></svg>') } } });
+    expect(ok.json().imported).toEqual(["logo", "wordmark"]);
+    expect(hub.brandMarks()).toMatchObject({ name: "studio", logo: { w: 10, h: 10 }, wordmark: { w: 600, h: 100 } });
+    // nothing on the phone can change them
+    expect((await inject("PUT", "/api/brand/logo", { token: owner, body: { name: "x", mime: "image/png", data: "" } })).statusCode).toBe(404);
   });
 
   it("only sends a tool to the computer when it's on", async () => {

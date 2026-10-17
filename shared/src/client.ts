@@ -192,6 +192,16 @@ export class HubClient {
     return s;
   }
 
+  /**
+   * Show a change straight away, before the hub answers, so switches and ticks move under the
+   * finger. Not saved: the next snapshot from the hub is the truth and replaces it.
+   */
+  optimistic(change: (s: Snapshot) => Snapshot): void {
+    if (!this.last) return;
+    this.last = change(this.last);
+    for (const l of this.snapListeners) l(this.last);
+  }
+
   onSnapshot(l: Listener<Snapshot>) {
     this.snapListeners.add(l);
     return () => void this.snapListeners.delete(l);

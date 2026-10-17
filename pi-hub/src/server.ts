@@ -17,7 +17,6 @@ import { applySetup, SetupPack } from "./setup";
 import { spend } from "./agent/spend";
 import { openRouterKeyInfo, openRouterExchange } from "./agent/llm";
 import { estimateBuild, iconFor } from "./builder/builder";
-import { BRAND_SLOTS, checkLogo, type BrandSlot } from "./brand";
 import { SUGGESTED_TOOLKITS } from "./agent/composio";
 import { forget, memories, remember } from "./agent/brain";
 import { addDoc, docFile, listDocs, removeDoc } from "./rag/library";
@@ -524,7 +523,7 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
   app.get("/api/tools", async (req) => {
     need(req, "notes");
     return {
-      origin: toolsOrigin(req), tools: hub.listTools(), pcOnline: hub.pcOnline(), logo: !!hub.brandMarks(),
+      origin: toolsOrigin(req), tools: hub.listTools(), pcOnline: hub.pcOnline(),
       jobs: hub.activeJobs().map((j) => ({ ...j, request: { ...j.request, brief: j.request.brief.slice(0, 400) } })),
     };
   });
@@ -540,40 +539,6 @@ export async function buildServer(ctx: Ctx, opts: { tls?: boolean } = {}): Promi
     const b = parse(z.object({ install: z.boolean().default(false) }), req.body ?? {});
     if (!hub.pcOnline()) throw new HttpError(409, "your computer isn't on (or Nudge isn't running on it)");
     hub.openToolOnComputer((req.params as { id: string }).id, b.install);
-    return { ok: true };
-  });
-  // The studio's marks tools may use (see brand.ts): owner only, checked so an SVG can't carry scripts.
-  app.get("/api/brand", async (req) => {
-    need(req, "notes");
-    const marks = hub.brandMarks();
-    // a data: preview, since the apps' own pages only show images from the hub itself
-    const view = (slot: BrandSlot) => {
-      const m = hub.brandMark(slot);
-      return m ? { mime: m.mime, bytes: m.data.length, w: m.w, h: m.h, at: m.at, preview: `data:${m.mime};base64,${Buffer.from(m.data).toString("base64")}` } : null;
-    };
-    return { name: marks?.name ?? null, logo: view("logo"), wordmark: view("wordmark") };
-  });
-  const slotOf = (req: FastifyRequest) => {
-    const slot = (req.params as { slot: string }).slot as BrandSlot;
-    if (!BRAND_SLOTS.includes(slot)) throw new HttpError(404, "logo or wordmark");
-    return slot;
-  };
-  app.put("/api/brand/:slot", async (req) => {
-    need(req, "settings.owner");
-    const slot = slotOf(req);
-    const b = parse(z.object({ name: z.string().trim().min(1).max(40), mime: z.string().max(80), data: z.string().max(800_000) }), req.body);
-    let mark;
-    try {
-      mark = checkLogo(b.mime, new Uint8Array(Buffer.from(b.data, "base64")));
-    } catch (e) {
-      throw new HttpError(400, (e as Error).message);
-    }
-    hub.setBrandMark(slot, mark, b.name);
-    return { ok: true };
-  });
-  app.delete("/api/brand/:slot", async (req) => {
-    need(req, "settings.owner");
-    hub.setBrandMark(slotOf(req), null);
     return { ok: true };
   });
   app.delete("/api/tools/:id", async (req) => {

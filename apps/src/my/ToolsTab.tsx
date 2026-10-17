@@ -3,7 +3,7 @@ import type { Snapshot, ToolInfo } from "@nudge/shared";
 import { getClient } from "../lib/hub";
 import { Ms, Sheet, haptic, inputStyle, toast, toastError } from "../lib/ui";
 import { AskCard } from "./AskCard";
-import { BrandSheet, BuildCard, KeepPill, Switch, ToolIcon, ToolSheet, launch, useToolsInfo } from "./ToolKit";
+import { BuildCard, KeepPill, Switch, ToolIcon, ToolSheet, launch, useToolsInfo } from "./ToolKit";
 
 /**
  * Tools the assistant built for you. Tap one to open it; hold (or tap ⋯) for the rest: add it to
@@ -13,9 +13,7 @@ import { BrandSheet, BuildCard, KeepPill, Switch, ToolIcon, ToolSheet, launch, u
 export function ToolsTab({ snap }: { snap: Snapshot }) {
   const [asking, setAsking] = useState<{ improve: ToolInfo | null } | null>(null);
   const [picked, setPicked] = useState<ToolInfo | null>(null);
-  const [brand, setBrand] = useState(false);
-  // re-read when the logo sheet closes, so "add your logo" turns into "your logo"
-  const info = useToolsInfo(snap, brand);
+  const info = useToolsInfo(snap);
   const builds = snap.asks.filter((a) => a.kind === "build");
   // finished builds show up as the tool itself (glowing for a moment); failures stay for an hour
   const jobs = snap.jobs.filter((j) => j.status !== "done" && (!["failed", "cancelled"].includes(j.status) || Date.now() - j.updatedAt < 3600_000));
@@ -40,17 +38,11 @@ export function ToolsTab({ snap }: { snap: Snapshot }) {
       <button className="tap" onClick={() => setAsking({ improve: null })} style={{ ...btn(false), flex: "none", height: 46, marginTop: 4 }}>
         <Ms style={{ fontSize: 16, verticalAlign: "-3px", marginRight: 6 }}>add</Ms>ask for a tool
       </button>
-      <div className="tap" role="button" onClick={() => setBrand(true)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", fontSize: 10.5, color: "var(--c-8e8e97)" }}>
-        <Ms style={{ fontSize: 16, color: "var(--c-6d6d77)" }}>verified</Ms>
-        <span style={{ flex: 1 }}>{info?.logo ? "your logo" : "add your logo"}</span>
-        <Ms style={{ fontSize: 15, color: "var(--c-43434c)" }}>chevron_right</Ms>
-      </div>
       <div style={{ fontSize: 9, color: "var(--c-5f5f67)", lineHeight: 1.6, padding: "0 4px" }}>
         Tools work offline and can't reach the internet. Ones you don't keep go after a week.
       </div>
       <NewTool open={!!asking} improve={asking?.improve ?? null} onClose={() => setAsking(null)} />
       <ToolSheet t={live} info={info} onClose={() => setPicked(null)} onImprove={(t) => setAsking({ improve: t })} />
-      <BrandSheet open={brand} onClose={() => setBrand(false)} />
     </div>
   );
 }

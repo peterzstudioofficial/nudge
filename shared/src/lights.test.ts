@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BUILTIN_GLYPHS, findGlyph, Glyph, glyphCell, glyphFrame, glyphFrameAt, LightPack, textGlyph } from "./lights";
+import { BUILTIN_GLYPHS, findGlyph, Glyph, glyphFrame, LightPack, textGlyph } from "./lights";
+import { glyphCell, glyphFrameAt } from "./glyphDraw";
 
 describe("lights", () => {
   it("every built-in glyph is valid, with unique names", () => {

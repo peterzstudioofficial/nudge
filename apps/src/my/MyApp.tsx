@@ -4,7 +4,7 @@ import {
   addDays, dateKey, DAY_SHORT, hhmm, MONTH_LONG, MONTH_SHORT, parseDateKey, tint, type Snapshot, type DayState, type Task,
   type Settings, type CalEvent, type Birthday, SUBJECT_NAMES, dueLabel, relativeDay,
 } from "@nudge/shared";
-import { getClient, savePairing, useHubGet, useSnapshot } from "../lib/hub";
+import { getClient, patchSettings, savePairing, useHubGet, useSnapshot } from "../lib/hub";
 import { D, DOTO, Ms, Sheet, haptic, inputStyle, toast, toastError } from "../lib/ui";
 import { native } from "../lib/native";
 import { PhoneLock, togglePhoneLock, usePhoneLock } from "./PhoneLock";
@@ -185,7 +185,7 @@ function Today({ snap }: { snap: Snapshot }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 9, letterSpacing: ".12em", color: "var(--c-6d6d77)" }}>
         <span style={{ whiteSpace: "nowrap" }}>{snap.bank}/{snap.reward.goal} · {snap.reward.name.toUpperCase()}</span>
         <span style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--c-1c1c23)", overflow: "hidden" }}>
-          <span style={{ display: "block", height: 3, width: pct + "%", borderRadius: 2, background: "var(--c-ff4d17)", transition: "width .8s cubic-bezier(.4,0,.2,1)" }} />
+          <span style={{ display: "block", height: 3, width: "100%", borderRadius: 2, background: "var(--c-ff4d17)", transform: `scaleX(${pct / 100})`, transformOrigin: "left", transition: "transform .8s cubic-bezier(.32,.72,0,1)" }} />
         </span>
         {evening && bagLeft > 0 && snap.tomorrow.kind === "school" && <span style={{ whiteSpace: "nowrap", color: "var(--c-8e8e97)" }}>{bagLeft} TO PACK</span>}
       </div>
@@ -454,8 +454,7 @@ function SettingsTab({ snap, onUnpair }: { snap: Snapshot; onUnpair: () => void 
   const s = snap.settings;
   const set = async (p: Partial<Settings>) => {
     try {
-      await client.send("PATCH", "/api/settings", p);
-      void client.snapshot();
+      await patchSettings(client, p);
     } catch (e) {
       toastError(e);
     }

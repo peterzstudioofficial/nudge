@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -18,6 +19,9 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState); // BridgeActivity passes the launch intent to onNewIntent
 
         WebView web = getBridge().getWebView();
+        // Same colour as the launch screen and the app's own background (light or dark like the
+        // phone), so there's no flash between the splash and the first frame.
+        web.setBackgroundColor(ContextCompat.getColor(this, R.color.nudge_bg));
         // Android 15+ draws apps edge to edge: keep the app clear of the status bar, the camera
         // cut-out and the gesture bar, and above the keyboard while typing. The strips behind
         // the bars take the app's own background (set from the web side with setBars).

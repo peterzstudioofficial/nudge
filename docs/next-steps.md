@@ -39,8 +39,8 @@ accounts or decisions only you can make. In order:
 
 ## 3b. Your own apps (tool builder)
 
-- [ ] Your logo and wordmark come in with the setup pack. Check them in Tools → **your logo**
-      (replace or remove there). Tools use them only where they fit, in their own text colour.
+- Your logo and wordmark come in with the setup pack; nothing to do. Tools use them only where
+  they fit, in their own text colour.
 - [ ] Ask tab → the small **widgets** button (left of the box) → finish "make me a tool that…",
       e.g. "…tests me on my Inspector Calls quotes". Check the cost, hold yes.
 - [ ] Want a different look? Say so ("light, pastel, like a film poster") or pick **my own look**

@@ -733,7 +733,7 @@ function WallCard({ n, snap, onClose, onSent }: { n: Note; snap: Snapshot; onClo
                     <span key={"h" + i} style={{ position: "absolute", left: i * PX, bottom: 11, transform: "translateX(-50%)", fontFamily: DOTO, fontWeight: 900, fontSize: 11, color: "var(--c-6f6f78)" }}>{String((H0.getHours() + i) % 24).padStart(2, "0")}</span>
                   ))}
                   {opts.map((o) => (
-                    <span key={o.id} style={{ position: "absolute", left: x(o.at), top: 44, width: o.id === nearest.id ? 12 : 8, height: o.id === nearest.id ? 12 : 8, transform: "translate(-50%,-50%)", borderRadius: "50%", background: o.id === nearest.id ? "var(--c-ff4d17)" : "var(--c-f4f3ef)", transition: "width .25s,height .25s,background-color .25s" }} />
+                    <span key={o.id} style={{ position: "absolute", left: x(o.at), top: 44, width: 12, height: 12, transform: `translate(-50%,-50%) scale(${o.id === nearest.id ? 1 : 0.667})`, borderRadius: "50%", background: o.id === nearest.id ? "var(--c-ff4d17)" : "var(--c-f4f3ef)", transition: "transform .25s cubic-bezier(.32,.72,0,1),background-color .25s" }} />
                   ))}
                 </div>
                 <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 70, background: "linear-gradient(90deg,var(--c-17171b),var(--c-17171b00))", pointerEvents: "none" }} />
